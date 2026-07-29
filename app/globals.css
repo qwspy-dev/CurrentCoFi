@@ -30,7 +30,9 @@
 .hero-film-poster,.hero-film-video{position:absolute;inset:-5%;width:110%;height:110%;object-fit:cover;object-position:62% center;filter:saturate(.84) contrast(1.08) brightness(.72);transform:scale(1.05)}
 .hero-film-poster{opacity:.72}
 .hero-film-video{opacity:0;transition:opacity .7s ease;will-change:opacity}
-.hero-film-playing .hero-film-video{opacity:.72}
+.hero-film-playing .hero-film-intro{opacity:.72}
+.hero-film-intro-finished{opacity:0!important}
+.hero-film-loop-active{opacity:.72}
 .hero-film-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(1,10,20,.96) 0%,rgba(2,17,29,.89) 27%,rgba(2,20,33,.53) 54%,rgba(2,18,30,.2) 76%,rgba(1,12,23,.42) 100%),linear-gradient(180deg,rgba(1,10,20,.66) 0,transparent 23%,transparent 67%,rgba(1,10,20,.88) 100%),radial-gradient(circle at 66% 48%,rgba(24,215,201,.12),transparent 34%);pointer-events:none}
 .hero-cinematic .top-nav{max-width:none;padding-left:clamp(28px,5vw,78px);padding-right:clamp(28px,5vw,78px)}
 .hero-background-content{display:block;max-width:1380px;padding-top:clamp(100px,15vh,150px);padding-bottom:130px}

@@ -48,6 +48,13 @@ export default function RootLayout({
           type="video/mp4"
           media="(min-width: 761px)"
         />
+        <link
+          rel="preload"
+          href="/media/currentdes-ambient-loop.mp4"
+          as="video"
+          type="video/mp4"
+          media="(min-width: 761px)"
+        />
       </head>
       <body className={`${inter.variable} ${manrope.variable}`}>
         {children}

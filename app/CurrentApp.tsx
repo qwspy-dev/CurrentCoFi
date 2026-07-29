@@ -132,8 +132,10 @@ function CurrentMap() {
 
 function HeroFilm() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const loopRef = useRef<HTMLVideoElement>(null);
   const [canAnimate, setCanAnimate] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [loopActive, setLoopActive] = useState(false);
 
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 761px)");
@@ -153,6 +155,11 @@ function HeroFilm() {
     void startPlayback();
   }, [canAnimate]);
 
+  useEffect(() => {
+    if (!loopActive || !loopRef.current) return;
+    void loopRef.current.play();
+  }, [loopActive]);
+
   return (
     <div className={`hero-film ${isPlaying ? "hero-film-playing" : ""}`} aria-hidden="true">
       <img
@@ -166,16 +173,29 @@ function HeroFilm() {
       {canAnimate && (
         <video
           ref={videoRef}
-          className="hero-film-video"
+          className={`hero-film-video hero-film-intro ${loopActive ? "hero-film-intro-finished" : ""}`}
           autoPlay
           muted
           playsInline
           preload="auto"
           poster="/media/currentdes-start.jpg"
           onPlaying={() => setIsPlaying(true)}
-          onEnded={() => setIsPlaying(true)}
+          onEnded={() => setLoopActive(true)}
         >
           <source src="/media/currentdes-hero.mp4" type="video/mp4" />
+        </video>
+      )}
+      {canAnimate && (
+        <video
+          ref={loopRef}
+          className={`hero-film-video hero-film-loop ${loopActive ? "hero-film-loop-active" : ""}`}
+          muted
+          playsInline
+          preload="auto"
+          loop
+          poster="/media/currentdes-poster.jpg"
+        >
+          <source src="/media/currentdes-ambient-loop.mp4" type="video/mp4" />
         </video>
       )}
       <div className="hero-film-shade" />
