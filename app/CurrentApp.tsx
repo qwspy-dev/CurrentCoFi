@@ -140,9 +140,9 @@ function HeroFilm() {
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const desktop = window.matchMedia("(min-width: 761px)");
-    const connection = (navigator as Navigator & {
+    const connection = (globalThis.navigator as (Navigator & {
       connection?: { saveData?: boolean };
-    }).connection;
+    }) | undefined)?.connection;
     const blocked = reducedMotion.matches || Boolean(connection?.saveData);
     setMotionBlocked(desktop.matches && blocked);
     setCanAnimate(desktop.matches && !blocked);
