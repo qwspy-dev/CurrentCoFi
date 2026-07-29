@@ -46,7 +46,7 @@ export default function RootLayout({
           href="/media/currentdes-hero.mp4"
           as="video"
           type="video/mp4"
-          media="(min-width: 761px) and (prefers-reduced-motion: no-preference)"
+          media="(min-width: 761px)"
         />
       </head>
       <body className={`${inter.variable} ${manrope.variable}`}>
