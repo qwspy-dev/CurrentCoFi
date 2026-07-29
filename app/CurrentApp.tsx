@@ -141,13 +141,10 @@ function HeroFilm() {
     const connection = (navigator as Navigator & {
       connection?: { saveData?: boolean };
     }).connection;
-    const alreadyPlayed = window.sessionStorage.getItem("current-hero-played") === "true";
-
     setCanAnimate(
       desktop.matches &&
       !reducedMotion.matches &&
-      !connection?.saveData &&
-      !alreadyPlayed
+      !connection?.saveData
     );
   }, []);
 
@@ -184,7 +181,6 @@ function HeroFilm() {
           poster="/media/currentdes-start.jpg"
           onPlaying={() => {
             setIsPlaying(true);
-            window.sessionStorage.setItem("current-hero-played", "true");
           }}
           onEnded={() => setIsPlaying(true)}
         >
