@@ -212,21 +212,7 @@ function Marketing({ go }: { go: (view: View) => void }) {
             <Button kind="secondary" onClick={() => go("new-campaign")}>Launch a current <ArrowUpRight size={15}/></Button>
           </div>
         </nav>
-        <div className="hero-cinematic-content">
-          <h1 className="sr-only">Current CoFi turns any audience into active token users.</h1>
-          <div className="hero-cinematic-actions">
-            <p className="sr-only">Walletless USDC and project token distribution with measurable activation.</p>
-            <div className="hero-ctas">
-              <Button kind="secondary" onClick={() => go("new-campaign")}>Create distribution <ArrowRight size={16}/></Button>
-              <button className="watch-link" onClick={() => go("claim")}><span><ArrowRight size={15}/></span> Experience a claim</button>
-            </div>
-            <div className="hero-proof">
-              <div className="avatar-stack"><span>MC</span><span>AY</span><span>NP</span><span>+8k</span></div>
-              <p><b>8,241 wallets funded</b><br/>across 18 project currents</p>
-            </div>
-          </div>
-        </div>
-        <div className="hero-content hero-mobile-content">
+        <div className="hero-content hero-background-content">
           <div className="hero-copy">
             <Pill tone="glass"><Sparkles size={13}/> Built for the Arc economy</Pill>
             <h1>Turn any audience into <span>active token users.</span></h1>
@@ -239,9 +225,6 @@ function Marketing({ go }: { go: (view: View) => void }) {
               <div className="avatar-stack"><span>MC</span><span>AY</span><span>NP</span><span>+8k</span></div>
               <p><b>8,241 wallets funded</b><br/>across 18 project currents</p>
             </div>
-          </div>
-          <div className="hero-mobile-film" aria-hidden="true">
-            <img src="/media/currentdes-poster.jpg" alt="" width="1920" height="1080" />
           </div>
         </div>
         <div className="hero-marquee">
