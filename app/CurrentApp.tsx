@@ -1,40 +1,44 @@
 "use client";
 
 import {
-  Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, Bell,
-  Bot, Braces, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
-  CircleDollarSign, Clock3, Code2, Copy, CreditCard, Database, Download,
-  Eye, FileUp, Fingerprint, Gauge, Gift, Globe2, HelpCircle, KeyRound,
-  Layers3, Link2, Lock, LogOut, Menu, MoreHorizontal, Network, Plus,
-  Radio, RefreshCw, Search, Send, Settings, ShieldCheck, SlidersHorizontal,
-  Sparkles, Target, TerminalSquare, TestTube2, TrendingUp, Upload, Users,
-  Wallet, Webhook, X, Zap
+  Activity, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
+  Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
+  Copy, Download, Eye, Fingerprint, Gauge, Gift,
+  Globe2, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
+  MoreHorizontal, Network, Pause, Play, Plus, Radio, RefreshCw, Search,
+  Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target,
+  TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 type View =
-  | "home" | "claim" | "overview" | "create" | "campaigns" | "new-campaign"
-  | "recipients" | "referrals" | "analytics" | "token" | "developers"
-  | "api-keys" | "webhooks" | "agents" | "settings" | "error";
+  | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
+  | "new-campaign" | "recipients" | "referrals" | "analytics" | "token"
+  | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
-const campaignRows = [
-  { name: "Tidebreak Genesis", asset: "TIDE", status: "Live", claimed: "8,241 / 10,000", activation: "63.8%", value: "$84.2K" },
-  { name: "Founders Current", asset: "USDC", status: "Live", claimed: "1,174 / 1,500", activation: "71.2%", value: "$23.5K" },
-  { name: "Agent Week", asset: "FLOW", status: "Scheduled", claimed: "0 / 5,000", activation: "—", value: "$50.0K" },
-  { name: "Creator Cohort 01", asset: "USDC", status: "Ended", claimed: "742 / 800", activation: "58.4%", value: "$14.8K" },
+type ClaimStep = "ready" | "auth" | "creating" | "success";
+
+const campaigns = [
+  { name: "Tidebreak Genesis", asset: "TIDE", status: "Live", progress: 82, claimed: "8,241 / 10,000", activation: "63.8%", value: "$84.2K" },
+  { name: "Founders Current", asset: "USDC", status: "Live", progress: 78, claimed: "1,174 / 1,500", activation: "71.2%", value: "$23.5K" },
+  { name: "Agent Week", asset: "FLOW", status: "Scheduled", progress: 0, claimed: "0 / 5,000", activation: "—", value: "$50.0K" },
+  { name: "Creator Cohort 01", asset: "USDC", status: "Ended", progress: 93, claimed: "742 / 800", activation: "58.4%", value: "$14.8K" },
 ];
 
-const recipients = [
+const recipientRows = [
   { user: "Mara Chen", id: "@marachain", amount: "2,500 TIDE", state: "Activated", source: "X referral", time: "2m ago" },
   { user: "Noah Williams", id: "noah@prism.xyz", amount: "25 USDC", state: "Claimed", source: "Email list", time: "8m ago" },
   { user: "Amina Yusuf", id: "@amina.builds", amount: "2,500 TIDE", state: "Activated", source: "Discord", time: "14m ago" },
-  { user: "Kaito Labs", id: "wallet_8d4f", amount: "2,500 TIDE", state: "Opened", source: "Direct", time: "21m ago" },
+  { user: "Kaito Labs", id: "player_8d4f", amount: "2,500 TIDE", state: "Opened", source: "Direct", time: "21m ago" },
   { user: "Jules Park", id: "jules@openplay.gg", amount: "25 USDC", state: "Pending", source: "Partner", time: "34m ago" },
 ];
 
-const navSections = [
+const appNav = [
   { label: "Workspace", items: [
-    ["overview", "Overview", Gauge], ["create", "Create link", Link2],
+    ["overview", "Overview", Gauge], ["onboarding", "Project setup", Globe2],
+    ["create", "Create link", Link2],
     ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
     ["referrals", "Referrals", Network], ["analytics", "Analytics", BarChart3],
   ]},
@@ -42,769 +46,519 @@ const navSections = [
     ["token", "$CURRENT", CircleDollarSign], ["developers", "Developers", Code2],
     ["agents", "AI agents", Bot],
   ]},
-];
+] as const;
 
-function Brand({ light = false }: { light?: boolean }) {
+function Brand({ light = false, onClick }: { light?: boolean; onClick?: () => void }) {
   return (
-    <button className={`brand ${light ? "brand-light" : ""}`} aria-label="Current CoFi home">
-      <span className="brand-mark"><span /><span /><span /></span>
+    <button className={`cofi-brand ${light ? "is-light" : ""}`} onClick={onClick} aria-label="Current CoFi home">
+      <span className="cofi-glyph" aria-hidden="true"><i/><i/><i/></span>
       <span>current</span><em>cofi</em>
     </button>
   );
 }
 
-function Pill({ children, tone = "blue" }: { children: React.ReactNode; tone?: string }) {
-  return <span className={`pill pill-${tone}`}>{children}</span>;
-}
-
 function Button({
-  children, kind = "primary", icon, onClick, type = "button", disabled = false
+  children, tone = "blue", onClick, disabled = false, type = "button"
 }: {
-  children: React.ReactNode; kind?: "primary" | "secondary" | "ghost" | "dark";
-  icon?: React.ReactNode; onClick?: () => void; type?: "button" | "submit"; disabled?: boolean;
+  children: React.ReactNode; tone?: "blue" | "cyan" | "dark" | "light" | "ghost";
+  onClick?: () => void; disabled?: boolean; type?: "button" | "submit";
 }) {
-  return (
-    <button className={`button button-${kind}`} onClick={onClick} type={type} disabled={disabled}>
-      {children}{icon}
-    </button>
-  );
+  return <button className={`cofi-button tone-${tone}`} onClick={onClick} disabled={disabled} type={type}>{children}</button>;
 }
 
-function Metric({ label, value, change, icon }: { label: string; value: string; change?: string; icon?: React.ReactNode }) {
-  return (
-    <div className="metric-card">
-      <div className="metric-label">{label}{icon}</div>
-      <div className="metric-value">{value}</div>
-      {change && <div className="metric-change"><TrendingUp size={14}/>{change}</div>}
-    </div>
-  );
+function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
+  return <div className={`eyebrow ${light ? "light" : ""}`}>{children}</div>;
 }
 
-function WaveField() {
-  return (
-    <div className="wave-field" aria-hidden="true">
-      <div className="orb orb-one" />
-      <div className="orb orb-two" />
-      <div className="current current-a" />
-      <div className="current current-b" />
-      <div className="current current-c" />
-      <div className="particle p1" /><div className="particle p2" />
-      <div className="particle p3" /><div className="particle p4" />
-      <div className="particle p5" /><div className="particle p6" />
-    </div>
-  );
+function Status({ children, tone = "cyan" }: { children: React.ReactNode; tone?: "cyan" | "green" | "grey" | "red" | "blue" }) {
+  return <span className={`status status-${tone}`}><i/>{children}</span>;
 }
 
-function CurrentMap() {
-  return (
-    <div className="current-map">
-      <div className="map-head">
-        <span>LIVE ACTIVATION CURRENT</span>
-        <span className="live-dot">● 1,284 flowing now</span>
-      </div>
-      <div className="map-stage">
-        <div className="source-node">
-          <div className="project-avatar">T</div>
-          <strong>Tidebreak</strong><span>10K recipients</span>
-        </div>
-        <div className="flow-lines">
-          {[0,1,2,3,4].map((i) => <span key={i} style={{"--i": i} as React.CSSProperties}/>)}
-        </div>
-        <div className="audience-cloud">
-          {[0,1,2,3,4,5,6,7,8,9,10,11].map((i) => (
-            <span key={i} className={i < 8 ? "activated" : ""} style={{"--i": i} as React.CSSProperties}>
-              {i < 8 ? <Check size={11}/> : null}
-            </span>
-          ))}
-        </div>
-        <div className="map-tag tag-a"><Wallet size={14}/> wallet created</div>
-        <div className="map-tag tag-b"><CheckCircle2 size={14}/> user activated</div>
-        <div className="map-tag tag-c"><Send size={14}/> 2,500 TIDE</div>
-      </div>
-      <div className="map-stats">
-        <span><b>82.4%</b> claimed</span>
-        <span><b>6,381</b> activated</span>
-        <span><b>$2.18</b> cost per user</span>
-      </div>
-    </div>
-  );
-}
-
-function CurrentBackground() {
+function FluidCanvas({ mode = "network", className = "" }: { mode?: "network" | "branches" | "orbit"; className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-
-    let animationFrame = 0;
-    let width = 0;
-    let height = 0;
-    let pixelRatio = 1;
-
-    const endpoints = [
-      [0.62, 0.18], [0.76, 0.13], [0.9, 0.24],
-      [0.68, 0.38], [0.84, 0.43], [0.96, 0.5],
-      [0.61, 0.61], [0.77, 0.68], [0.91, 0.72],
-      [0.69, 0.84], [0.85, 0.88],
-    ];
-
-    const particles = Array.from({ length: 58 }, (_, index) => ({
-      lane: index % endpoints.length,
-      offset: (index * 0.173) % 1,
-      speed: 0.025 + (index % 7) * 0.004,
-      size: 1.4 + (index % 4) * 0.55,
-    }));
-
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let frame = 0, width = 0, height = 0, active = true;
     const resize = () => {
-      const bounds = canvas.getBoundingClientRect();
-      width = bounds.width;
-      height = bounds.height;
-      pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
-      canvas.width = Math.round(width * pixelRatio);
-      canvas.height = Math.round(height * pixelRatio);
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      const b = canvas.getBoundingClientRect();
+      width = b.width; height = b.height;
+      const dpr = Math.min(devicePixelRatio || 1, innerWidth < 768 ? 1.25 : 1.75);
+      canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-
-    const pointOnPath = (lane: number, progress: number, time: number) => {
-      const [endX, endY] = endpoints[lane];
-      const startX = width * 0.36;
-      const startY = height * 0.54;
-      const destinationX = width * endX;
-      const destinationY = height * endY;
-      const laneWave = Math.sin(lane * 1.73 + time * 0.00024) * height * 0.025;
-      const controlOneX = width * 0.47;
-      const controlOneY = startY + (destinationY - startY) * 0.18 + laneWave;
-      const controlTwoX = destinationX - width * 0.16;
-      const controlTwoY = destinationY - laneWave;
-      const inverse = 1 - progress;
-
+    const paths = Array.from({ length: mode === "branches" ? 14 : 10 }, (_, i) => ({
+      y: .12 + (i / (mode === "branches" ? 15 : 11)) * .76,
+      speed: .018 + (i % 5) * .006,
+      offset: (i * .173) % 1,
+    }));
+    const point = (p: number, i: number, t: number) => {
+      const sy = height * .5, ey = height * paths[i].y;
+      const sx = mode === "orbit" ? width * .5 : width * .1;
+      const ex = mode === "orbit" ? width * (.5 + Math.cos(i * .63) * .39) : width * .93;
+      const wave = Math.sin(t * .00035 + i * .8) * height * .035;
+      const inv = 1 - p;
+      const c1x = mode === "orbit" ? width * .55 : width * .34;
+      const c2x = mode === "orbit" ? ex - width * .08 : width * .68;
       return {
-        x:
-          inverse ** 3 * startX +
-          3 * inverse ** 2 * progress * controlOneX +
-          3 * inverse * progress ** 2 * controlTwoX +
-          progress ** 3 * destinationX,
-        y:
-          inverse ** 3 * startY +
-          3 * inverse ** 2 * progress * controlOneY +
-          3 * inverse * progress ** 2 * controlTwoY +
-          progress ** 3 * destinationY,
+        x: inv ** 3 * sx + 3 * inv ** 2 * p * c1x + 3 * inv * p ** 2 * c2x + p ** 3 * ex,
+        y: inv ** 3 * sy + 3 * inv ** 2 * p * (sy + wave) + 3 * inv * p ** 2 * (ey - wave) + p ** 3 * ey,
       };
     };
-
-    const draw = (time: number) => {
-      context.clearRect(0, 0, width, height);
-
-      const atmosphere = context.createRadialGradient(
-        width * 0.72, height * 0.48, 0,
-        width * 0.72, height * 0.48, width * 0.5,
-      );
-      atmosphere.addColorStop(0, "rgba(0, 255, 255, 0.12)");
-      atmosphere.addColorStop(0.5, "rgba(0, 0, 255, 0.055)");
-      atmosphere.addColorStop(1, "rgba(2, 12, 24, 0)");
-      context.fillStyle = atmosphere;
-      context.fillRect(0, 0, width, height);
-
-      for (let wave = 0; wave < 9; wave += 1) {
-        const y = height * (0.14 + wave * 0.095);
-        const drift = Math.sin(time * 0.00028 + wave * 0.8) * height * 0.025;
-        context.beginPath();
-        context.moveTo(width * 0.22, y + drift);
-        context.bezierCurveTo(
-          width * 0.44, y - height * 0.1 + drift,
-          width * 0.66, y + height * 0.12 - drift,
-          width * 1.04, y - height * 0.035,
-        );
-        context.strokeStyle = wave % 3 === 0
-          ? "rgba(0, 255, 255, 0.095)"
-          : "rgba(0, 0, 255, 0.075)";
-        context.lineWidth = 1;
-        context.stroke();
-      }
-
-      endpoints.forEach((_, lane) => {
-        context.beginPath();
-        for (let step = 0; step <= 54; step += 1) {
-          const point = pointOnPath(lane, step / 54, time);
-          if (step === 0) context.moveTo(point.x, point.y);
-          else context.lineTo(point.x, point.y);
+    const draw = (t: number) => {
+      if (!active) return;
+      ctx.clearRect(0, 0, width, height);
+      const glow = ctx.createRadialGradient(width * .55, height * .5, 0, width * .55, height * .5, width * .62);
+      glow.addColorStop(0, "rgba(37,232,225,.15)"); glow.addColorStop(.55, "rgba(23,59,255,.06)"); glow.addColorStop(1, "rgba(2,7,19,0)");
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, width, height);
+      paths.forEach((path, i) => {
+        ctx.beginPath();
+        for (let s = 0; s <= 60; s++) {
+          const q = point(s / 60, i, t);
+          if (s) ctx.lineTo(q.x, q.y);
+          else ctx.moveTo(q.x, q.y);
         }
-        const pathGradient = context.createLinearGradient(
-          width * 0.36, height * 0.54, width, height * endpoints[lane][1],
-        );
-        pathGradient.addColorStop(0, "rgba(0, 255, 255, 0.04)");
-        pathGradient.addColorStop(0.55, "rgba(0, 255, 255, 0.25)");
-        pathGradient.addColorStop(1, lane % 3 === 2
-          ? "rgba(0, 144, 0, 0.42)"
-          : "rgba(0, 0, 255, 0.34)");
-        context.strokeStyle = pathGradient;
-        context.lineWidth = lane % 4 === 0 ? 1.35 : 0.8;
-        context.stroke();
+        const grad = ctx.createLinearGradient(0, 0, width, 0);
+        grad.addColorStop(0, "rgba(37,232,225,.04)");
+        grad.addColorStop(.6, "rgba(37,232,225,.30)");
+        grad.addColorStop(1, i % 3 === 0 ? "rgba(32,214,107,.55)" : "rgba(23,59,255,.42)");
+        ctx.strokeStyle = grad; ctx.lineWidth = i % 4 === 0 ? 1.4 : .8; ctx.stroke();
+        for (let k = 0; k < 3; k++) {
+          const p = reduce ? .75 : (path.offset + k / 3 + t * .001 * path.speed) % 1;
+          const q = point(p, i, t);
+          const green = i % 3 === 0 && p > .78;
+          ctx.shadowBlur = 12; ctx.shadowColor = green ? "#20D66B" : "#25E8E1";
+          ctx.fillStyle = green ? "#20D66B" : "#25E8E1";
+          ctx.beginPath(); ctx.arc(q.x, q.y, 1.5 + (i % 3) * .4, 0, Math.PI * 2); ctx.fill();
+        }
       });
-
-      particles.forEach((particle) => {
-        const progress = (particle.offset + time * 0.001 * particle.speed) % 1;
-        const point = pointOnPath(particle.lane, progress, time);
-        const green = particle.lane % 3 === 2 && progress > 0.72;
-        context.shadowBlur = 13;
-        context.shadowColor = green ? "#009000" : "#00FFFF";
-        context.fillStyle = green ? "rgba(0, 144, 0, 0.94)" : "rgba(0, 255, 255, 0.9)";
-        context.beginPath();
-        context.arc(point.x, point.y, particle.size, 0, Math.PI * 2);
-        context.fill();
-      });
-      context.shadowBlur = 0;
-
-      const sourceX = width * 0.36;
-      const sourceY = height * 0.54;
-      const sourcePulse = 1 + Math.sin(time * 0.0022) * 0.08;
-      context.strokeStyle = "rgba(0, 255, 255, 0.32)";
-      context.lineWidth = 1;
-      for (let ring = 1; ring <= 3; ring += 1) {
-        context.beginPath();
-        context.arc(sourceX, sourceY, ring * 22 * sourcePulse, 0, Math.PI * 2);
-        context.stroke();
-      }
-      const sourceGlow = context.createRadialGradient(sourceX, sourceY, 0, sourceX, sourceY, 38);
-      sourceGlow.addColorStop(0, "rgba(0, 255, 255, 0.75)");
-      sourceGlow.addColorStop(0.24, "rgba(0, 0, 255, 0.72)");
-      sourceGlow.addColorStop(1, "rgba(5, 45, 70, 0)");
-      context.fillStyle = sourceGlow;
-      context.beginPath();
-      context.arc(sourceX, sourceY, 38, 0, Math.PI * 2);
-      context.fill();
-
-      endpoints.forEach(([normalizedX, normalizedY], lane) => {
-        const x = width * normalizedX;
-        const y = height * normalizedY;
-        const activated = lane % 3 === 2;
-        const pulse = 1 + Math.sin(time * 0.002 + lane) * 0.05;
-        context.shadowBlur = activated ? 24 : 14;
-        context.shadowColor = activated ? "#009000" : "#0000FF";
-        context.fillStyle = activated ? "rgba(0, 144, 0, 0.76)" : "rgba(0, 0, 255, 0.42)";
-        context.strokeStyle = activated ? "rgba(0, 144, 0, 0.9)" : "rgba(0, 255, 255, 0.72)";
-        context.lineWidth = 1.2;
-        context.beginPath();
-        context.roundRect(x - 19 * pulse, y - 19 * pulse, 38 * pulse, 38 * pulse, 12);
-        context.fill();
-        context.stroke();
-        context.shadowBlur = 0;
-
-        context.strokeStyle = activated ? "rgba(0, 144, 0, 0.95)" : "rgba(0, 255, 255, 0.82)";
-        context.beginPath();
-        context.arc(x, y - 4, 5, 0, Math.PI * 2);
-        context.moveTo(x - 9, y + 10);
-        context.quadraticCurveTo(x, y + 2, x + 9, y + 10);
-        context.stroke();
-      });
-
-      animationFrame = window.requestAnimationFrame(draw);
+      ctx.shadowBlur = 0;
+      if (!reduce) frame = requestAnimationFrame(draw);
     };
-
-    resize();
-    window.addEventListener("resize", resize);
-    animationFrame = window.requestAnimationFrame(draw);
-
+    const observer = new IntersectionObserver(([entry]) => {
+      active = entry.isIntersecting;
+      if (active && !reduce) frame = requestAnimationFrame(draw);
+      else cancelAnimationFrame(frame);
+    });
+    resize(); observer.observe(canvas); draw(0);
+    addEventListener("resize", resize);
+    const visibility = () => { active = !document.hidden; if (active && !reduce) frame = requestAnimationFrame(draw); };
+    document.addEventListener("visibilitychange", visibility);
     return () => {
-      window.cancelAnimationFrame(animationFrame);
-      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(frame); observer.disconnect(); removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", visibility);
     };
+  }, [mode]);
+  return <canvas className={`fluid-canvas ${className}`} ref={canvasRef} aria-hidden="true"/>;
+}
+
+function Marketing({ go }: { go: (v: View) => void }) {
+  const root = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState(false);
+  const [motionPaused, setMotionPaused] = useState(false);
+
+  useLayoutEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !root.current) return;
+    const context = gsap.context(() => {
+      gsap.from("[data-hero-line]", { yPercent: 115, duration: 1.05, stagger: .09, ease: "power4.out" });
+      gsap.from("[data-hero-rest]", { y: 24, opacity: 0, duration: .72, stagger: .08, delay: .55, ease: "power3.out" });
+      gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((element) => {
+        gsap.from(element, {
+          y: 64, opacity: 0, duration: .9, ease: "power3.out",
+          scrollTrigger: { trigger: element, start: "top 82%", once: true }
+        });
+      });
+      if (matchMedia("(min-width: 769px)").matches) {
+        const phases = gsap.utils.toArray<HTMLElement>(".story-phase");
+        const nodes = gsap.utils.toArray<HTMLElement>(".story-node");
+        const story = gsap.timeline({
+          scrollTrigger: { trigger: ".story-scroll", start: "top top", end: "+=240%", scrub: 1, pin: ".story-stage" }
+        });
+        phases.forEach((phase, i) => {
+          story.to(phases, { opacity: (_, target) => target === phase ? 1 : 0, y: (_, target) => target === phase ? 0 : 18, duration: .35 }, i * .65);
+          story.to(nodes.slice(0, 4 + i * 4), { opacity: 1, scale: 1, stagger: .02, duration: .3 }, i * .65);
+        });
+      }
+      gsap.to(".fee-orbit-inner", {
+        rotate: 360, ease: "none",
+        scrollTrigger: { trigger: ".token-story", start: "top bottom", end: "bottom top", scrub: 1.2 }
+      });
+    }, root);
+    return () => context.revert();
   }, []);
 
   return (
-    <div className="hero-film hero-current-canvas" aria-hidden="true">
-      <canvas ref={canvasRef} />
-      <div className="hero-film-shade" />
-    </div>
-  );
-}
-
-function Marketing({ go }: { go: (view: View) => void }) {
-  return (
-    <main className="marketing">
-      <section className="hero hero-cinematic">
-        <CurrentBackground/>
-        <nav className="top-nav">
-          <Brand light/>
-          <div className="nav-links">
-            <a href="#product">Product</a><a href="#developers">Developers</a>
-            <a href="#token">$CURRENT</a><a href="#network">Network</a>
-          </div>
-          <div className="nav-actions">
-            <button className="text-link" onClick={() => go("overview")}>Sign in</button>
-            <Button kind="secondary" onClick={() => go("new-campaign")}>Launch a current <ArrowUpRight size={15}/></Button>
-          </div>
+    <div className="site" ref={root}>
+      <header className="marketing-nav">
+        <Brand light onClick={() => go("home")}/>
+        <nav aria-label="Main navigation">
+          <a href="#network">Network</a><a href="#product">Product</a>
+          <a href="#developers">Developers</a><a href="#current">$CURRENT</a>
         </nav>
-        <div className="hero-content hero-background-content">
-          <div className="hero-copy">
-            <Pill tone="glass"><Sparkles size={13}/> Built for the Arc economy</Pill>
-            <h1>Turn any audience into <span>active token users.</span></h1>
-            <p>Distribute USDC or your project token to anyone. No wallet, gas, or crypto knowledge required. Every claim creates a funded account and a measurable user.</p>
-            <div className="hero-ctas">
-              <Button kind="secondary" onClick={() => go("new-campaign")}>Create distribution <ArrowRight size={16}/></Button>
-              <button className="watch-link" onClick={() => go("claim")}><span><ArrowRight size={15}/></span> Experience a claim</button>
+        <div className="nav-actions">
+          <button className="nav-text" onClick={() => go("overview")}>Sign in</button>
+          <Button tone="light" onClick={() => go("new-campaign")}>Launch a current <ArrowUpRight size={15}/></Button>
+          <button className="menu-trigger" aria-label="Open navigation" onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button>
+        </div>
+      </header>
+      {menu && <div className="mobile-ocean-menu">
+        {["Network","Product","Developers","$CURRENT"].map(item => <a key={item} href={`#${item === "$CURRENT" ? "current" : item.toLowerCase()}`} onClick={() => setMenu(false)}>{item}<ArrowUpRight/></a>)}
+        <Button tone="cyan" onClick={() => go("new-campaign")}>Launch a current <ArrowRight/></Button>
+      </div>}
+
+      <main>
+        <section className="cinematic-hero">
+          <div className="hero-media" aria-hidden="true">
+            <video className="hero-video" autoPlay muted playsInline loop poster="/media/currentdes-start.jpg" style={{opacity: motionPaused ? 0 : 1}}>
+              <source src="/media/currentdes-hero.mp4" type="video/mp4"/>
+            </video>
+            <div className="hero-shade"/>
+          </div>
+          <div className="hero-copy-new">
+            <Eyebrow light><Sparkles/> THE ACTIVATION LAYER FOR ARC</Eyebrow>
+            <h1><span><b data-hero-line>Turn any audience</b></span><span><b data-hero-line>into active</b></span><span className="cyan"><b data-hero-line>token users.</b></span></h1>
+            <p data-hero-rest>Distribute USDC or your project token to anyone. No wallet, gas, or crypto knowledge required. Every claim creates a funded account and a measurable user.</p>
+            <div className="hero-actions" data-hero-rest>
+              <Button tone="cyan" onClick={() => go("new-campaign")}>Create a distribution <ArrowRight/></Button>
+              <button className="experience-link" onClick={() => go("claim")}><span><Play/></span>Experience a claim</button>
             </div>
-            <div className="hero-proof">
-              <div className="avatar-stack"><span>MC</span><span>AY</span><span>NP</span><span>+8k</span></div>
-              <p><b>8,241 wallets funded</b><br/>across 18 project currents</p>
+          </div>
+          <div className="hero-bottom" data-hero-rest>
+            <div><strong>8,241</strong><span>wallets funded</span></div>
+            <div><strong>18</strong><span>project currents</span></div>
+            <div><strong>63.8%</strong><span>activated users</span></div>
+            <button aria-label={motionPaused ? "Play hero animation" : "Pause hero animation"} onClick={() => setMotionPaused(!motionPaused)}>{motionPaused ? <Play/> : <Pause/>}</button>
+          </div>
+        </section>
+
+        <section className="proof-section" id="network">
+          <Eyebrow>LIVE NETWORK</Eyebrow>
+          <div className="proof-number" data-reveal><small>Assets distributed</small><strong>$128,604,218</strong></div>
+          <div className="proof-grid" data-reveal>
+            <div><b>42,814</b><span>funded wallets</span></div>
+            <div><b>31,207</b><span>activated users</span></div>
+            <div><b>184</b><span>live campaigns</span></div>
+            <div><b>0</b><span>gas required to claim</span></div>
+          </div>
+          <div className="partner-current" aria-label="Built for projects, games, communities, creators, and agents">
+            {[["T","Tidebreak"],["O","Openplay"],["N","Noma"],["K","Kairo"],["V","Vessel"],["A","Axiom"],["F","Flux"]].map(([mark,name]) => <span key={name}><i>{mark}</i>{name}</span>)}
+          </div>
+        </section>
+
+        <section className="story-scroll" id="product">
+          <div className="story-stage">
+            <div className="story-title"><Eyebrow light>YOU SCROLL, VALUE FLOWS</Eyebrow><h2>What is<br/><em>Current CoFi?</em></h2></div>
+            <div className="story-visual">
+              <FluidCanvas mode="network"/>
+              <div className="story-source"><span>C</span><small>PROJECT SOURCE</small></div>
+              <div className="story-nodes">{Array.from({length:12},(_,i)=><span className={`story-node n-${i}`} key={i}>{i > 7 ? <Wallet/> : <Users/>}</span>)}</div>
+            </div>
+            <div className="story-copy">
+              <article className="story-phase">
+                <span>01 / 03</span><h3>Fund the current.</h3>
+                <p>Deposit USDC or any supported project token into a fully funded distribution.</p>
+              </article>
+              <article className="story-phase">
+                <span>02 / 03</span><h3>Reach beyond wallets.</h3>
+                <p>Assign value to emails, social identities, game accounts, QR codes, or private links.</p>
+              </article>
+              <article className="story-phase">
+                <span>03 / 03</span><h3>Activate real users.</h3>
+                <p>Create embedded wallets, sponsor every claim, attribute referrals, and measure retention.</p>
+              </article>
             </div>
           </div>
-        </div>
-        <div className="hero-marquee">
-          <span>WALLETLESS CLAIMS</span><i/> <span>PROJECT TOKEN DISTRIBUTION</span><i/>
-          <span>USDC PAYMENTS</span><i/> <span>ATTRIBUTED GROWTH</span><i/>
-        </div>
-      </section>
+        </section>
 
-      <section className="statement" id="product">
-        <div className="section-kicker">01 / THE NETWORK</div>
-        <h2>Projects have audiences.<br/>We turn them into <span>economies.</span></h2>
-        <p>Current CoFi connects identity, wallets, assets, and activation in one programmable flow.</p>
-        <div className="flow-steps">
-          {[
-            ["01", "Fund", "Deposit USDC or your project token.", Database],
-            ["02", "Reach", "Send to email, social, link, QR, or API.", Radio],
-            ["03", "Claim", "Embedded wallet appears. Gas is sponsored.", Fingerprint],
-            ["04", "Activate", "Track actions, referrals, and retention.", Activity],
-          ].map(([n,t,d,I]) => {
-            const Icon = I as typeof Database;
-            return <div className="flow-step" key={String(n)}><span>{String(n)}</span><Icon/><h3>{String(t)}</h3><p>{String(d)}</p></div>
-          })}
-        </div>
-      </section>
+        <section className="possibilities">
+          <Eyebrow>ONE PROTOCOL, MANY CURRENTS</Eyebrow>
+          <h2 data-reveal>Move value through<br/>the communities that create it.</h2>
+          <div className="word-current">
+            {["Token launches","Social payments","Game rewards","Bounties","Referrals","Agent payments","Event drops","Community payroll"].map(x=><span key={x}>{x}<i/></span>)}
+          </div>
+        </section>
 
-      <section className="product-showcase">
-        <div className="showcase-copy">
-          <div className="section-kicker">02 / DISTRIBUTION</div>
-          <h2>One current.<br/>Every channel.</h2>
-          <p>Assign rewards before a wallet exists. Current CoFi verifies the recipient, creates the account, sponsors the claim, and returns activation data.</p>
-          <ul className="check-list">
-            <li><Check/> Any supported Arc token or USDC</li>
-            <li><Check/> Identity-bound or open claim links</li>
-            <li><Check/> Referral trees and activation events</li>
-            <li><Check/> Expiration, recovery, and full attribution</li>
-          </ul>
-          <Button kind="dark" onClick={() => go("new-campaign")}>Build a campaign <ArrowRight size={16}/></Button>
-        </div>
-        <div className="phone-cluster">
-          <div className="phone phone-back">
-            <div className="phone-top"/><div className="mini-balance">$1,284.00</div>
-            <div className="mini-wave"/><div className="mini-row"/><div className="mini-row short"/>
+        <section className="claim-feature">
+          <div className="claim-feature-copy" data-reveal>
+            <Eyebrow>WALLETLESS CLAIMS</Eyebrow>
+            <h2>A funded account appears when the value arrives.</h2>
+            <p>Recipients open a link, sign in, and claim. Current CoFi verifies identity, creates the embedded wallet, sponsors gas, and records the activation.</p>
+            <ul><li><Check/>USDC and project tokens</li><li><Check/>Email, social, game account, QR, or link</li><li><Check/>Expiration, recovery, and refunds</li></ul>
+            <Button tone="dark" onClick={() => go("claim")}>Experience the claim <ArrowRight/></Button>
           </div>
-          <div className="phone phone-front">
-            <div className="phone-top"/><div className="claim-project"><span>T</span>Tidebreak</div>
-            <p>You received</p><strong>2,500 TIDE</strong><small>≈ $42.50</small>
-            <div className="mini-current"><span/><span/><span/></div>
-            <button>Claim to Current</button><em>No wallet or gas required</em>
+          <div className="claim-device-scene" data-reveal>
+            <FluidCanvas mode="network"/>
+            <div className="claim-phone">
+              <div className="phone-sensor"/><span className="mini-project">T</span>
+              <small>Tidebreak sent you</small><strong>2,500 TIDE</strong><em>≈ $42.80</em>
+              <div className="identity-chip"><Fingerprint/>Claim with your social identity</div>
+              <button>Claim — no gas required</button>
+            </div>
+            <span className="claim-event event-one"><Wallet/>Wallet created</span>
+            <span className="claim-event event-two"><CheckCircle2/>User activated</span>
           </div>
-          <div className="floating-card fc-one"><CheckCircle2/> Wallet created</div>
-          <div className="floating-card fc-two"><Users/> 8,241 claimed</div>
-        </div>
-      </section>
+        </section>
 
-      <section className="platform-grid" id="developers">
-        <article className="platform-card dark-card">
-          <div className="section-kicker light">FOR BUILDERS</div>
-          <h3>One API.<br/>A million funded wallets.</h3>
-          <p>Embed distributions, claims, referral attribution, and activation reporting into games, apps, launchpads, and autonomous agents.</p>
-          <div className="code-window">
-            <div><i/><i/><i/></div>
-            <pre><code><span>await</span> current.campaigns.create({"{"}<br/>
-  asset: <b>&quot;TIDE&quot;</b>,<br/>  recipients: audience,<br/>
-  onboarding: <b>&quot;embedded&quot;</b>,<br/>  attribution: <b>true</b><br/>{"}"})</code></pre>
+        <section className="surface-section">
+          <div className="surface-heading" data-reveal><Eyebrow>THE OPERATING LAYER</Eyebrow><h2>Distribution is only the beginning.</h2></div>
+          <div className="surface-grid">
+            <article className="surface-card dark" data-reveal>
+              <span>01</span><Network/><h3>Campaigns + attribution</h3><p>Import recipients, branch referral currents, define activation events, and see exactly which sources create retained users.</p>
+              <div className="mini-funnel">{["Targeted","Opened","Wallet","Claimed","Active"].map((x,i)=><span key={x} style={{"--w":`${100-i*13}%`} as React.CSSProperties}><b>{x}</b></span>)}</div>
+            </article>
+            <article className="surface-card water" id="developers" data-reveal>
+              <span>02</span><Braces/><h3>Built for software and agents</h3><p>One API for distributions, claims, referrals, activation events, webhooks, and policy-bound autonomous rewards.</p>
+              <pre><code><i>const</i> current = <i>await</i> cofi.distributions.create({"{"}<br/>  asset: <b>&quot;USDC&quot;</b>, recipients: audience,<br/>  walletless: <b>true</b>, attribution: <b>true</b><br/>{"}"})</code></pre>
+              <Button tone="dark" onClick={() => go("developers")}>Explore the developer layer <ArrowRight/></Button>
+            </article>
           </div>
-        </article>
-        <article className="platform-card agent-card">
-          <div className="section-kicker">FOR AGENTS</div>
-          <h3>Give software<br/>a distribution layer.</h3>
-          <p>Agents can fund rewards, generate claims, verify outcomes, and read campaign performance under human-controlled permissions.</p>
-          <div className="agent-visual">
-            <div className="agent-core"><Bot/></div>
-            <span className="agent-line l1"/><span className="agent-line l2"/><span className="agent-line l3"/>
-            <div className="agent-node n1"><Gift/> Reward</div>
-            <div className="agent-node n2"><ShieldCheck/> Verify</div>
-            <div className="agent-node n3"><BarChart3/> Measure</div>
-          </div>
-        </article>
-      </section>
+        </section>
 
-      <section className="token-section" id="token">
-        <div className="token-orbit"><div className="token-coin">$</div><span/><span/><span/></div>
-        <div className="token-copy">
-          <div className="section-kicker light">03 / $CURRENT</div>
-          <h2>Product fees<br/>return to the current.</h2>
-          <p>Projects lock $CURRENT for advanced distribution. A published share of product fees purchases $CURRENT from the market, making protocol usage visible onchain.</p>
-          <div className="token-metrics">
-            <div><b>$348K</b><span>Product fees</span></div>
-            <div><b>18.4M</b><span>$CURRENT locked</span></div>
-            <div><b>6.2M</b><span>Purchased</span></div>
+        <section className="token-story" id="current">
+          <div className="token-copy-new" data-reveal>
+            <Eyebrow light>THE PRODUCT FEE CURRENT</Eyebrow>
+            <h2>Every product fee reinforces <em>$CURRENT.</em></h2>
+            <p>A transparent portion of Current CoFi fees accumulates in USDC and purchases `$CURRENT` from the market in efficient batches. Projects also lock `$CURRENT` to access larger distribution currents, advanced attribution, promotion, and sponsored claims.</p>
+            <div className="allocation-row"><span><b>35%</b>Buyback reserve</span><span><b>25%</b>Gas sponsorship</span><span><b>20%</b>Liquidity</span><span><b>20%</b>Operations</span></div>
+            <Button tone="cyan" onClick={() => go("token")}>View the transparent current <ArrowRight/></Button>
           </div>
-          <Button kind="secondary" onClick={() => go("token")}>Explore $CURRENT <ArrowRight size={16}/></Button>
-        </div>
-      </section>
+          <div className="fee-orbit" data-reveal>
+            <FluidCanvas mode="orbit"/>
+            <div className="fee-orbit-inner"><span className="current-coin">$C</span><i/><i/><i/></div>
+            <span className="orbit-label l-a">USDC fees</span><span className="orbit-label l-b">market buy</span><span className="orbit-label l-c">burn · lock · liquidity</span>
+          </div>
+        </section>
 
-      <section className="final-cta">
-        <WaveField/>
-        <div className="section-kicker light">START THE FLOW</div>
-        <h2>Your audience is already there.<br/>Fund their wallets.</h2>
-        <div><Button kind="secondary" onClick={() => go("new-campaign")}>Create your first current <ArrowRight size={16}/></Button></div>
+        <section className="roadmap-scene">
+          <div data-reveal><Eyebrow>THE CURRENT EXPANDS</Eyebrow><h2>One distribution layer.<br/>An entire community economy.</h2></div>
+          <div className="roadmap-current" data-reveal>
+            {[["Now","Token + USDC distribution"],["Next","Merchant checkout"],["Next","Milestone escrow"],["Next","Subscriptions"],["Later","Cross-chain USDC"]].map(([time,title],i)=><article key={title}><span>{i+1}</span><small>{time}</small><h3>{title}</h3></article>)}
+          </div>
+        </section>
+
+        <section className="final-current">
+          <FluidCanvas mode="branches"/>
+          <div data-reveal><Eyebrow light>THE NEXT AUDIENCE IS ALREADY WAITING</Eyebrow><h2>Start the current.</h2><p>Turn an offchain community into funded wallets, active users, and measurable growth.</p><Button tone="cyan" onClick={() => go("new-campaign")}>Create a distribution <ArrowRight/></Button></div>
+        </section>
+      </main>
+      <footer className="site-footer"><Brand/><p>Walletless distribution and activation infrastructure for the Arc economy.</p><div><button onClick={()=>go("developers")}>Developers</button><button onClick={()=>go("token")}>$CURRENT</button><a href="#product">Product</a></div><small>© 2026 Current CoFi · Testnet experience</small></footer>
+    </div>
+  );
+}
+
+function ClaimView({ go }: { go: (v: View) => void }) {
+  const [step,setStep] = useState<ClaimStep>("ready");
+  const claim = () => setStep("auth");
+  const authenticate = () => {
+    setStep("creating");
+    setTimeout(() => setStep("success"), 1800);
+  };
+  return (
+    <main className="claim-route">
+      <FluidCanvas mode="network"/>
+      <header><Brand light onClick={()=>go("home")}/><span><ShieldCheck/>Secured on Arc testnet</span></header>
+      <section className="claim-shell" aria-live="polite">
+        {step === "ready" && <>
+          <span className="claim-brand-avatar">T</span><small>Tidebreak sent you</small><h1>2,500 <em>TIDE</em></h1><p className="claim-usd">≈ $42.80</p>
+          <blockquote>Welcome to the Tidebreak Genesis current.</blockquote>
+          <div className="claim-meta"><span><Clock3/>Expires in 6 days</span><span><Zap/>Gas sponsored</span></div>
+          <Button tone="blue" onClick={claim}>Claim your tokens <ArrowRight/></Button><p className="claim-note">No wallet or payment required.</p>
+        </>}
+        {step === "auth" && <>
+          <button className="claim-back" onClick={()=>setStep("ready")}><ArrowLeft/>Back</button><span className="claim-brand-avatar"><Fingerprint/></span><small>CREATE YOUR CURRENT ACCOUNT</small><h2>Claim with an identity you already use.</h2>
+          <p className="auth-copy">Your embedded wallet is created automatically in the background.</p>
+          <button className="auth-provider" onClick={authenticate}><b>G</b>Continue with Google</button>
+          <button className="auth-provider" onClick={authenticate}><b>@</b>Continue with email</button>
+          <button className="auth-provider" onClick={authenticate}><b>𝕏</b>Continue with X</button>
+        </>}
+        {step === "creating" && <div className="creating-state"><span className="creating-orbit"><i/><i/><Wallet/></span><small>CREATING YOUR EMBEDDED WALLET</small><h2>Opening your current…</h2><div className="creating-steps"><span className="done"><Check/>Identity verified</span><span><RefreshCw/>Creating wallet</span><span>Delivering 2,500 TIDE</span></div></div>}
+        {step === "success" && <div className="success-state"><span className="success-ripple"><Check/></span><small>CLAIM COMPLETE</small><h2>You’re funded.</h2><p>2,500 TIDE has arrived in your new Current CoFi account.</p><div className="success-balance"><span>TIDE balance</span><b>2,500.00</b><small>≈ $42.80</small></div><Button tone="blue" onClick={()=>go("overview")}>Open your account <ArrowRight/></Button></div>}
       </section>
-      <footer>
-        <Brand/><p>Token activation infrastructure for the Arc economy.</p>
-        <div><a>Docs</a><a>Brand</a><a>X</a><a>Discord</a><a>Terms</a></div>
-        <span>© 2026 Current CoFi</span>
-      </footer>
+      <div className="claim-trust"><span><Lock/>Identity bound</span><span><Wallet/>Embedded wallet</span><span><Zap/>No gas needed</span></div>
     </main>
   );
 }
 
-function ClaimView({ go }: { go: (view: View) => void }) {
-  const [stage, setStage] = useState<"claim"|"login"|"processing"|"success">("claim");
-  return (
-    <main className="claim-screen">
-      <WaveField/>
-      <header><Brand light/><span className="secure"><ShieldCheck/> Secured on Arc</span></header>
-      <section className="claim-card">
-        {stage === "claim" && <>
-          <div className="claim-avatar">T</div><p className="sent-by">Tidebreak sent you</p>
-          <h1>2,500 <span>TIDE</span></h1><div className="claim-value">≈ $42.50 USD</div>
-          <div className="claim-message">“Welcome to the genesis current. Your allocation is ready.”</div>
-          <div className="claim-detail"><span><Clock3/> Expires in 6 days</span><span><Zap/> Gas sponsored</span></div>
-          <Button onClick={() => setStage("login")} icon={<ArrowRight/>}>Claim your tokens</Button>
-          <small>No wallet, crypto, or payment required</small>
-        </>}
-        {stage === "login" && <>
-          <button className="back-mini" onClick={() => setStage("claim")}><ChevronLeft/> Back</button>
-          <div className="claim-icon"><Fingerprint/></div><h2>Create your Current account</h2>
-          <p className="subcopy">Sign in once. Your secure Arc wallet is created automatically.</p>
-          <button className="social-button" onClick={() => setStage("processing")}><b className="google-g">G</b> Continue with Google</button>
-          <button className="social-button" onClick={() => setStage("processing")}><span>@</span> Continue with email</button>
-          <div className="divider"><span>or use an existing wallet</span></div>
-          <button className="wallet-button" onClick={() => setStage("processing")}><Wallet/> Connect wallet</button>
-        </>}
-        {stage === "processing" && <>
-          <div className="processing-orb"><span/><span/><Wallet/></div>
-          <h2>Creating your account</h2><p className="subcopy">Funding your new wallet with 2,500 TIDE</p>
-          <div className="progress-track"><span/></div>
-          <div className="process-list">
-            <span><Check/> Identity verified</span><span><Check/> Wallet created</span><span className="active"><RefreshCw/> Claiming tokens</span>
-          </div>
-          <Button onClick={() => setStage("success")}>Finish demo</Button>
-        </>}
-        {stage === "success" && <>
-          <div className="success-rings"><Check/></div><Pill tone="green">CLAIM COMPLETE</Pill>
-          <h2>You’re funded.</h2><p className="subcopy">2,500 TIDE is now in your Current account.</p>
-          <div className="received-balance"><span>Current balance</span><b>2,500 TIDE</b><em>$42.50</em></div>
-          <Button onClick={() => go("overview")} icon={<ArrowRight/>}>Open your account</Button>
-          <button className="text-button" onClick={() => setStage("claim")}>Replay claim</button>
-        </>}
-      </section>
-      <div className="claim-trust"><span><Lock/> Private by design</span><span><ShieldCheck/> Wallet you control</span><span><Zap/> Zero gas</span></div>
-    </main>
-  );
+function MetricCard({label,value,change,icon:Icon}:{label:string;value:string;change?:string;icon:typeof Activity}) {
+  return <article className="metric-card-new"><span><Icon/></span><small>{label}</small><strong>{value}</strong>{change&&<em><TrendingUp/>{change}</em>}</article>;
 }
 
-function Sidebar({ view, go, open, close }: { view: View; go: (v: View) => void; open: boolean; close: () => void }) {
-  return (
-    <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
-      <div className="sidebar-head"><Brand/><button onClick={close}><X/></button></div>
-      <button className="workspace-switch"><span className="project-avatar sm">T</span><span><b>Tidebreak Labs</b><small>Project workspace</small></span><ChevronDown/></button>
-      <nav>
-        {navSections.map(section => <div className="nav-section" key={section.label}>
-          <label>{section.label}</label>
-          {section.items.map(([id,label,I]) => {
-            const Icon = I as typeof Gauge;
-            return <button key={String(id)} className={view === id ? "active" : ""} onClick={() => {go(id as View); close();}}><Icon/>{String(label)}{id === "campaigns" && <em>4</em>}</button>
-          })}
-        </div>)}
-      </nav>
-      <div className="sidebar-bottom">
-        <button><HelpCircle/> Help center</button><button onClick={() => go("settings")}><Settings/> Settings</button>
-        <div className="user-chip"><span>DC</span><div><b>Dylan Current</b><small>dylan@current.fi</small></div><MoreHorizontal/></div>
-      </div>
-    </aside>
-  );
-}
-
-function AppHeader({ title, eyebrow, onMenu = () => {} }: { title: string; eyebrow?: string; onMenu?: () => void }) {
-  return (
-    <header className="app-header">
-      <button className="mobile-menu" onClick={onMenu}><Menu/></button>
-      <div><small>{eyebrow || "TIDEBREAK LABS"}</small><h1>{title}</h1></div>
-      <div className="app-header-actions"><button><Search/></button><button><Bell/><i/></button><Button kind="dark">Fund account <Plus size={15}/></Button></div>
-    </header>
-  );
-}
-
-function Overview({ go }: { go: (v: View) => void }) {
-  return <>
-    <AppHeader title="Good morning, Dylan." eyebrow="TUESDAY, JULY 28"/>
-    <div className="overview-hero">
-      <div><Pill tone="glass">NETWORK CURRENT</Pill><h2>8,241 wallets funded.<br/><span>6,381 users activated.</span></h2><p>Your strongest current this week is X referrals, converting at 68.4%.</p></div>
-      <div className="mini-flow-visual"><span/><span/><span/><b>+428</b><small>activated today</small></div>
-    </div>
-    <div className="metric-grid">
-      <Metric label="Total distributed" value="$172,480" change="+18.4% this month" icon={<ArrowUpRight/>}/>
-      <Metric label="Wallets created" value="8,241" change="+428 this week" icon={<Wallet/>}/>
-      <Metric label="Activation rate" value="63.8%" change="+5.2% vs last week" icon={<Activity/>}/>
-      <Metric label="Cost per activation" value="$2.18" change="12% more efficient" icon={<Target/>}/>
-    </div>
-    <div className="dashboard-grid">
-      <section className="panel activation-panel">
-        <div className="panel-head"><div><small>ACTIVATION FLOW</small><h3>Audience conversion</h3></div><button>This month <ChevronDown/></button></div>
-        <div className="funnel">
-          {[
-            ["Targeted", "14,200", "100%"], ["Opened", "11,840", "83.4%"],
-            ["Wallet created", "9,126", "64.3%"], ["Claimed", "8,241", "58.0%"],
-            ["Activated", "6,381", "44.9%"],
-          ].map(([l,v,p],i)=><div key={l} style={{"--w": p, "--i": i} as React.CSSProperties}><span>{l}</span><b>{v}</b><em>{p}</em></div>)}
-        </div>
-      </section>
-      <section className="panel activity-feed">
-        <div className="panel-head"><div><small>LIVE CURRENT</small><h3>Recent activity</h3></div><button><MoreHorizontal/></button></div>
-        {recipients.slice(0,4).map((r,i)=><div className="activity-item" key={r.id}><span className={`activity-icon a${i}`}><ArrowDownLeft/></span><div><b>{r.user}</b><small>{r.state.toLowerCase()} {r.amount}</small></div><time>{r.time}</time></div>)}
-        <button className="panel-link" onClick={() => go("recipients")}>View all activity <ArrowRight/></button>
-      </section>
-    </div>
-    <section className="panel campaign-table">
-      <div className="panel-head"><div><small>CAMPAIGNS</small><h3>Active currents</h3></div><Button kind="secondary" onClick={() => go("new-campaign")}>New campaign <Plus/></Button></div>
-      <CampaignTable/>
-    </section>
-  </>;
+function PageHero({eyebrow,title,copy,mode="network",children}:{eyebrow:string;title:string;copy:string;mode?:"network"|"branches"|"orbit";children?:React.ReactNode}) {
+  return <section className="app-page-hero"><FluidCanvas mode={mode}/><div><Eyebrow light>{eyebrow}</Eyebrow><h1>{title}</h1><p>{copy}</p>{children}</div></section>;
 }
 
 function CampaignTable() {
-  return <div className="table-wrap"><table><thead><tr><th>Campaign</th><th>Asset</th><th>Status</th><th>Claims</th><th>Activation</th><th>Distributed</th><th/></tr></thead><tbody>
-    {campaignRows.map(row => <tr key={row.name}><td><span className="campaign-dot"/><b>{row.name}</b></td><td><Pill tone="neutral">{row.asset}</Pill></td><td><Pill tone={row.status === "Live" ? "green" : row.status === "Scheduled" ? "blue" : "neutral"}>{row.status}</Pill></td><td>{row.claimed}</td><td>{row.activation}</td><td><b>{row.value}</b></td><td><MoreHorizontal/></td></tr>)}
-  </tbody></table></div>;
+  return <div className="data-panel"><div className="panel-head"><div><h3>Campaign currents</h3><p>Live distribution and activation performance</p></div><button><SlidersHorizontal/>Filter</button></div><div className="campaign-table">
+    <div className="table-head"><span>Campaign</span><span>Asset</span><span>Status</span><span>Claims</span><span>Activation</span><span>Value</span><span/></div>
+    {campaigns.map(c=><div className="table-row" key={c.name}><span className="campaign-name"><i>{c.name[0]}</i><b>{c.name}</b></span><span>{c.asset}</span><Status tone={c.status==="Live"?"green":c.status==="Scheduled"?"blue":"grey"}>{c.status}</Status><span>{c.claimed}<small className="row-progress"><i style={{width:`${c.progress}%`}}/></small></span><span>{c.activation}</span><b>{c.value}</b><button aria-label={`Open ${c.name}`}><MoreHorizontal/></button></div>)}
+  </div></div>;
+}
+
+function Overview({go}:{go:(v:View)=>void}) {
+  return <><PageHero eyebrow="LIVE WORKSPACE" title="Value is flowing." copy="Monitor distribution, wallet creation, activation, and the currents that bring users back."><Button tone="cyan" onClick={()=>go("new-campaign")}>Create distribution <ArrowRight/></Button></PageHero>
+    <div className="metric-grid-new"><MetricCard label="Assets distributed" value="$128.6K" change="+18.4%" icon={CircleDollarSign}/><MetricCard label="Wallets created" value="10,157" change="+22.1%" icon={Wallet}/><MetricCard label="Activated users" value="7,842" change="+12.8%" icon={Activity}/><MetricCard label="Cost per activation" value="$2.18" change="-8.2%" icon={Target}/></div>
+    <div className="overview-grid"><CampaignTable/><div className="data-panel activity-panel"><div className="panel-head"><div><h3>Live current</h3><p>Most recent network events</p></div><Radio/></div>{recipientRows.slice(0,4).map((r,i)=><div className="activity-row" key={r.user}><span className={`activity-node a-${i}`}><i/></span><div><b>{r.user}</b><p>{r.state} · {r.amount}</p></div><time>{r.time}</time></div>)}</div></div></>;
 }
 
 function CreateLink() {
-  const [step, setStep] = useState(1);
-  const [asset, setAsset] = useState("USDC");
-  return <>
-    <AppHeader title="Create asset link" eyebrow="PERSONAL CURRENT"/>
-    <div className="form-shell two-col">
-      <section className="form-card">
-        <div className="stepper"><span className="active">1</span><i/><span className={step>1?"active":""}>2</span><i/><span className={step>2?"active":""}>3</span></div>
-        <div className="form-head"><Pill tone="blue">STEP {step} OF 3</Pill><h2>{step===1?"Choose what to send":step===2?"Set claim details":"Review your current"}</h2><p>{step===1?"Send USDC or any supported Arc token.":step===2?"Choose who can claim and when it expires.":"Confirm the asset, recipient, and sponsored costs."}</p></div>
-        {step===1 && <div className="form-body">
-          <label className="field-label">Asset</label>
-          <div className="asset-toggle"><button className={asset==="USDC"?"selected":""} onClick={()=>setAsset("USDC")}><span className="asset usdc">$</span><b>USDC</b><small>USD Coin</small><Check/></button><button className={asset==="TIDE"?"selected":""} onClick={()=>setAsset("TIDE")}><span className="asset tide">T</span><b>TIDE</b><small>Tidebreak</small><Check/></button></div>
-          <label className="field-label">Amount</label><div className="amount-input"><input defaultValue="25.00"/><span>{asset}</span></div>
-          <div className="balance-line"><span>Available balance</span><b>{asset==="USDC"?"$12,842.44":"4,280,000 TIDE"}</b></div>
-        </div>}
-        {step===2 && <div className="form-body">
-          <label className="field-label">Claim type</label><div className="choice-grid"><button className="selected"><Link2/><b>Private link</b><small>Anyone with the link can claim</small></button><button><Fingerprint/><b>Identity bound</b><small>Only the selected person</small></button></div>
-          <label className="field-label">Message</label><textarea defaultValue="A little current for you ✦"/>
-          <label className="field-label">Expires</label><div className="select-control">7 days <ChevronDown/></div>
-        </div>}
-        {step===3 && <div className="review-card">
-          <div className="review-asset"><span className={`asset ${asset.toLowerCase()}`}>{asset[0]}</span><div><small>You’re sending</small><b>25.00 {asset}</b></div></div>
-          <dl><div><dt>Claim type</dt><dd>Private link</dd></div><div><dt>Expiration</dt><dd>7 days</dd></div><div><dt>Sponsored gas</dt><dd>$0.03</dd></div><div><dt>Current fee</dt><dd>Free</dd></div></dl>
-        </div>}
-        <div className="form-actions">{step>1?<Button kind="ghost" onClick={()=>setStep(step-1)}><ChevronLeft/> Back</Button>:<span/>}<Button onClick={()=>setStep(Math.min(3,step+1))}>{step===3?"Fund and create":"Continue"} <ArrowRight/></Button></div>
-      </section>
-      <aside className="live-preview">
-        <div className="preview-label"><Eye/> LIVE PREVIEW</div>
-        <div className="preview-phone"><div className="phone-top"/><Brand/><span className={`asset ${asset.toLowerCase()}`}>{asset[0]}</span><small>Dylan sent you</small><h3>25.00 {asset}</h3><p>“A little current for you ✦”</p><button>Claim now</button><em>No wallet or gas required</em></div>
-      </aside>
-    </div>
-  </>;
+  const [asset,setAsset]=useState("USDC"); const [amount,setAmount]=useState("25"); const [created,setCreated]=useState(false);
+  return <><PageHero eyebrow="PERSONAL CURRENT" title="Send value before a wallet exists." copy="Create one private, identity-bound, or open link for USDC or any supported project token."/>
+    <div className="form-preview-grid"><form className="form-panel" onSubmit={e=>{e.preventDefault();setCreated(true)}}><div className="panel-head"><div><h3>Create an asset link</h3><p>Funds remain recoverable until claimed.</p></div><Status tone="blue">Arc testnet</Status></div>
+      <label>Asset<div className="asset-options">{["USDC","TIDE","$CURRENT"].map(x=><button type="button" className={asset===x?"selected":""} onClick={()=>setAsset(x)} key={x}>{x}</button>)}</div></label>
+      <label>Amount<div className="amount-input"><input value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal"/><span>{asset}</span></div></label>
+      <div className="two-fields"><label>Recipient rule<select><option>Anyone with the private link</option><option>Verified email</option><option>Verified X identity</option></select></label><label>Expiration<select><option>7 days</option><option>24 hours</option><option>30 days</option></select></label></div>
+      <label>Message<textarea defaultValue="A little value for your next current."/></label>
+      <div className="fee-summary"><span>Distribution <b>{amount} {asset}</b></span><span>Sponsored gas <b>$0.02</b></span><span>Current CoFi fee <b>$0.00</b></span></div>
+      <Button tone="blue" type="submit">Fund and create link <ArrowRight/></Button></form>
+      <aside className="live-link-preview"><FluidCanvas/><Eyebrow light>LIVE PREVIEW</Eyebrow><span className="preview-token">{asset[0]}</span><small>You’re sending</small><strong>{amount || "0"} {asset}</strong><p>A little value for your next current.</p><button>Claim — no gas required</button>{created&&<div className="created-toast"><CheckCircle2/>Link copied to clipboard</div>}</aside></div></>;
 }
 
-function Campaigns({ go }: { go:(v:View)=>void }) {
-  return <>
-    <AppHeader title="Campaigns" eyebrow="PROJECT DISTRIBUTION"/>
-    <div className="toolbar"><div className="search-box"><Search/><input placeholder="Search campaigns"/></div><button className="filter"><SlidersHorizontal/> Filter</button><Button onClick={()=>go("new-campaign")}>New campaign <Plus/></Button></div>
-    <div className="campaign-cards">
-      {campaignRows.map((r,i)=><article className="campaign-card" key={r.name}>
-        <div className="campaign-card-top"><span className={`campaign-symbol s${i}`}>{r.asset[0]}</span><Pill tone={r.status==="Live"?"green":r.status==="Scheduled"?"blue":"neutral"}>{r.status}</Pill><button><MoreHorizontal/></button></div>
-        <h3>{r.name}</h3><p>{r.asset} distribution current</p>
-        <div className="campaign-progress"><span><i style={{width: i===2?"0%":i===3?"92%":i===1?"78%":"82%"}}/></span><div><b>{r.claimed}</b><em>claims</em></div></div>
-        <dl><div><dt>Activation</dt><dd>{r.activation}</dd></div><div><dt>Distributed</dt><dd>{r.value}</dd></div></dl>
-        <button className="card-link" onClick={()=>go("analytics")}>Open campaign <ArrowRight/></button>
-      </article>)}
-    </div>
-  </>;
-}
-
-function NewCampaign({ go }: { go:(v:View)=>void }) {
+function ProjectOnboarding({go}:{go:(v:View)=>void}) {
   const [step,setStep]=useState(1);
-  const steps=["Type","Asset","Audience","Attribution","Fund"];
-  return <>
-    <AppHeader title="Create campaign" eyebrow="NEW DISTRIBUTION CURRENT"/>
-    <div className="campaign-builder">
-      <aside className="builder-steps">{steps.map((s,i)=><button className={step===i+1?"active":step>i+1?"done":""} onClick={()=>setStep(i+1)} key={s}><span>{step>i+1?<Check/>:i+1}</span><div><b>{s}</b><small>{["Choose a current","Set rewards","Add recipients","Measure activation","Review and launch"][i]}</small></div></button>)}</aside>
-      <section className="builder-main">
-        <Pill tone="blue">STEP {step} OF 5</Pill>
-        <h2>{["What are you creating?","Choose the reward asset","Who should receive it?","Define activation and attribution","Fund the current"][step-1]}</h2>
-        <p>{["Select the distribution format that fits your audience.","Distribute USDC or your project token.","Upload identities or create an open claim.","Track who claimed and who became active.","Review rewards, fees, gas, and $CURRENT access."][step-1]}</p>
-        {step===1 && <div className="builder-options">
-          <button className="selected"><Gift/><b>Token launch</b><small>Assign a project token to an offchain audience.</small><Check/></button>
-          <button><Users/><b>Community rewards</b><small>Reward contributors, members, or players.</small></button>
-          <button><Target/><b>Activation campaign</b><small>Reward users after a verified action.</small></button>
-          <button><CircleDollarSign/><b>USDC distribution</b><small>Fund grants, incentives, and payouts.</small></button>
-        </div>}
-        {step===2 && <div className="builder-form"><label>Token contract</label><div className="select-control"><span className="asset tide">T</span><b>TIDE</b><small>0x842...98c1</small><ChevronDown/></div><div className="form-row"><div><label>Total reward pool</label><div className="amount-input"><input defaultValue="25000000"/><span>TIDE</span></div></div><div><label>Reward per recipient</label><div className="amount-input"><input defaultValue="2500"/><span>TIDE</span></div></div></div><div className="info-strip"><Users/> This current can fund <b>10,000 recipients</b></div></div>}
-        {step===3 && <div className="upload-zone"><FileUp/><h3>Upload your audience</h3><p>CSV with email, social handle, wallet, or external user ID</p><Button kind="secondary">Choose file <Upload/></Button><small>or drag and drop up to 100,000 recipients</small></div>}
-        {step===4 && <div className="builder-form"><label>Activation event</label><div className="select-control">Completed first in-app action <ChevronDown/></div><label>Referral reward</label><div className="toggle-row"><div><b>Reward successful referrals</b><small>Only after the referred user activates</small></div><span className="toggle on"><i/></span></div><div className="form-row"><div><label>Referrer reward</label><div className="amount-input"><input defaultValue="250"/><span>TIDE</span></div></div><div><label>Attribution window</label><div className="select-control">30 days <ChevronDown/></div></div></div></div>}
-        {step===5 && <div className="fund-summary"><div className="fund-total"><small>Total to fund</small><b>25,000,000 TIDE</b><span>≈ $425,000</span></div><dl><div><dt>Campaign fee</dt><dd>1.00% · $4,250 USDC</dd></div><div><dt>Sponsored gas reserve</dt><dd>$312 USDC</dd></div><div><dt>$CURRENT lock</dt><dd>250,000 · 60 days</dd></div><div><dt>Expected wallets</dt><dd>10,000</dd></div></dl><div className="buyback-note"><RefreshCw/><span><b>Every fee joins the current</b><small>$1,487.50 of this fee is assigned to $CURRENT market purchases.</small></span></div></div>}
-        <div className="form-actions"><Button kind="ghost" disabled={step===1} onClick={()=>setStep(Math.max(1,step-1))}><ChevronLeft/> Back</Button><Button onClick={()=>step===5?go("campaigns"):setStep(step+1)}>{step===5?"Fund and launch":"Continue"} <ArrowRight/></Button></div>
-      </section>
-      <aside className="builder-summary"><small>CAMPAIGN SUMMARY</small><h3>Tidebreak Genesis</h3><div className="summary-current"><span/><span/><span/></div><dl><div><dt>Type</dt><dd>Token launch</dd></div><div><dt>Asset</dt><dd>TIDE</dd></div><div><dt>Audience</dt><dd>10,000</dd></div><div><dt>Activation</dt><dd>Enabled</dd></div></dl><div className="summary-status"><CheckCircle2/> Fully funded before launch</div></aside>
-    </div>
-  </>;
+  return <><PageHero eyebrow="PROJECT ONBOARDING" title="Connect your source." copy="Create the organization, verify the token, fund gas sponsorship, and invite the people who operate your currents."/>
+    <div className="onboarding-shell"><div className="onboarding-progress">{["Project","Token","Team","Review"].map((x,i)=><span className={step>=i+1?"active":""} key={x}><i>{step>i+1?<Check/>:i+1}</i>{x}</span>)}</div>
+      <div className="form-panel onboarding-card"><Eyebrow>STEP {step} OF 4</Eyebrow><h2>{["Tell us about the project","Connect the project token","Invite the operating team","Review the source"][step-1]}</h2>
+        {step===1&&<div className="field-grid"><label>Project name<input defaultValue="Tidebreak"/></label><label>Website<input defaultValue="https://tidebreak.xyz"/></label><label className="full">Description<textarea defaultValue="A community-owned strategy world built on Arc."/></label></div>}
+        {step===2&&<div className="field-grid"><label className="full">Token contract<input defaultValue="0x2f...9B41"/></label><label>Symbol<input defaultValue="TIDE"/></label><label>Decimals<input defaultValue="18"/></label></div>}
+        {step===3&&<div className="field-grid"><label className="full">Invite by email<input placeholder="builder@project.xyz"/></label><div className="team-invite full"><span>MC</span><div><b>Mara Chen</b><small>Owner · Full access</small></div><Status tone="green">Ready</Status></div></div>}
+        {step===4&&<div className="review-stack"><span><CheckCircle2/><b>Project identity</b><small>Tidebreak</small></span><span><CheckCircle2/><b>Token verified</b><small>TIDE · 18 decimals</small></span><span><CheckCircle2/><b>Team permissions</b><small>1 owner</small></span></div>}
+        <div className="form-actions"><Button tone="ghost" disabled={step===1} onClick={()=>setStep(Math.max(1,step-1))}>Back</Button><Button tone="blue" onClick={()=>step<4?setStep(step+1):go("new-campaign")}>{step<4?"Continue":"Create first campaign"} <ArrowRight/></Button></div>
+      </div></div></>;
+}
+
+function Campaigns({go}:{go:(v:View)=>void}) {
+  return <><PageHero eyebrow="CAMPAIGN NETWORK" title="Every current, one operating view." copy="Fund, publish, pause, recover, and compare distribution performance across the entire organization." mode="branches"><Button tone="cyan" onClick={()=>go("new-campaign")}>New campaign <Plus/></Button></PageHero><div className="campaign-summary-grid"><MetricCard label="Live currents" value="2" icon={Radio}/><MetricCard label="Unclaimed value" value="$18.4K" icon={Gift}/><MetricCard label="Gas remaining" value="$684" icon={Zap}/><MetricCard label="$CURRENT locked" value="42.5K" icon={Lock}/></div><CampaignTable/></>;
+}
+
+function CampaignBuilder({go}:{go:(v:View)=>void}) {
+  const [step,setStep]=useState(1); const [mode,setMode]=useState("Identity-bound");
+  const labels=["Purpose","Asset","Recipients","Attribution","Fund"];
+  return <><PageHero eyebrow="CAMPAIGN BUILDER" title="Design the current." copy="Every campaign is fully funded, measurable, recoverable, and ready for recipients without wallets." mode="branches"/>
+    <div className="builder-shell"><aside>{labels.map((x,i)=><button className={step===i+1?"active":step>i+1?"done":""} onClick={()=>setStep(i+1)} key={x}><i>{step>i+1?<Check/>:i+1}</i><span>{x}<small>{["Choose the outcome","Select what flows","Define the audience","Measure activation","Review and publish"][i]}</small></span></button>)}</aside>
+      <form className="builder-panel" onSubmit={e=>{e.preventDefault(); if(step<5)setStep(step+1); else go("campaigns")}}>
+        <Eyebrow>STEP {step} / 5</Eyebrow>
+        <h2>{["What should this current accomplish?","What value will move?","Who receives it?","What counts as activation?","Fund and publish"][step-1]}</h2>
+        {step===1&&<div className="choice-cards">{[["Launch allocation",Gift],["User acquisition",Target],["Community rewards",Users],["Agent payments",Bot]].map(([x,I])=>{const Icon=I as typeof Gift;return <button type="button" key={String(x)}><Icon/><b>{String(x)}</b><small>Build a measurable {String(x).toLowerCase()} current.</small></button>})}</div>}
+        {step===2&&<div className="field-grid"><label>Asset<select><option>TIDE — Project token</option><option>USDC</option><option>$CURRENT</option></select></label><label>Total allocation<input defaultValue="250000"/></label><label>Reward per person<input defaultValue="2500"/></label><label>Sponsored gas budget<input defaultValue="85 USDC"/></label></div>}
+        {step===3&&<><div className="mode-tabs">{["Identity-bound","Private links","Public pool","Allowlist"].map(x=><button type="button" className={mode===x?"active":""} onClick={()=>setMode(x)} key={x}>{x}</button>)}</div><div className="upload-drop"><Upload/><h3>Drop a recipient CSV</h3><p>Email, X handle, game ID, wallet, or custom identity.</p><Button tone="ghost">Browse file</Button></div></>}
+        {step===4&&<div className="activation-builder"><label><span>Activation event</span><select><option>Completed project onboarding</option><option>Played 3 matches</option><option>Made first purchase</option><option>Custom signed event</option></select></label><label><span>Referral reward</span><select><option>5 USDC per activated referral</option><option>250 TIDE per activated referral</option><option>No referral reward</option></select></label><div className="event-code"><Webhook/><code>activation.completed</code><Status tone="green">Signed webhook</Status></div></div>}
+        {step===5&&<div className="fund-review"><div><small>REWARDS</small><b>250,000 TIDE</b></div><div><small>RECIPIENTS</small><b>100</b></div><div><small>SPONSORED GAS</small><b>85 USDC</b></div><div><small>CURRENT COFI FEE</small><b>2,500 TIDE</b></div><div><small>$CURRENT LOCK</small><b>5,000 CURRENT · 30d</b></div></div>}
+        <div className="form-actions"><Button tone="ghost" disabled={step===1} onClick={()=>setStep(step-1)}>Back</Button><Button tone="blue" type="submit">{step===5?"Fund and publish":"Continue"} <ArrowRight/></Button></div>
+      </form>
+      <aside className="builder-receipt"><Eyebrow>CAMPAIGN CURRENT</Eyebrow><div className="receipt-source"><span>T</span><b>Tidebreak Genesis</b></div><FluidCanvas mode="branches"/><div className="receipt-stats"><span><small>Recipients</small><b>100</b></span><span><small>Potential reach</small><b>4.8K</b></span><span><small>Fully funded</small><b className="green">Yes</b></span></div></aside>
+    </div></>;
 }
 
 function Recipients() {
-  return <>
-    <AppHeader title="Recipients" eyebrow="AUDIENCE MANAGEMENT"/>
-    <div className="metric-grid compact"><Metric label="Total recipients" value="14,200" change="+1,842 this month"/><Metric label="Wallets created" value="9,126" change="64.3% conversion"/><Metric label="Activated" value="6,381" change="69.9% of wallets"/><Metric label="Unclaimed" value="5,959" change="$31.4K recoverable"/></div>
-    <section className="panel">
-      <div className="toolbar table-toolbar"><div className="search-box"><Search/><input placeholder="Search identity or wallet"/></div><button className="filter"><SlidersHorizontal/> Status</button><button className="filter"><Download/> Export</button><Button><Upload/> Upload recipients</Button></div>
-      <div className="table-wrap"><table><thead><tr><th><input type="checkbox"/></th><th>Recipient</th><th>Allocation</th><th>Status</th><th>Source</th><th>Last activity</th><th/></tr></thead><tbody>{recipients.map(r=><tr key={r.id}><td><input type="checkbox"/></td><td><div className="recipient-cell"><span>{r.user[0]}</span><div><b>{r.user}</b><small>{r.id}</small></div></div></td><td><b>{r.amount}</b></td><td><Pill tone={r.state==="Activated"?"green":r.state==="Pending"?"neutral":"blue"}>{r.state}</Pill></td><td>{r.source}</td><td>{r.time}</td><td><MoreHorizontal/></td></tr>)}</tbody></table></div>
-      <div className="pagination"><span>Showing 1–5 of 14,200</span><div><button><ChevronLeft/></button><button className="active">1</button><button>2</button><button>3</button><button><ChevronRight/></button></div></div>
-    </section>
-  </>;
+  const [uploaded,setUploaded]=useState(false);
+  return <><PageHero eyebrow="RECIPIENT CURRENT" title="From targeted identity to active user." copy="Inspect every delivery state, resolve interruptions, resend links, and export the complete activation record." mode="branches"><Button tone="cyan" onClick={()=>setUploaded(true)}>Upload recipients <Upload/></Button></PageHero>
+    {uploaded&&<div className="upload-result"><CheckCircle2/><div><b>tidebreak_genesis.csv validated</b><small>2,000 valid · 14 duplicates removed · 3 identities need review</small></div><Button tone="ghost">Review issues</Button></div>}
+    <div className="data-panel"><div className="panel-head"><div><h3>Recipient network</h3><p>2,017 identities across 4 campaigns</p></div><div className="table-actions"><label><Search/><input placeholder="Search identity"/></label><button><Download/>Export</button></div></div><div className="recipient-table"><div className="table-head"><span>Recipient</span><span>Amount</span><span>Status</span><span>Source</span><span>Updated</span><span/></div>{recipientRows.map(r=><div className="table-row" key={r.user}><span className="recipient-name"><i>{r.user.split(" ").map(x=>x[0]).join("")}</i><b>{r.user}<small>{r.id}</small></b></span><b>{r.amount}</b><Status tone={r.state==="Activated"?"green":r.state==="Claimed"?"cyan":r.state==="Opened"?"blue":"grey"}>{r.state}</Status><span>{r.source}</span><time>{r.time}</time><button><MoreHorizontal/></button></div>)}</div></div></>;
 }
 
 function Referrals() {
-  return <>
-    <AppHeader title="Referrals & attribution" eyebrow="GROWTH CURRENT"/>
-    <div className="referral-hero"><div><small>ATTRIBUTED ACTIVATIONS</small><b>2,842</b><span><TrendingUp/> +28.4% this month</span></div><div className="referral-stream">{[1,2,3,4,5,6].map(i=><span key={i} style={{"--i":i} as React.CSSProperties}/>)}</div><div><small>REWARDS PAID</small><b>$18,420</b><em>74% after verified activation</em></div></div>
-    <div className="dashboard-grid">
-      <section className="panel referral-funnel"><div className="panel-head"><div><small>CONVERSION PATH</small><h3>Referral current</h3></div><button>30 days <ChevronDown/></button></div>
-        <div className="path-chart">{[["Link clicks","8,240","100%"],["Wallets","5,920","71.8%"],["Claims","4,812","58.4%"],["Activated","2,842","34.5%"],["Retained","2,106","25.5%"]].map((x,i)=><div key={x[0]}><span style={{height:`${130-i*18}px`}}/><b>{x[1]}</b><small>{x[0]}</small><em>{x[2]}</em></div>)}</div>
-      </section>
-      <section className="panel"><div className="panel-head"><div><small>TOP SOURCES</small><h3>Where users flow from</h3></div><button><MoreHorizontal/></button></div>
-        {[["X creators","1,184","68.4%"],["Discord partners","742","61.8%"],["Direct community","518","58.1%"],["Agent campaigns","284","72.3%"]].map((r,i)=><div className="source-row" key={r[0]}><span className={`source-icon c${i}`}><Network/></span><div><b>{r[0]}</b><span><i style={{width:r[2]}}/></span></div><strong>{r[1]}<small>{r[2]}</small></strong></div>)}
-      </section>
-    </div>
-    <section className="panel leaderboard"><div className="panel-head"><div><small>COMMUNITY LEADERS</small><h3>Top referrers</h3></div><Button kind="secondary">Download rewards <Download/></Button></div>
-      {[["Mara Chen","@marachain","428","312","$1,248"],["Amina Yusuf","@amina.builds","361","284","$1,136"],["Noah Williams","@noahweb3","294","218","$872"],["CurrentBot","agent_04","221","192","$768"]].map((r,i)=><div className="leader-row" key={r[1]}><b>0{i+1}</b><span className="leader-avatar">{r[0][0]}</span><div><strong>{r[0]}</strong><small>{r[1]}</small></div><span>{r[2]} referrals</span><span>{r[3]} activated</span><em>{r[4]}</em></div>)}
-    </section>
-  </>;
+  return <><PageHero eyebrow="ATTRIBUTION NETWORK" title="See which currents create retained users." copy="Every claim keeps its source. Every activation moves credit through the referral tree." mode="branches"/>
+    <div className="referral-top"><div><small>ATTRIBUTED ACTIVATIONS</small><strong>2,842</strong><em><TrendingUp/>+18.2% this week</em></div><div><small>REWARDS EARNED</small><strong>$14,208</strong><span>1,884 referrals settled</span></div><div className="referral-visual"><FluidCanvas mode="branches"/><span className="ref-root">T</span>{["MC","AY","NW","JP","KL"].map((x,i)=><span className={`ref-node r-${i}`} key={x}>{x}</span>)}</div></div>
+    <div className="analysis-grid"><div className="data-panel"><div className="panel-head"><div><h3>Conversion current</h3><p>Genesis campaign · Last 30 days</p></div><Status tone="green">Healthy</Status></div><div className="conversion-current">{[["Links opened","12,420","100%"],["Accounts created","9,884","79.6%"],["Assets claimed","8,241","66.4%"],["Users activated","6,381","51.4%"],["Retained · 30d","4,102","33.0%"]].map(([l,v,p])=><div key={l}><span><b>{l}</b><small>{v}</small></span><i><b style={{width:p}}/></i><em>{p}</em></div>)}</div></div>
+      <div className="data-panel"><div className="panel-head"><div><h3>Top referral sources</h3><p>Ranked by activated users</p></div><button>View all</button></div>{[["1","Mara Chen","@marachain","482","71.8%"],["2","Amina Yusuf","@amina.builds","394","69.2%"],["3","Tidebreak DAO","Discord","318","62.4%"],["4","Openplay","Partner","207","58.1%"]].map(x=><div className="leader-row" key={x[1]}><b>{x[0]}</b><i>{x[1][0]}</i><span><strong>{x[1]}</strong><small>{x[2]}</small></span><em>{x[3]} active</em><Status tone="green">{x[4]}</Status></div>)}</div></div></>;
 }
 
 function Analytics() {
-  const bars = [32,48,42,67,54,72,63,88,71,92,84,96];
-  return <>
-    <AppHeader title="Campaign analytics" eyebrow="TIDEBREAK GENESIS"/>
-    <div className="analytics-banner"><div><Pill tone="green">LIVE</Pill><h2>Tidebreak Genesis</h2><p>Token launch · 10,000 recipients · TIDE</p></div><div className="banner-actions"><Button kind="secondary">Share report <ArrowUpRight/></Button><Button>Manage campaign <SlidersHorizontal/></Button></div></div>
-    <div className="metric-grid"><Metric label="Distributed" value="$84,241" change="8,241 claims"/><Metric label="Wallet conversion" value="77.1%" change="+9.2% benchmark"/><Metric label="Activation" value="63.8%" change="6,381 users"/><Metric label="7 day retention" value="71.4%" change="+12.8% benchmark"/></div>
-    <div className="dashboard-grid wide-main">
-      <section className="panel chart-panel"><div className="panel-head"><div><small>ACTIVATION OVER TIME</small><h3>Funded wallets becoming users</h3></div><div className="legend"><span className="blue"/>Claims <span className="green"/>Activations</div></div>
-        <div className="bar-chart">{bars.map((v,i)=><div key={i}><span className="claims" style={{height:`${v}%`}}/><span className="activations" style={{height:`${v*.68}%`}}/><small>{i+17}</small></div>)}</div>
-      </section>
-      <section className="panel insight-card"><Pill tone="green"><Sparkles/> CURRENT INSIGHT</Pill><h3>X referrals are your highest-quality source.</h3><p>They activate 18% more often and retain 12 days longer than direct links.</p><button>View source analysis <ArrowRight/></button></section>
-    </div>
-    <section className="panel"><div className="panel-head"><div><small>CAMPAIGN FUNNEL</small><h3>From audience to retained user</h3></div><button>Compare <ChevronDown/></button></div><div className="horizontal-funnel">{[["Targeted","10,000","100"],["Opened","9,214","92"],["Wallet created","8,726","87"],["Claimed","8,241","82"],["Activated","6,381","64"],["Retained","4,556","46"]].map((x,i)=><div key={x[0]}><span style={{width:`${x[2]}%`}} className={`f${i}`}/><b>{x[1]}</b><small>{x[0]}</small><em>{x[2]}%</em></div>)}</div></section>
-  </>;
+  const bars=[42,58,49,67,72,61,84,76,91,87,96,78];
+  return <><PageHero eyebrow="CAMPAIGN INTELLIGENCE" title="Find where the current accelerates—or breaks." copy="Compare acquisition sources, claim conversion, activation cost, retention, and the exact point where users leave."/>
+    <div className="metric-grid-new"><MetricCard label="Claim conversion" value="66.4%" change="+4.2%" icon={Gift}/><MetricCard label="Activation rate" value="51.4%" change="+7.1%" icon={Activity}/><MetricCard label="30d retention" value="33.0%" change="+2.4%" icon={RefreshCw}/><MetricCard label="Campaign ROI" value="3.8×" change="+0.6×" icon={TrendingUp}/></div>
+    <div className="analysis-grid"><div className="data-panel chart-panel"><div className="panel-head"><div><h3>Claims and activations</h3><p>Last 12 weeks</p></div><select><option>All campaigns</option></select></div><div className="bar-chart-new">{bars.map((h,i)=><span key={i}><i style={{height:`${h}%`}}/><b style={{height:`${h*.68}%`}}/><small>W{i+1}</small></span>)}</div><div className="chart-key"><span><i/>Claims</span><span><i/>Activations</span></div></div>
+      <div className="data-panel"><div className="panel-head"><div><h3>Source quality</h3><p>Cost and retention by channel</p></div></div>{[["X referrals","$1.84","42.8%"],["Discord","$2.02","39.1%"],["Partner apps","$2.26","36.4%"],["Email list","$2.81","28.7%"],["Public link","$3.42","18.2%"]].map((x,i)=><div className="quality-row" key={x[0]}><span className={`source-icon s-${i}`}><Network/></span><b>{x[0]}</b><span><small>CPA</small>{x[1]}</span><span><small>30d retention</small>{x[2]}</span></div>)}</div></div></>;
 }
 
 function TokenDashboard() {
-  return <>
-    <AppHeader title="$CURRENT" eyebrow="PROTOCOL ECONOMY"/>
-    <div className="token-app-hero"><div className="token-app-copy"><div className="token-title"><span className="token-logo">$</span><div><small>CURRENT COFI TOKEN</small><h2>$CURRENT</h2></div></div><p>The access and economic layer for Current CoFi’s distribution network.</p><div className="token-price"><b>$0.0842</b><span><TrendingUp/> 8.4%</span></div><Button>Acquire $CURRENT <ArrowUpRight/></Button></div><div className="token-wave"><span/><span/><span/><div><b>18.4M</b><small>locked in the current</small></div></div></div>
-    <div className="metric-grid"><Metric label="Product fees" value="$348,241" change="+22.1% this month"/><Metric label="Market purchases" value="$121,884" change="6.2M CURRENT"/><Metric label="Project locks" value="18.4M" change="42 active projects"/><Metric label="Protocol liquidity" value="$842,100" change="+$28K this week"/></div>
-    <div className="dashboard-grid">
-      <section className="panel"><div className="panel-head"><div><small>FEE CURRENT</small><h3>Where every product fee flows</h3></div><button>This month <ChevronDown/></button></div><div className="fee-donut"><div className="donut"><span>$84.2K<small>allocated</small></span></div><div className="fee-legend"><div><i className="b1"/><span>Market purchases</span><b>35%</b></div><div><i className="b2"/><span>Protocol liquidity</span><b>20%</b></div><div><i className="b3"/><span>Gas sponsorship</span><b>20%</b></div><div><i className="b4"/><span>Operations</span><b>25%</b></div></div></div></section>
-      <section className="panel lock-card"><div className="panel-head"><div><small>YOUR ACCESS</small><h3>Project lock</h3></div><Pill tone="blue">GROWTH TIER</Pill></div><div className="lock-balance"><small>Currently locked</small><b>250,000 CURRENT</b><span>Unlocks Sep 28, 2026</span></div><div className="benefits"><span><Check/> Up to 25K recipients</span><span><Check/> Advanced attribution</span><span><Check/> Sponsored discovery</span></div><Button>Manage lock <Lock/></Button></section>
-    </div>
-    <section className="panel transaction-panel"><div className="panel-head"><div><small>VERIFIABLE ACTIVITY</small><h3>Recent fee purchases</h3></div><a>View on Arc explorer <ArrowUpRight/></a></div>
-      {[["Batch #128","$8,420 USDC","102,841 CURRENT","Burned","2h ago"],["Batch #127","$6,184 USDC","76,284 CURRENT","Liquidity","1d ago"],["Batch #126","$9,241 USDC","118,420 CURRENT","Burned","2d ago"]].map(r=><div className="token-tx" key={r[0]}><span className="tx-icon"><RefreshCw/></span><b>{r[0]}</b><span>{r[1]}</span><span>{r[2]}</span><Pill tone={r[3]==="Burned"?"green":"blue"}>{r[3]}</Pill><time>{r[4]}</time></div>)}
-    </section>
-  </>;
+  return <><PageHero eyebrow="TRANSPARENT PRODUCT ECONOMICS" title="$CURRENT follows product demand." copy="Watch product fees enter the reserve, batch into market purchases, and route toward burn, project locks, and protocol-owned liquidity." mode="orbit"><Button tone="cyan">View contract <ArrowUpRight/></Button></PageHero>
+    <div className="token-metrics-new"><div><small>Product fees generated</small><strong>$284,620</strong><span>All time</span></div><div><small>USDC awaiting buyback</small><strong>$18,420</strong><span>74% to threshold</span></div><div><small>$CURRENT purchased</small><strong>4.82M</strong><span>$96.4K market value</span></div><div><small>Project locks</small><strong>18.7M</strong><span>38 active projects</span></div></div>
+    <div className="token-dashboard-grid"><div className="data-panel fee-flow-panel"><div className="panel-head"><div><h3>Fee allocation current</h3><p>Verified product revenue routing</p></div><Status tone="green">Live</Status></div><div className="fee-flow-graphic"><div className="fee-source"><CircleDollarSign/><b>Product fees</b><strong>$284.6K</strong></div><div className="fee-paths">{[["Buyback reserve","35%","#25E8E1"],["Gas sponsorship","25%","#173BFF"],["Protocol liquidity","20%","#20D66B"],["Operations","20%","#6B7E86"]].map(([x,p,c])=><span key={x} style={{"--c":c} as React.CSSProperties}><i/><b>{x}</b><em>{p}</em></span>)}</div></div></div>
+      <div className="data-panel"><div className="panel-head"><div><h3>Project lock demand</h3><p>Largest active locks</p></div></div>{[["Tidebreak","5.2M","84 days"],["Openplay","3.8M","112 days"],["Noma Agents","2.4M","64 days"],["Kairo","1.9M","29 days"]].map(x=><div className="lock-row" key={x[0]}><i>{x[0][0]}</i><b>{x[0]}</b><span>{x[1]} CURRENT</span><small>{x[2]}</small></div>)}</div></div></>;
 }
 
-function Developers({ go }: { go:(v:View)=>void }) {
-  return <>
-    <AppHeader title="Developers" eyebrow="BUILD ON THE CURRENT"/>
-    <div className="dev-hero"><div><Pill tone="blue"><Code2/> API v1.0</Pill><h2>Turn one API call into<br/>a funded Arc wallet.</h2><p>Build walletless USDC and token distribution into games, apps, communities, launchpads, and autonomous agents.</p><div><Button onClick={()=>go("api-keys")}>Create API key <KeyRound/></Button><Button kind="secondary">Read the docs <ArrowUpRight/></Button></div></div><div className="dev-code"><div className="code-tabs"><span className="active">TypeScript</span><span>cURL</span><span>Python</span></div><pre><code><i>const</i> campaign = <i>await</i> current.campaigns.create({"{"}<br/><br/>  project: <b>&quot;tidebreak&quot;</b>,<br/>  asset: <b>&quot;0x842...98c1&quot;</b>,<br/>  recipients: audience,<br/>  onboarding: {"{"}<br/>    wallet: <b>&quot;embedded&quot;</b>,<br/>    gas: <b>&quot;sponsored&quot;</b><br/>  {"}"},<br/>  attribution: <b>true</b><br/>{"}"});</code></pre><button><Copy/> Copy</button></div></div>
-    <div className="dev-feature-grid">{[[Zap,"Distributions API","Create personal claims, mass distributions, and project campaigns."],[Webhook,"Signed webhooks","React to claims, wallets, activation, referrals, and refunds."],[Braces,"TypeScript SDK","Typed methods for every Current CoFi API and contract action."],[Bot,"Agent tools","Restricted APIs, x402 access, and MCP-compatible operations."]].map(([I,t,d])=>{const Icon=I as typeof Zap;return <article key={String(t)}><Icon/><h3>{String(t)}</h3><p>{String(d)}</p><button>Explore <ArrowRight/></button></article>})}</div>
-    <section className="panel dev-quickstart"><div><small>QUICKSTART</small><h3>Ship your first claim in five minutes.</h3><p>Create an API key, install the SDK, and send test USDC to an email address with no wallet required.</p></div><div className="quick-steps"><span><b>01</b> Create project key <Check/></span><span><b>02</b> Install @currentcofi/sdk <Copy/></span><span><b>03</b> Create a test claim <ArrowRight/></span></div></section>
-  </>;
+function Developers({go}:{go:(v:View)=>void}) {
+  return <><PageHero eyebrow="CURRENT COFI API" title="One integration. Every activation current." copy="Create distributions, generate walletless links, submit signed activation events, reward referrals, and let agents move value inside explicit boundaries."><div className="hero-button-row"><Button tone="cyan" onClick={()=>go("api-keys")}>Create API key <ArrowRight/></Button><Button tone="ghost">Read documentation <ArrowUpRight/></Button></div></PageHero>
+    <div className="developer-grid"><article><Braces/><h3>Distribution API</h3><p>Create private, identity-bound, public, allowlist, and action-based campaigns.</p><code>POST /v1/distributions</code></article><article><Webhook/><h3>Signed webhooks</h3><p>Receive wallet, claim, activation, referral, refund, and gas-budget events.</p><code>activation.completed</code></article><article><Bot/><h3>Agent tools</h3><p>Let autonomous software reward users under asset, amount, and policy limits.</p><code>cofi.send_reward()</code></article><article><Layers3/><h3>Embeddable UI</h3><p>Place claim, referral, balance, and campaign components inside your own app.</p><code>&lt;CofiClaim /&gt;</code></article></div>
+    <div className="quickstart-panel"><div><Eyebrow>THREE-MINUTE QUICKSTART</Eyebrow><h2>Create a walletless USDC current.</h2><ol><li><span>1</span>Install the SDK</li><li><span>2</span>Create a project key</li><li><span>3</span>Generate the distribution</li></ol></div><pre><code><i>import</i> {"{ Current }"} <i>from</i> <b>&quot;@currentcofi/sdk&quot;</b>;<br/><br/><i>const</i> cofi = <i>new</i> Current({"{"} apiKey {"}"});<br/><br/><i>const</i> drop = <i>await</i> cofi.distributions.create({"{"}<br/>  asset: <b>&quot;USDC&quot;</b>,<br/>  amount: <b>&quot;25.00&quot;</b>,<br/>  identity: recipient.email,<br/>  sponsorGas: <b>true</b><br/>{"}"});</code></pre></div></>;
 }
 
 function ApiKeys() {
-  return <>
-    <AppHeader title="API keys" eyebrow="DEVELOPER SETTINGS"/>
-    <div className="settings-layout"><SettingsNav active="API keys"/><section className="settings-main"><div className="settings-title"><div><h2>API keys</h2><p>Authenticate requests to Current CoFi services.</p></div><Button>Create key <Plus/></Button></div><div className="notice"><ShieldCheck/><div><b>Keep production keys private</b><span>Keys can create funded distributions. Restrict permissions and rotate exposed credentials.</span></div></div>
-      <div className="key-list">{[["Production key","curr_live_••••••••4f28","Last used 4 minutes ago","Campaigns · Claims · Analytics"],["Testnet key","curr_test_••••••••92ae","Last used yesterday","Full test access"],["Agent restricted","curr_agent_••••••••11cd","Last used 2 hours ago","Claims · Read analytics"]].map((r,i)=><div className="key-row" key={r[0]}><span className={`key-icon k${i}`}><KeyRound/></span><div><b>{r[0]}</b><code>{r[1]}</code></div><span>{r[3]}</span><time>{r[2]}</time><button><MoreHorizontal/></button></div>)}</div>
-    </section></div>
-  </>;
+  const [created,setCreated]=useState(false);
+  return <><PageHero eyebrow="DEVELOPER ACCESS" title="Keys with deliberate boundaries." copy="Create environment-specific credentials, assign narrow scopes, monitor usage, and revoke access immediately."/><div className="settings-shell"><div className="settings-tabs"><button>General</button><button className="active">API keys</button><button>Webhooks</button><button>Team</button></div><div className="settings-panel"><div className="panel-head"><div><h3>Project API keys</h3><p>Keys are shown once. Store them securely.</p></div><Button tone="blue" onClick={()=>setCreated(true)}>Create key <Plus/></Button></div>{created&&<div className="secret-reveal"><KeyRound/><div><b>Production key created</b><code>cofi_live_7Kp9••••••••••4eQ2</code><small>Copy this key now. It will not be shown again.</small></div><button><Copy/></button></div>}{[["Production","cofi_live_••••••••4eQ2","Distributions · Claims · Analytics","2m ago"],["Staging","cofi_test_••••••••6kL8","All testnet scopes","1d ago"],["Analytics readonly","cofi_ro_••••••••1xP7","Analytics · Recipients","14d ago"]].map((x,i)=><div className="key-row-new" key={x[0]}><span className={`key-symbol k-${i}`}><KeyRound/></span><div><b>{x[0]}</b><code>{x[1]}</code></div><span>{x[2]}</span><time>Used {x[3]}</time><button><MoreHorizontal/></button></div>)}</div></div></>;
 }
 
 function WebhooksView() {
-  return <>
-    <AppHeader title="Webhooks" eyebrow="DEVELOPER SETTINGS"/>
-    <div className="settings-layout"><SettingsNav active="Webhooks"/><section className="settings-main"><div className="settings-title"><div><h2>Webhooks</h2><p>Receive signed events when funds and users move.</p></div><Button>Add endpoint <Plus/></Button></div>
-      <div className="webhook-card"><div><span className="webhook-icon"><Webhook/></span><div><b>Production events</b><code>https://api.tidebreak.xyz/webhooks/current</code></div></div><Pill tone="green">Healthy</Pill><dl><div><dt>Events</dt><dd>claim.completed, user.activated, referral.credited</dd></div><div><dt>Success rate</dt><dd>99.98%</dd></div><div><dt>Last delivery</dt><dd>42 seconds ago</dd></div></dl></div>
-      <h3 className="subhead">Recent deliveries</h3>{[["claim.completed","200","182 ms","42s ago"],["user.activated","200","241 ms","3m ago"],["referral.credited","200","194 ms","8m ago"],["campaign.gas_low","200","218 ms","1h ago"]].map(r=><div className="delivery-row" key={r[3]}><span className="event-dot"/><code>{r[0]}</code><Pill tone="green">{r[1]}</Pill><span>{r[2]}</span><time>{r[3]}</time><ChevronRight/></div>)}
-    </section></div>
-  </>;
-}
-
-function SettingsNav({active}:{active:string}) {
-  const items=["General","Team","Billing","API keys","Webhooks","Security"];
-  return <aside className="settings-nav">{items.map(x=><button className={active===x?"active":""} key={x}>{x}</button>)}</aside>;
+  return <><PageHero eyebrow="EVENT DELIVERY" title="Every important state, delivered." copy="Signed webhooks keep games, communities, launchpads, and autonomous agents synchronized with the current."/><div className="settings-shell"><div className="settings-tabs"><button>General</button><button>API keys</button><button className="active">Webhooks</button><button>Team</button></div><div className="settings-panel"><div className="panel-head"><div><h3>Webhook endpoints</h3><p>Signed with your project secret.</p></div><Button tone="blue">Add endpoint <Plus/></Button></div><div className="webhook-endpoint"><span><Webhook/></span><div><b>Production events</b><code>https://api.tidebreak.xyz/cofi/webhooks</code></div><Status tone="green">Healthy</Status><button><MoreHorizontal/></button><div className="endpoint-meta"><span><small>EVENTS</small>8 subscribed</span><span><small>SUCCESS RATE</small>99.98%</span><span><small>LAST DELIVERY</small>18s ago</span></div></div><h3 className="section-subtitle">Recent deliveries</h3>{[["claim.completed","Tidebreak Genesis","200","18s"],["activation.completed","Tidebreak Genesis","200","46s"],["wallet.created","Founders Current","200","2m"],["campaign.gas_low","Agent Week","200","8m"]].map(x=><div className="delivery-row-new" key={x[0]+x[3]}><i/><code>{x[0]}</code><span>{x[1]}</span><Status tone="green">{x[2]}</Status><time>{x[3]} ago</time><button><Eye/></button></div>)}</div></div></>;
 }
 
 function Agents() {
-  return <>
-    <AppHeader title="AI agents" eyebrow="AUTONOMOUS DISTRIBUTION"/>
-    <div className="agents-hero"><div><Pill tone="green"><Bot/> AGENT NETWORK ONLINE</Pill><h2>Let software move rewards.<br/>Keep humans in control.</h2><p>Authorize agents to create claims, reward verified work, read campaign data, and request approval for larger distributions.</p></div><Button>Connect agent <Plus/></Button></div>
-    <div className="agent-grid">{[["CurrentScout","Community reward agent","Online","$4,218","842"],["QuestFlow","Action verification agent","Online","$2,841","518"],["TreasuryPilot","Campaign funding agent","Paused","$0","0"]].map((r,i)=><article className="agent-card-app" key={r[0]}><div className="agent-card-head"><span className={`agent-avatar ag${i}`}><Bot/></span><Pill tone={r[2]==="Online"?"green":"neutral"}>{r[2]}</Pill><button><MoreHorizontal/></button></div><h3>{r[0]}</h3><p>{r[1]}</p><dl><div><dt>Distributed</dt><dd>{r[3]}</dd></div><div><dt>Claims</dt><dd>{r[4]}</dd></div></dl><div className="agent-perms"><span><Check/> Create claims</span><span><Check/> Read analytics</span><span className={i===2?"off":""}>{i===2?<X/>:<Check/>} Fund campaigns</span></div><button className="card-link">Manage permissions <ArrowRight/></button></article>)}</div>
-    <section className="panel permission-panel"><div className="panel-head"><div><small>GLOBAL GUARDRAILS</small><h3>Agent spending controls</h3></div><Button kind="secondary">Edit controls <SlidersHorizontal/></Button></div><div className="guardrails"><div><span><CircleDollarSign/></span><b>$10,000</b><small>Daily network limit</small></div><div><span><Send/></span><b>$250</b><small>Max single claim</small></div><div><span><ShieldCheck/></span><b>$1,000</b><small>Human approval threshold</small></div><div><span><Globe2/></span><b>Arc only</b><small>Approved network</small></div></div></section>
-  </>;
+  const [paused,setPaused]=useState(false);
+  return <><PageHero eyebrow="POLICY-BOUND AGENT NETWORK" title="Let software move value without losing control." copy="Agents create claims, reward completed work, and pay other agents inside explicit asset, amount, recipient, and approval boundaries." mode="orbit"><Button tone="cyan">Create agent <Plus/></Button></PageHero>
+    <div className="agent-grid-new">{[["Reward Router","Campaign agent","$1,284 / $5,000",Bot],["Quest Verifier","Action oracle","1,842 events",CheckCircle2],["Community Scout","Growth agent","426 rewards",Network]].map(([name,role,metric,I],i)=>{const Icon=I as typeof Bot;return <article key={String(name)}><div className="agent-head"><span><Icon/></span><Status tone={i===0&&paused?"grey":"green"}>{i===0&&paused?"Paused":"Online"}</Status><button><MoreHorizontal/></button></div><h3>{String(name)}</h3><p>{String(role)}</p><strong>{String(metric)}</strong><small>{i===0?"Daily spend":"Last 30 days"}</small><div className="agent-boundaries"><span><Check/>USDC + TIDE</span><span><Check/>Max $50 / reward</span><span><Check/>Human approval over $250</span></div>{i===0&&<button className="agent-pause" onClick={()=>setPaused(!paused)}>{paused?<Play/>:<Pause/>}{paused?"Resume agent":"Pause agent"}</button>}</article>})}</div>
+    <div className="data-panel guardrail-panel"><div className="panel-head"><div><h3>Network guardrails</h3><p>Applied before any agent action reaches a wallet or contract.</p></div><Status tone="green">Enforced</Status></div><div className="guardrail-grid">{[["Daily network limit","$18,000",Gauge],["Approval threshold","$250",ShieldCheck],["Approved assets","3",CircleDollarSign],["Active policy sets","6",SlidersHorizontal]].map(([x,v,I])=>{const Icon=I as typeof Gauge;return <div key={String(x)}><span><Icon/></span><b>{String(v)}</b><small>{String(x)}</small></div>})}</div></div></>;
 }
 
 function SettingsView() {
-  return <>
-    <AppHeader title="Settings" eyebrow="PROJECT CONFIGURATION"/>
-    <div className="settings-layout"><SettingsNav active="General"/><section className="settings-main"><div className="settings-title"><div><h2>Project profile</h2><p>Configure how Tidebreak appears across Current CoFi.</p></div><Button>Save changes</Button></div><div className="profile-row"><span className="project-avatar lg">T</span><div><b>Project logo</b><small>PNG, JPG, or WEBP · Max 2MB</small></div><Button kind="secondary">Change image</Button></div>
-      <div className="settings-form"><label>Project name<input defaultValue="Tidebreak Labs"/></label><label>Project slug<div className="input-prefix"><span>current.co/</span><input defaultValue="tidebreak"/></div></label><label className="full">Description<textarea defaultValue="A social game economy powered by TIDE."/></label><label>Project token<input defaultValue="0x842ad51c...98c1"/></label><label>Gas policy<div className="select-control">Sponsored for all claims <ChevronDown/></div></label></div>
-      <div className="danger-zone"><div><b>Danger zone</b><p>Pausing the project disables new campaigns and claims.</p></div><Button kind="secondary">Pause project</Button></div>
-    </section></div>
-  </>;
+  const [saved,setSaved]=useState(false);
+  return <><PageHero eyebrow="ORGANIZATION CONTROL" title="A calm center for the whole network." copy="Manage identity, project branding, members, security, notifications, billing, and network preferences."/><div className="settings-shell"><div className="settings-tabs"><button className="active">General</button><button>Members</button><button>Security</button><button>Billing</button><button>Notifications</button></div><form className="settings-panel" onSubmit={e=>{e.preventDefault();setSaved(true)}}><div className="panel-head"><div><h3>Organization profile</h3><p>Public details used across claims and campaigns.</p></div>{saved&&<Status tone="green">Changes saved</Status>}</div><div className="profile-uploader"><span>T</span><div><b>Project mark</b><small>SVG, PNG, or WebP · 2MB maximum</small></div><Button tone="ghost">Replace image</Button></div><div className="field-grid"><label>Organization name<input defaultValue="Tidebreak Labs"/></label><label>Current username<div className="input-prefix"><span>current.co/</span><input defaultValue="tidebreak"/></div></label><label>Website<input defaultValue="https://tidebreak.xyz"/></label><label>Default network<select><option>Arc testnet</option></select></label><label className="full">Description<textarea defaultValue="The team building Tidebreak and its community economy."/></label></div><div className="form-actions"><Button tone="ghost">Discard</Button><Button tone="blue" type="submit">Save changes</Button></div><div className="danger-zone"><div><b>Delete organization</b><p>Removes offchain data after all campaigns and balances are settled.</p></div><button>Delete</button></div></form></div></>;
 }
 
-function ErrorState({ go }: { go:(v:View)=>void }) {
-  return <div className="full-error"><div className="error-current"><span/><span/><X/></div><Pill tone="neutral">CURRENT INTERRUPTED</Pill><h2>This current can’t be reached.</h2><p>The claim may have expired, been refunded, or the network is temporarily unavailable.</p><div><Button onClick={()=>go("overview")}>Return to dashboard</Button><Button kind="secondary"><RefreshCw/> Try again</Button></div><small>Error CURRENT_LINK_UNAVAILABLE · c_8f21a</small></div>;
+function StateLab({go}:{go:(v:View)=>void}) {
+  return <><PageHero eyebrow="SYSTEM STATES" title="Every interruption has a clear next step." copy="Loading, empty, expired, unavailable, and failure states are designed as carefully as the ideal path."/><div className="state-grid">{[
+    ["Loading current","Confirming on Arc testnet",<RefreshCw className="spin" key="a"/>],
+    ["Nothing is flowing yet","Create your first distribution to begin.",<Radio key="b"/>],
+    ["Claim expired","The unclaimed value is ready to return to its sender.",<Clock3 key="c"/>],
+    ["Gas budget is low","Add 25 USDC to keep walletless claims open.",<Zap key="d"/>],
+    ["Current interrupted","We could not confirm the transaction. Your funds have not moved.",<X key="e"/>],
+    ["Campaign paused","Existing balances remain secured until the project resumes.",<Pause key="f"/>]
+  ].map(([title,copy,icon],i)=><article key={String(title)}><span className={`state-icon st-${i}`}>{icon}</span><h3>{String(title)}</h3><p>{String(copy)}</p><Button tone={i===4?"ghost":"dark"} onClick={()=>i===1?go("new-campaign"):undefined}>{i===0?"View transaction":i===1?"Create distribution":i===2?"Return funds":i===3?"Add gas budget":i===4?"Try again":"View campaign"}</Button></article>)}</div></>;
 }
 
-function AppShell({ view, go }: { view: View; go:(v:View)=>void }) {
-  const [menu,setMenu]=useState(false);
-  const content = useMemo(() => {
-    switch(view) {
-      case "overview": return <Overview go={go}/>;
-      case "create": return <CreateLink/>;
-      case "campaigns": return <Campaigns go={go}/>;
-      case "new-campaign": return <NewCampaign go={go}/>;
-      case "recipients": return <Recipients/>;
-      case "referrals": return <Referrals/>;
-      case "analytics": return <Analytics/>;
-      case "token": return <TokenDashboard/>;
-      case "developers": return <Developers go={go}/>;
-      case "api-keys": return <ApiKeys/>;
-      case "webhooks": return <WebhooksView/>;
-      case "agents": return <Agents/>;
-      case "settings": return <SettingsView/>;
-      case "error": return <ErrorState go={go}/>;
-      default: return <Overview go={go}/>;
-    }
-  }, [view, go]);
-  return <div className="app-shell"><Sidebar view={view} go={go} open={menu} close={()=>setMenu(false)}/>{menu&&<button className="sidebar-backdrop" onClick={()=>setMenu(false)}/>}<main className="app-main">{view==="error"?content:<><div className="testnet-banner"><TestTube2/> Arc testnet workspace <span>Mock data enabled</span><button onClick={()=>go("home")}>View site <ArrowUpRight/></button></div>{view!=="new-campaign"&&view!=="overview"&&view!=="create"&&view!=="campaigns"&&view!=="recipients"&&view!=="referrals"&&view!=="analytics"&&view!=="token"&&view!=="developers"&&view!=="api-keys"&&view!=="webhooks"&&view!=="agents"&&view!=="settings"?null:content}<button className="floating-mobile-menu" onClick={()=>setMenu(true)}><Menu/></button></>}</main></div>;
+function Sidebar({view,go,open,setOpen}:{view:View;go:(v:View)=>void;open:boolean;setOpen:(v:boolean)=>void}) {
+  return <><aside className={`app-sidebar ${open?"open":""}`}><div className="sidebar-top"><Brand light onClick={()=>go("home")}/><button aria-label="Close navigation" onClick={()=>setOpen(false)}><X/></button></div><div className="project-switch"><span>T</span><div><b>Tidebreak</b><small>Arc testnet</small></div><ChevronDown/></div><nav>{appNav.map(section=><div key={section.label}><small>{section.label}</small>{section.items.map(([id,label,I])=>{const Icon=I;return <button className={view===id?"active":""} onClick={()=>{go(id as View);setOpen(false)}} key={id}><Icon/>{label}{id==="campaigns"&&<em>4</em>}</button>})}</div>)}</nav><div className="sidebar-bottom"><button onClick={()=>go("api-keys")}><KeyRound/>API keys</button><button onClick={()=>go("webhooks")}><Webhook/>Webhooks</button><button onClick={()=>go("settings")}><Settings/>Settings</button><button onClick={()=>go("states")}><HelpCircle/>System states</button><div className="user-card"><span>MC</span><div><b>Mara Chen</b><small>Owner</small></div><LogOut/></div></div></aside>{open&&<button className="sidebar-shade" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}</>;
+}
+
+function AppShell({view,go}:{view:View;go:(v:View)=>void}) {
+  const [open,setOpen]=useState(false);
+  let page:React.ReactNode;
+  switch(view){
+    case "overview":page=<Overview go={go}/>;break;
+    case "create":page=<CreateLink/>;break;
+    case "onboarding":page=<ProjectOnboarding go={go}/>;break;
+    case "campaigns":page=<Campaigns go={go}/>;break;
+    case "new-campaign":page=<CampaignBuilder go={go}/>;break;
+    case "recipients":page=<Recipients/>;break;
+    case "referrals":page=<Referrals/>;break;
+    case "analytics":page=<Analytics/>;break;
+    case "token":page=<TokenDashboard/>;break;
+    case "developers":page=<Developers go={go}/>;break;
+    case "api-keys":page=<ApiKeys/>;break;
+    case "webhooks":page=<WebhooksView/>;break;
+    case "agents":page=<Agents/>;break;
+    case "settings":page=<SettingsView/>;break;
+    default:page=<StateLab go={go}/>;
+  }
+  return <div className="app-shell"><Sidebar view={view} go={go} open={open} setOpen={setOpen}/><main className="app-main-new"><div className="testnet-strip"><TestTube2/>Arc testnet environment · Balances have no monetary value.<button>Network status <ArrowUpRight/></button></div><header className="app-topbar"><button className="mobile-sidebar-button" onClick={()=>setOpen(true)} aria-label="Open navigation"><Menu/></button><div><span>WORKSPACE /</span><b>{view.replace("-"," ")}</b></div><div><button aria-label="Search"><Search/></button><button aria-label="Notifications"><Bell/></button><Button tone="blue" onClick={()=>go("new-campaign")}>New current <Plus/></Button></div></header><div className="app-view" key={view}>{page}</div></main></div>;
 }
 
 export default function CurrentApp() {
-  const [view,setView]=useState<View>("home");
-  const go=(v:View)=>{setView(v); window.scrollTo({top:0,behavior:"smooth"});};
-  if(view==="home") return <Marketing go={go}/>;
-  if(view==="claim") return <ClaimView go={go}/>;
-  return <AppShell view={view} go={go}/>;
+  const [view,setView] = useState<View>("home");
+  const [transition,setTransition] = useState(false);
+  useEffect(()=>{
+    const fromHash=()=>{const value=location.hash.replace("#/","") as View;if(value)setView(value)};
+    fromHash(); addEventListener("hashchange",fromHash); return()=>removeEventListener("hashchange",fromHash);
+  },[]);
+  const go=(next:View)=>{
+    if(next===view)return;
+    setTransition(true);
+    setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
+  };
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go}/>:<AppShell view={view} go={go}/>}</>;
 }

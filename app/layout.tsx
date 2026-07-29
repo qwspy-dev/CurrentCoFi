@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Manrope } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
-
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
-const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"] });
 
 export async function generateMetadata(): Promise<Metadata> {
   const incomingHeaders = await headers();
@@ -40,9 +36,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${manrope.variable}`}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
