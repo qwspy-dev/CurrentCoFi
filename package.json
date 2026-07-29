@@ -1,0 +1,27 @@
+{
+  "name": "current-cofi",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "arc:check": "pnpm --filter @current-cofi/chain build && node scripts/check-arc.mjs",
+    "build": "pnpm -r build",
+    "contracts:compile": "solcjs --bin --abi contracts/src/ClaimVault.sol -o contracts/out/solc",
+    "dev:api": "pnpm --filter @current-cofi/api dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "prettier": "^3.9.6",
+    "solc": "^0.8.24",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

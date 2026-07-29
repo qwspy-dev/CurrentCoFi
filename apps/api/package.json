@@ -1,0 +1,18 @@
+{
+  "name": "@current-cofi/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@current-cofi/chain": "workspace:*",
+    "fastify": "^5.10.0",
+    "zod": "^4.4.3"
+  }
+}
