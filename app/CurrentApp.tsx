@@ -134,6 +134,8 @@ function HeroFilm() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [canAnimate, setCanAnimate] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [motionBlocked, setMotionBlocked] = useState(false);
+  const [motionEnabled, setMotionEnabled] = useState(false);
 
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -141,11 +143,9 @@ function HeroFilm() {
     const connection = (navigator as Navigator & {
       connection?: { saveData?: boolean };
     }).connection;
-    setCanAnimate(
-      desktop.matches &&
-      !reducedMotion.matches &&
-      !connection?.saveData
-    );
+    const blocked = reducedMotion.matches || Boolean(connection?.saveData);
+    setMotionBlocked(desktop.matches && blocked);
+    setCanAnimate(desktop.matches && !blocked);
   }, []);
 
   useEffect(() => {
@@ -162,33 +162,48 @@ function HeroFilm() {
   }, [canAnimate]);
 
   return (
-    <div className={`hero-film ${isPlaying ? "hero-film-playing" : ""}`} aria-hidden="true">
-      <img
-        className="hero-film-poster hero-film-poster-complete"
-        src="/media/currentdes-poster.jpg"
-        alt=""
-        width="1920"
-        height="1080"
-        fetchPriority="high"
-      />
-      {canAnimate && (
-        <video
-          ref={videoRef}
-          className="hero-film-video"
-          muted
-          playsInline
-          preload="auto"
-          poster="/media/currentdes-start.jpg"
-          onPlaying={() => {
-            setIsPlaying(true);
+    <>
+      <div className={`hero-film ${isPlaying ? "hero-film-playing" : ""} ${motionEnabled ? "hero-film-motion-enabled" : ""}`} aria-hidden="true">
+        <img
+          className="hero-film-poster hero-film-poster-complete"
+          src="/media/currentdes-poster.jpg"
+          alt=""
+          width="1920"
+          height="1080"
+          fetchPriority="high"
+        />
+        {canAnimate && (
+          <video
+            ref={videoRef}
+            className="hero-film-video"
+            muted
+            playsInline
+            preload="auto"
+            poster="/media/currentdes-start.jpg"
+            onPlaying={() => {
+              setIsPlaying(true);
+            }}
+            onEnded={() => setIsPlaying(true)}
+          >
+            <source src="/media/currentdes-hero.mp4" type="video/mp4" />
+          </video>
+        )}
+        <div className="hero-film-shade" />
+      </div>
+      {motionBlocked && !motionEnabled && (
+        <button
+          className="hero-motion-toggle"
+          type="button"
+          onClick={() => {
+            setMotionEnabled(true);
+            setMotionBlocked(false);
+            setCanAnimate(true);
           }}
-          onEnded={() => setIsPlaying(true)}
         >
-          <source src="/media/currentdes-hero.mp4" type="video/mp4" />
-        </video>
+          <span aria-hidden="true">▶</span> Play background motion
+        </button>
       )}
-      <div className="hero-film-shade" />
-    </div>
+    </>
   );
 }
 
