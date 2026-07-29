@@ -202,8 +202,8 @@ function CurrentBackground() {
         width * 0.72, height * 0.48, 0,
         width * 0.72, height * 0.48, width * 0.5,
       );
-      atmosphere.addColorStop(0, "rgba(18, 195, 186, 0.12)");
-      atmosphere.addColorStop(0.5, "rgba(3, 104, 176, 0.055)");
+      atmosphere.addColorStop(0, "rgba(0, 255, 255, 0.12)");
+      atmosphere.addColorStop(0.5, "rgba(0, 0, 255, 0.055)");
       atmosphere.addColorStop(1, "rgba(2, 12, 24, 0)");
       context.fillStyle = atmosphere;
       context.fillRect(0, 0, width, height);
@@ -219,8 +219,8 @@ function CurrentBackground() {
           width * 1.04, y - height * 0.035,
         );
         context.strokeStyle = wave % 3 === 0
-          ? "rgba(38, 232, 214, 0.095)"
-          : "rgba(34, 139, 204, 0.075)";
+          ? "rgba(0, 255, 255, 0.095)"
+          : "rgba(0, 0, 255, 0.075)";
         context.lineWidth = 1;
         context.stroke();
       }
@@ -235,11 +235,11 @@ function CurrentBackground() {
         const pathGradient = context.createLinearGradient(
           width * 0.36, height * 0.54, width, height * endpoints[lane][1],
         );
-        pathGradient.addColorStop(0, "rgba(33, 224, 208, 0.04)");
-        pathGradient.addColorStop(0.55, "rgba(35, 184, 211, 0.25)");
+        pathGradient.addColorStop(0, "rgba(0, 255, 255, 0.04)");
+        pathGradient.addColorStop(0.55, "rgba(0, 255, 255, 0.25)");
         pathGradient.addColorStop(1, lane % 3 === 2
-          ? "rgba(20, 221, 126, 0.38)"
-          : "rgba(41, 166, 225, 0.28)");
+          ? "rgba(0, 144, 0, 0.42)"
+          : "rgba(0, 0, 255, 0.34)");
         context.strokeStyle = pathGradient;
         context.lineWidth = lane % 4 === 0 ? 1.35 : 0.8;
         context.stroke();
@@ -250,8 +250,8 @@ function CurrentBackground() {
         const point = pointOnPath(particle.lane, progress, time);
         const green = particle.lane % 3 === 2 && progress > 0.72;
         context.shadowBlur = 13;
-        context.shadowColor = green ? "#16df83" : "#28e2d5";
-        context.fillStyle = green ? "rgba(51, 238, 144, 0.94)" : "rgba(74, 237, 223, 0.9)";
+        context.shadowColor = green ? "#009000" : "#00FFFF";
+        context.fillStyle = green ? "rgba(0, 144, 0, 0.94)" : "rgba(0, 255, 255, 0.9)";
         context.beginPath();
         context.arc(point.x, point.y, particle.size, 0, Math.PI * 2);
         context.fill();
@@ -261,7 +261,7 @@ function CurrentBackground() {
       const sourceX = width * 0.36;
       const sourceY = height * 0.54;
       const sourcePulse = 1 + Math.sin(time * 0.0022) * 0.08;
-      context.strokeStyle = "rgba(69, 235, 219, 0.32)";
+      context.strokeStyle = "rgba(0, 255, 255, 0.32)";
       context.lineWidth = 1;
       for (let ring = 1; ring <= 3; ring += 1) {
         context.beginPath();
@@ -269,8 +269,8 @@ function CurrentBackground() {
         context.stroke();
       }
       const sourceGlow = context.createRadialGradient(sourceX, sourceY, 0, sourceX, sourceY, 38);
-      sourceGlow.addColorStop(0, "rgba(59, 239, 221, 0.75)");
-      sourceGlow.addColorStop(0.24, "rgba(12, 129, 186, 0.72)");
+      sourceGlow.addColorStop(0, "rgba(0, 255, 255, 0.75)");
+      sourceGlow.addColorStop(0.24, "rgba(0, 0, 255, 0.72)");
       sourceGlow.addColorStop(1, "rgba(5, 45, 70, 0)");
       context.fillStyle = sourceGlow;
       context.beginPath();
@@ -283,9 +283,9 @@ function CurrentBackground() {
         const activated = lane % 3 === 2;
         const pulse = 1 + Math.sin(time * 0.002 + lane) * 0.05;
         context.shadowBlur = activated ? 24 : 14;
-        context.shadowColor = activated ? "#0cdb75" : "#168ccf";
-        context.fillStyle = activated ? "rgba(5, 70, 61, 0.76)" : "rgba(4, 44, 70, 0.76)";
-        context.strokeStyle = activated ? "rgba(54, 238, 144, 0.7)" : "rgba(63, 188, 231, 0.55)";
+        context.shadowColor = activated ? "#009000" : "#0000FF";
+        context.fillStyle = activated ? "rgba(0, 144, 0, 0.76)" : "rgba(0, 0, 255, 0.42)";
+        context.strokeStyle = activated ? "rgba(0, 144, 0, 0.9)" : "rgba(0, 255, 255, 0.72)";
         context.lineWidth = 1.2;
         context.beginPath();
         context.roundRect(x - 19 * pulse, y - 19 * pulse, 38 * pulse, 38 * pulse, 12);
@@ -293,7 +293,7 @@ function CurrentBackground() {
         context.stroke();
         context.shadowBlur = 0;
 
-        context.strokeStyle = activated ? "rgba(105, 255, 170, 0.82)" : "rgba(104, 215, 242, 0.72)";
+        context.strokeStyle = activated ? "rgba(0, 144, 0, 0.95)" : "rgba(0, 255, 255, 0.82)";
         context.beginPath();
         context.arc(x, y - 4, 5, 0, Math.PI * 2);
         context.moveTo(x - 9, y + 10);

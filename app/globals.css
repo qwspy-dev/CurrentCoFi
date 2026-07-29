@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 :root{
-  --blue:#0567b7;--blue2:#087bc9;--cyan:#21e0d0;--green:#00ad55;--navy:#061825;
+  --blue:#0000FF;--blue2:#0000FF;--cyan:#00FFFF;--green:#009000;--navy:#02020c;
+  --blue-rgb:0,0,255;--cyan-rgb:0,255,255;--green-rgb:0,144,0;
   --ink:#0a1a24;--muted:#61717b;--line:#dbe9ea;--mist:#f2f8f8;--white:#fff;
   --shadow:0 24px 70px rgba(5,40,63,.12);--radius:20px;
 }
@@ -46,4 +47,128 @@
 
 @media(max-width:560px){
   .hero-background-content{padding-top:58px}
+}
+
+/* Current CoFi brand palette lock: the three supplied swatches are the only
+   saturated brand hues used throughout marketing, product, and protocol UI. */
+::selection{background:var(--cyan);color:#02020c}
+.button-primary{background:var(--blue)}
+.button-dark{background:#02020c}
+.pill-blue{background:rgba(var(--blue-rgb),.08);color:var(--blue)}
+.pill-green{background:rgba(var(--green-rgb),.09);color:var(--green)}
+.hero,
+.claim-screen,
+.live-preview,
+.overview-hero,
+.token-app-hero{
+  background:
+    radial-gradient(circle at 74% 42%,rgba(var(--cyan-rgb),.2),transparent 27%),
+    radial-gradient(circle at 28% 72%,rgba(var(--green-rgb),.1),transparent 30%),
+    linear-gradient(135deg,#02020c 0%,#000033 52%,#02020c 100%);
+}
+.hero-film,
+.hero-cinematic{background:#02020c}
+.hero-film-shade{
+  background:
+    linear-gradient(90deg,rgba(2,2,12,.94) 0%,rgba(0,0,51,.84) 28%,rgba(0,0,51,.38) 54%,rgba(2,2,12,.16) 78%,rgba(2,2,12,.4) 100%),
+    linear-gradient(180deg,rgba(2,2,12,.62) 0,transparent 24%,transparent 68%,rgba(2,2,12,.88) 100%),
+    radial-gradient(circle at 66% 48%,rgba(var(--cyan-rgb),.14),transparent 35%);
+}
+.hero-copy h1 span,
+.section-kicker.light,
+.live-dot,
+.secure svg,
+.token-wave small,
+.mini-flow-visual small{color:var(--cyan)}
+.wave-field:before,
+.wave-field:after{border-color:rgba(var(--cyan-rgb),.14)}
+.orb-one{background:rgba(var(--blue-rgb),.22)}
+.orb-two{background:rgba(var(--green-rgb),.14)}
+.current,
+.mini-flow-visual>span,
+.token-wave>span,
+.summary-current span,
+.referral-stream span,
+.error-current span{
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  box-shadow:0 0 16px rgba(var(--cyan-rgb),.72);
+}
+.particle{background:var(--cyan);box-shadow:0 0 16px var(--cyan)}
+.project-avatar,
+.claim-avatar,
+.token-logo,
+.token-coin{
+  background:linear-gradient(145deg,var(--cyan),var(--blue));
+}
+.flow-lines span{
+  background:linear-gradient(90deg,rgba(var(--cyan-rgb),.08),var(--cyan),rgba(var(--blue-rgb),.3));
+  filter:drop-shadow(0 0 5px var(--cyan));
+}
+.audience-cloud>span{color:var(--cyan);border-color:rgba(var(--cyan-rgb),.3)}
+.audience-cloud>span.activated{
+  color:#fff;
+  background:rgba(var(--green-rgb),.7);
+  border-color:var(--green);
+  box-shadow:0 0 18px rgba(var(--green-rgb),.45);
+}
+.map-tag svg,
+.check-list svg,
+.metric-change,
+.process-list svg,
+.quick-steps svg,
+.benefits svg,
+.event-dot,
+.agent-perms svg{color:var(--green)}
+.final-cta{
+  background:
+    radial-gradient(circle at 50% 20%,rgba(var(--cyan-rgb),.3),transparent 38%),
+    linear-gradient(135deg,var(--blue),#000066 62%,var(--green));
+}
+.token-section,
+.dark-card,
+.dev-hero,
+.testnet-banner{background:#02020c}
+.token-coin{box-shadow:0 0 0 25px rgba(var(--cyan-rgb),.07),0 0 80px rgba(var(--cyan-rgb),.28)}
+.token-orbit>span{border-color:rgba(var(--cyan-rgb),.2)}
+.agent-core{
+  background:#02020c;
+  color:var(--cyan);
+  box-shadow:0 0 0 20px rgba(var(--cyan-rgb),.12),0 0 0 40px rgba(var(--cyan-rgb),.06);
+}
+.agent-line{background:rgba(var(--cyan-rgb),.55)}
+.asset.usdc{background:var(--blue)}
+.asset-toggle button.selected,
+.choice-grid button.selected,
+.builder-options button.selected{box-shadow:0 0 0 2px rgba(var(--blue-rgb),.1)}
+.success-rings{background:var(--green)}
+.processing-orb>span{border-color:var(--cyan)}
+.progress-track span{background:linear-gradient(90deg,var(--blue),var(--cyan))}
+.key-icon.k2,
+.agent-avatar.ag2{background:rgba(var(--blue-rgb),.08);color:var(--blue)}
+.source-icon.c0,
+.source-icon.c1,
+.source-icon.c2,
+.source-icon.c3{color:var(--blue)}
+.analytics-banner,
+.referral-hero,
+.agents-hero{
+  background:
+    linear-gradient(120deg,rgba(var(--blue-rgb),.06),rgba(var(--cyan-rgb),.08) 56%,rgba(var(--green-rgb),.07));
+}
+.bar-chart .claims{background:var(--blue)}
+.bar-chart .activations{background:var(--green)}
+.legend .blue{background:var(--blue)}
+.legend .green{background:var(--green)}
+.donut{background:conic-gradient(var(--blue) 0 35%,var(--cyan) 35% 55%,var(--green) 55% 75%,#c5dbde 75% 100%)}
+.token-price span{color:var(--green)}
+.campaign-dot,
+.event-dot{background:var(--cyan)}
+
+@media(max-width:760px){
+  .hero-cinematic{
+    background:
+      radial-gradient(circle at 74% 42%,rgba(var(--cyan-rgb),.2),transparent 27%),
+      radial-gradient(circle at 30% 72%,rgba(var(--green-rgb),.1),transparent 28%),
+      linear-gradient(135deg,#02020c 0%,#000033 52%,#02020c 100%);
+  }
 }
