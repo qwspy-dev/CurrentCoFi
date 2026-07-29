@@ -27,12 +27,7 @@
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .hero-cinematic{height:min(100svh,900px);min-height:760px;background:#020c18;overflow:hidden;isolation:isolate}
 .hero-film{position:absolute;inset:0;z-index:0;overflow:hidden;background:#020c18;pointer-events:none}
-.hero-film-poster,.hero-film-video{position:absolute;inset:-5%;width:110%;height:110%;object-fit:cover;object-position:62% center;filter:saturate(.84) contrast(1.08) brightness(.72);transform:scale(1.05)}
-.hero-film-poster{opacity:.72}
-.hero-film-video{opacity:0;transition:opacity .7s ease;will-change:opacity}
-.hero-film-playing .hero-film-intro{opacity:.72}
-.hero-film-intro-finished{opacity:0!important}
-.hero-film-loop-active{opacity:.72}
+.hero-current-canvas canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.96}
 .hero-film-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(1,10,20,.96) 0%,rgba(2,17,29,.89) 27%,rgba(2,20,33,.53) 54%,rgba(2,18,30,.2) 76%,rgba(1,12,23,.42) 100%),linear-gradient(180deg,rgba(1,10,20,.66) 0,transparent 23%,transparent 67%,rgba(1,10,20,.88) 100%),radial-gradient(circle at 66% 48%,rgba(24,215,201,.12),transparent 34%);pointer-events:none}
 .hero-cinematic .top-nav{max-width:none;padding-left:clamp(28px,5vw,78px);padding-right:clamp(28px,5vw,78px)}
 .hero-background-content{display:block;max-width:1380px;padding-top:clamp(100px,15vh,150px);padding-bottom:130px}
@@ -44,15 +39,11 @@
 @media(max-width:760px){
   .hero-cinematic{height:auto;min-height:930px;background:radial-gradient(circle at 74% 42%,rgba(32,218,205,.2),transparent 26%),linear-gradient(135deg,#05141f 0%,#05283d 48%,#064f71 100%)}
   .hero-film{display:block}
-  .hero-film-poster{opacity:.32;object-position:72% center;transform:scale(1.22)}
+  .hero-current-canvas canvas{opacity:.58}
   .hero-film-shade{background:linear-gradient(180deg,rgba(2,13,24,.72),rgba(2,17,29,.8) 42%,rgba(2,15,27,.96) 82%),linear-gradient(90deg,rgba(2,13,24,.9),rgba(2,13,24,.34))}
   .hero-background-content{display:block;padding:72px 20px 120px}
 }
 
 @media(max-width:560px){
   .hero-background-content{padding-top:58px}
-}
-
-@media(prefers-reduced-motion:reduce){
-  .hero-film-poster-complete{opacity:1}
 }

@@ -130,74 +130,193 @@ function CurrentMap() {
   );
 }
 
-function HeroFilm() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const loopRef = useRef<HTMLVideoElement>(null);
-  const [canAnimate, setCanAnimate] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [loopActive, setLoopActive] = useState(false);
+function CurrentBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 761px)");
-    setCanAnimate(desktop.matches);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    let animationFrame = 0;
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
+
+    const endpoints = [
+      [0.62, 0.18], [0.76, 0.13], [0.9, 0.24],
+      [0.68, 0.38], [0.84, 0.43], [0.96, 0.5],
+      [0.61, 0.61], [0.77, 0.68], [0.91, 0.72],
+      [0.69, 0.84], [0.85, 0.88],
+    ];
+
+    const particles = Array.from({ length: 58 }, (_, index) => ({
+      lane: index % endpoints.length,
+      offset: (index * 0.173) % 1,
+      speed: 0.025 + (index % 7) * 0.004,
+      size: 1.4 + (index % 4) * 0.55,
+    }));
+
+    const resize = () => {
+      const bounds = canvas.getBoundingClientRect();
+      width = bounds.width;
+      height = bounds.height;
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
+      canvas.width = Math.round(width * pixelRatio);
+      canvas.height = Math.round(height * pixelRatio);
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    };
+
+    const pointOnPath = (lane: number, progress: number, time: number) => {
+      const [endX, endY] = endpoints[lane];
+      const startX = width * 0.36;
+      const startY = height * 0.54;
+      const destinationX = width * endX;
+      const destinationY = height * endY;
+      const laneWave = Math.sin(lane * 1.73 + time * 0.00024) * height * 0.025;
+      const controlOneX = width * 0.47;
+      const controlOneY = startY + (destinationY - startY) * 0.18 + laneWave;
+      const controlTwoX = destinationX - width * 0.16;
+      const controlTwoY = destinationY - laneWave;
+      const inverse = 1 - progress;
+
+      return {
+        x:
+          inverse ** 3 * startX +
+          3 * inverse ** 2 * progress * controlOneX +
+          3 * inverse * progress ** 2 * controlTwoX +
+          progress ** 3 * destinationX,
+        y:
+          inverse ** 3 * startY +
+          3 * inverse ** 2 * progress * controlOneY +
+          3 * inverse * progress ** 2 * controlTwoY +
+          progress ** 3 * destinationY,
+      };
+    };
+
+    const draw = (time: number) => {
+      context.clearRect(0, 0, width, height);
+
+      const atmosphere = context.createRadialGradient(
+        width * 0.72, height * 0.48, 0,
+        width * 0.72, height * 0.48, width * 0.5,
+      );
+      atmosphere.addColorStop(0, "rgba(18, 195, 186, 0.12)");
+      atmosphere.addColorStop(0.5, "rgba(3, 104, 176, 0.055)");
+      atmosphere.addColorStop(1, "rgba(2, 12, 24, 0)");
+      context.fillStyle = atmosphere;
+      context.fillRect(0, 0, width, height);
+
+      for (let wave = 0; wave < 9; wave += 1) {
+        const y = height * (0.14 + wave * 0.095);
+        const drift = Math.sin(time * 0.00028 + wave * 0.8) * height * 0.025;
+        context.beginPath();
+        context.moveTo(width * 0.22, y + drift);
+        context.bezierCurveTo(
+          width * 0.44, y - height * 0.1 + drift,
+          width * 0.66, y + height * 0.12 - drift,
+          width * 1.04, y - height * 0.035,
+        );
+        context.strokeStyle = wave % 3 === 0
+          ? "rgba(38, 232, 214, 0.095)"
+          : "rgba(34, 139, 204, 0.075)";
+        context.lineWidth = 1;
+        context.stroke();
+      }
+
+      endpoints.forEach((_, lane) => {
+        context.beginPath();
+        for (let step = 0; step <= 54; step += 1) {
+          const point = pointOnPath(lane, step / 54, time);
+          if (step === 0) context.moveTo(point.x, point.y);
+          else context.lineTo(point.x, point.y);
+        }
+        const pathGradient = context.createLinearGradient(
+          width * 0.36, height * 0.54, width, height * endpoints[lane][1],
+        );
+        pathGradient.addColorStop(0, "rgba(33, 224, 208, 0.04)");
+        pathGradient.addColorStop(0.55, "rgba(35, 184, 211, 0.25)");
+        pathGradient.addColorStop(1, lane % 3 === 2
+          ? "rgba(20, 221, 126, 0.38)"
+          : "rgba(41, 166, 225, 0.28)");
+        context.strokeStyle = pathGradient;
+        context.lineWidth = lane % 4 === 0 ? 1.35 : 0.8;
+        context.stroke();
+      });
+
+      particles.forEach((particle) => {
+        const progress = (particle.offset + time * 0.001 * particle.speed) % 1;
+        const point = pointOnPath(particle.lane, progress, time);
+        const green = particle.lane % 3 === 2 && progress > 0.72;
+        context.shadowBlur = 13;
+        context.shadowColor = green ? "#16df83" : "#28e2d5";
+        context.fillStyle = green ? "rgba(51, 238, 144, 0.94)" : "rgba(74, 237, 223, 0.9)";
+        context.beginPath();
+        context.arc(point.x, point.y, particle.size, 0, Math.PI * 2);
+        context.fill();
+      });
+      context.shadowBlur = 0;
+
+      const sourceX = width * 0.36;
+      const sourceY = height * 0.54;
+      const sourcePulse = 1 + Math.sin(time * 0.0022) * 0.08;
+      context.strokeStyle = "rgba(69, 235, 219, 0.32)";
+      context.lineWidth = 1;
+      for (let ring = 1; ring <= 3; ring += 1) {
+        context.beginPath();
+        context.arc(sourceX, sourceY, ring * 22 * sourcePulse, 0, Math.PI * 2);
+        context.stroke();
+      }
+      const sourceGlow = context.createRadialGradient(sourceX, sourceY, 0, sourceX, sourceY, 38);
+      sourceGlow.addColorStop(0, "rgba(59, 239, 221, 0.75)");
+      sourceGlow.addColorStop(0.24, "rgba(12, 129, 186, 0.72)");
+      sourceGlow.addColorStop(1, "rgba(5, 45, 70, 0)");
+      context.fillStyle = sourceGlow;
+      context.beginPath();
+      context.arc(sourceX, sourceY, 38, 0, Math.PI * 2);
+      context.fill();
+
+      endpoints.forEach(([normalizedX, normalizedY], lane) => {
+        const x = width * normalizedX;
+        const y = height * normalizedY;
+        const activated = lane % 3 === 2;
+        const pulse = 1 + Math.sin(time * 0.002 + lane) * 0.05;
+        context.shadowBlur = activated ? 24 : 14;
+        context.shadowColor = activated ? "#0cdb75" : "#168ccf";
+        context.fillStyle = activated ? "rgba(5, 70, 61, 0.76)" : "rgba(4, 44, 70, 0.76)";
+        context.strokeStyle = activated ? "rgba(54, 238, 144, 0.7)" : "rgba(63, 188, 231, 0.55)";
+        context.lineWidth = 1.2;
+        context.beginPath();
+        context.roundRect(x - 19 * pulse, y - 19 * pulse, 38 * pulse, 38 * pulse, 12);
+        context.fill();
+        context.stroke();
+        context.shadowBlur = 0;
+
+        context.strokeStyle = activated ? "rgba(105, 255, 170, 0.82)" : "rgba(104, 215, 242, 0.72)";
+        context.beginPath();
+        context.arc(x, y - 4, 5, 0, Math.PI * 2);
+        context.moveTo(x - 9, y + 10);
+        context.quadraticCurveTo(x, y + 2, x + 9, y + 10);
+        context.stroke();
+      });
+
+      animationFrame = window.requestAnimationFrame(draw);
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    animationFrame = window.requestAnimationFrame(draw);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", resize);
+    };
   }, []);
 
-  useEffect(() => {
-    if (!canAnimate || !videoRef.current) return;
-    const video = videoRef.current;
-    const startPlayback = async () => {
-      try {
-        await video.play();
-      } catch {
-        setCanAnimate(false);
-      }
-    };
-    void startPlayback();
-  }, [canAnimate]);
-
-  useEffect(() => {
-    if (!loopActive || !loopRef.current) return;
-    void loopRef.current.play();
-  }, [loopActive]);
-
   return (
-    <div className={`hero-film ${isPlaying ? "hero-film-playing" : ""}`} aria-hidden="true">
-      <img
-        className="hero-film-poster hero-film-poster-complete"
-        src="/media/currentdes-poster.jpg"
-        alt=""
-        width="1920"
-        height="1080"
-        fetchPriority="high"
-      />
-      {canAnimate && (
-        <video
-          ref={videoRef}
-          className={`hero-film-video hero-film-intro ${loopActive ? "hero-film-intro-finished" : ""}`}
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          poster="/media/currentdes-start.jpg"
-          onPlaying={() => setIsPlaying(true)}
-          onEnded={() => setLoopActive(true)}
-        >
-          <source src="/media/currentdes-hero.mp4" type="video/mp4" />
-        </video>
-      )}
-      {canAnimate && (
-        <video
-          ref={loopRef}
-          className={`hero-film-video hero-film-loop ${loopActive ? "hero-film-loop-active" : ""}`}
-          muted
-          playsInline
-          preload="auto"
-          loop
-          poster="/media/currentdes-poster.jpg"
-        >
-          <source src="/media/currentdes-ambient-loop.mp4" type="video/mp4" />
-        </video>
-      )}
+    <div className="hero-film hero-current-canvas" aria-hidden="true">
+      <canvas ref={canvasRef} />
       <div className="hero-film-shade" />
     </div>
   );
@@ -207,7 +326,7 @@ function Marketing({ go }: { go: (view: View) => void }) {
   return (
     <main className="marketing">
       <section className="hero hero-cinematic">
-        <HeroFilm/>
+        <CurrentBackground/>
         <nav className="top-nav">
           <Brand light/>
           <div className="nav-links">
