@@ -1,5 +1,6 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
+import { fileURLToPath } from "node:url";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
 
@@ -44,6 +45,16 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    resolve: {
+      // Circle's browser SDK only calls jsonwebtoken.decode(), but the upstream
+      // package imports Node crypto and Buffer. Keep the client bundle browser
+      // native with the narrow decode-only implementation that Circle needs.
+      alias: {
+        jsonwebtoken: fileURLToPath(
+          new URL("./lib/shims/jsonwebtoken-browser.ts", import.meta.url),
+        ),
+      },
+    },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
