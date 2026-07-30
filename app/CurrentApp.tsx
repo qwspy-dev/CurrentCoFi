@@ -23,6 +23,19 @@ type View =
 type ClaimStep = "ready" | "auth" | "creating" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
 
+const validViews = new Set<View>([
+  "home", "claim", "overview", "create", "onboarding", "campaigns",
+  "new-campaign", "recipients", "referrals", "analytics", "token",
+  "developers", "api-keys", "webhooks", "agents", "settings", "states",
+]);
+
+function viewFromHash(hash: string): View | null {
+  if (hash.startsWith("#state=")) return "claim";
+  if (!hash.startsWith("#/")) return null;
+  const value = hash.slice(2) as View;
+  return validViews.has(value) ? value : null;
+}
+
 const campaigns = [
   { name: "Tidebreak Genesis", asset: "TIDE", status: "Live", progress: 82, claimed: "8,241 / 10,000", activation: "63.8%", value: "$84.2K" },
   { name: "Founders Current", asset: "USDC", status: "Live", progress: 78, claimed: "1,174 / 1,500", activation: "71.2%", value: "$23.5K" },
@@ -569,9 +582,14 @@ export default function CurrentApp() {
   const [transition,setTransition] = useState(false);
   const auth=useCircleWalletAuth();
   useEffect(()=>{
-    const fromHash=()=>{const value=location.hash.replace("#/","") as View;if(value)setView(value)};
+    const fromHash=()=>{const value=viewFromHash(location.hash);if(value)setView(value)};
     fromHash(); addEventListener("hashchange",fromHash); return()=>removeEventListener("hashchange",fromHash);
   },[]);
+  useEffect(()=>{
+    if (!location.hash.startsWith("#state=")) return;
+    if (!["verifying","creating-wallet","authenticated","error"].includes(auth.state)) return;
+    history.replaceState(null, "", `${location.pathname}${location.search}#/claim`);
+  },[auth.state]);
   const go=(next:View)=>{
     if(next===view)return;
     setTransition(true);
