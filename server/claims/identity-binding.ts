@@ -46,14 +46,25 @@ export async function assertSessionMatchesAllocation(input: {
   walletAddress: string | null;
   session: CurrentSession;
   destinationWalletAddress: string;
+  externalAttestation?: {
+    id: string;
+    identityType: "x" | "game" | "custom";
+  } | null;
 }) {
   if (input.mode !== "identity-bound") return { required: false as const, verifiedBy: "link-secret" as const };
   if (!LIVE_IDENTITY_BINDING_TYPES.has(input.identityType)) {
-    throw new ApiError(
-      409,
-      "IDENTITY_VERIFIER_REQUIRED",
-      `${input.identityType.toUpperCase()} identity claims require a project verification adapter.`,
-    );
+    if (
+      ["x", "game", "custom"].includes(input.identityType) &&
+      input.externalAttestation?.identityType === input.identityType
+    ) {
+      return {
+        required: true as const,
+        verifiedBy: "project-attestation" as const,
+        identityType: input.identityType,
+        attestationId: input.externalAttestation.id,
+      };
+    }
+    throw new ApiError(409, "IDENTITY_ATTESTATION_REQUIRED", `Verify your ${input.identityType.toUpperCase()} identity with this project before claiming.`);
   }
   if (!input.identityHash) {
     throw new ApiError(409, "IDENTITY_BINDING_INVALID", "This claim is missing its identity commitment.");

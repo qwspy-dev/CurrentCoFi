@@ -204,7 +204,12 @@ export async function resolveClaimLink(tokenValue: string) {
       type: identityBound ? row.identityType : null,
       recipient: identityBound ? recipientLabels?.[row.allocationId] ?? null : null,
       status: identityBound ? "sign-in-required" : "link-secured",
-      supported: row.identityType === "email" || row.identityType === "wallet",
+      supported: ["email", "wallet", "x", "game", "custom"].includes(row.identityType),
+      verifier: identityBound && ["x", "game", "custom"].includes(row.identityType)
+        ? "project-attestation"
+        : identityBound
+          ? "current-session"
+          : "link-secret",
     },
   };
 }

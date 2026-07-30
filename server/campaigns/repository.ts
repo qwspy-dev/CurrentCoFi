@@ -14,16 +14,13 @@ import {
   auditEvents,
   claims,
   distributions,
+  identityAttestations,
   projectMembers,
   tokens,
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
 import { sha256, signClaimToken } from "../security/crypto.js";
-import {
-  LIVE_IDENTITY_BINDING_TYPES,
-  normalizeBoundIdentity,
-  type CampaignClaimMode,
-} from "../claims/identity-binding.js";
+import { normalizeBoundIdentity, type CampaignClaimMode } from "../claims/identity-binding.js";
 import { buildCampaignTree } from "./merkle.js";
 
 const AMOUNT_PATTERN = /^\d{1,30}(?:\.\d{1,18})?$/;
@@ -161,16 +158,6 @@ export async function createCampaign(input: {
     throw new ApiError(400, "INVALID_RECIPIENT_COUNT", "Campaigns require 1–1,000 recipients.");
   }
   const claimMode = input.claimMode ?? "allowlist";
-  if (
-    claimMode === "identity-bound" &&
-    input.recipients.some((recipient) => !LIVE_IDENTITY_BINDING_TYPES.has(recipient.identityType))
-  ) {
-    throw new ApiError(
-      400,
-      "IDENTITY_TYPE_NOT_LIVE",
-      "Identity-bound campaigns currently support verified email addresses and exact Arc wallet addresses.",
-    );
-  }
   await projectAccess(input.userId, input.projectId);
   const db = getDb();
   const token = await resolveToken(input.projectId, input.tokenAddress);
@@ -413,6 +400,12 @@ export async function campaignAnalytics(userId: string) {
       .where(inArray(activationEvents.distributionId, campaignIds))
       .groupBy(activationEvents.distributionId)
     : [];
+  const [attestationTotals] = campaignIds.length
+    ? await getDb().select({
+      verified: count(),
+      consumed: count(sql`CASE WHEN ${identityAttestations.consumedAt} IS NOT NULL THEN 1 END`),
+    }).from(identityAttestations).where(inArray(identityAttestations.distributionId, campaignIds))
+    : [{ verified: 0, consumed: 0 }];
   const activations = activationRows.reduce((sum, row) => sum + Number(row.total), 0);
   const confirmed = recipients.filter((recipient) => recipient.status === "confirmed").length;
   const targeted = recipients.length;
@@ -434,6 +427,8 @@ export async function campaignAnalytics(userId: string) {
       identityBoundCampaigns: identityBoundCampaigns.length,
       identityBoundTargeted,
       identityBoundClaims,
+      identityAttestations: Number(attestationTotals?.verified ?? 0),
+      consumedIdentityAttestations: Number(attestationTotals?.consumed ?? 0),
     },
     campaigns: campaigns.map((campaign) => ({
       id: campaign.id,

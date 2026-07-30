@@ -26,6 +26,10 @@ import {
   type CampaignClaimMode,
   type IdentityBindingType,
 } from "../claims/identity-binding.js";
+import {
+  activeIdentityAttestation,
+  consumeIdentityAttestation,
+} from "../developer/identity-attestations.js";
 
 const FINAL_TRANSACTION_STATES = new Set(["COMPLETE", "CONFIRMED"]);
 const FAILED_TRANSACTION_STATES = new Set(["FAILED", "DENIED", "CANCELLED"]);
@@ -244,6 +248,14 @@ export async function createCampaignClaimChallenge(
   const row = await campaignClaimRow(tokenValue);
   const rules = row.rules as Record<string, unknown>;
   const claimMode: CampaignClaimMode = rules.claimMode === "identity-bound" ? "identity-bound" : "allowlist";
+  const externalAttestation = claimMode === "identity-bound" &&
+    ["x", "game", "custom"].includes(row.identityType)
+    ? await activeIdentityAttestation({
+      allocationId: row.allocationId,
+      identityType: row.identityType,
+      walletAddress: sessionWallet.address,
+    })
+    : null;
   const identityProof = await assertSessionMatchesAllocation({
     mode: claimMode,
     identityType: row.identityType as IdentityBindingType,
@@ -251,6 +263,12 @@ export async function createCampaignClaimChallenge(
     walletAddress: row.walletAddress,
     session,
     destinationWalletAddress: sessionWallet.address,
+    externalAttestation: externalAttestation
+      ? {
+        id: externalAttestation.id,
+        identityType: externalAttestation.identityType as "x" | "game" | "custom",
+      }
+      : null,
   });
   const existing = await db.query.claims.findFirst({ where: eq(claims.allocationId, row.allocationId) });
   if (existing?.status === "confirmed") {
@@ -368,6 +386,13 @@ export async function confirmCampaignClaimChallenge(
     updatedAt: new Date(),
   }).where(and(eq(claims.id, claim.id), ne(claims.status, "confirmed"))).returning();
   if (updated.length) {
+    const identityBinding = metadata?.identityBinding as Record<string, unknown> | undefined;
+    if (
+      identityBinding?.verifiedBy === "project-attestation" &&
+      typeof identityBinding.attestationId === "string"
+    ) {
+      await consumeIdentityAttestation(identityBinding.attestationId);
+    }
     await db.update(allocations).set({ status: "confirmed", updatedAt: new Date() })
       .where(eq(allocations.id, row.allocationId));
     await db.update(distributions).set({

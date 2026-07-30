@@ -41,6 +41,7 @@ type ClaimPreview = {
     recipient: string | null;
     status: "sign-in-required" | "link-secured";
     supported: boolean;
+    verifier: "project-attestation" | "current-session" | "link-secret";
   };
 };
 
@@ -95,6 +96,8 @@ type CampaignAnalytics = {
     identityBoundCampaigns: number;
     identityBoundTargeted: number;
     identityBoundClaims: number;
+    identityAttestations: number;
+    consumedIdentityAttestations: number;
   };
   campaigns: Array<{
     id: string;
@@ -773,7 +776,7 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
           <span className="claim-brand-avatar">{(preview?.project.name??"Tidebreak")[0]}</span><small>{preview?.sender??"Tidebreak"} sent you</small><h1>{preview?.amount??"2,500"} <em>{preview?.asset??"TIDE"}</em></h1>{!preview&&<p className="claim-usd">≈ $42.80</p>}
           <blockquote>{preview?.message||(preview?"A funded claim is waiting for you on Arc.":"Welcome to the Tidebreak Genesis current.")}</blockquote>
           <div className="claim-meta"><span><Clock3/>{preview?.expiresAt?`Expires ${new Date(preview.expiresAt).toLocaleDateString()}`:"Expires in 6 days"}</span><span><Zap/>Gas sponsored</span></div>
-          {preview?.identityBinding.required&&<div className="claim-identity-binding"><ShieldCheck/><div><b>Identity-bound reward</b><small>Only {preview.identityBinding.recipient??`the assigned ${preview.identityBinding.type}`} can claim after verification.</small></div></div>}
+          {preview?.identityBinding.required&&<div className="claim-identity-binding"><ShieldCheck/><div><b>Identity-bound reward</b><small>{preview.identityBinding.verifier==="project-attestation"?`Your ${preview.identityBinding.type?.toUpperCase()} identity must be verified by the project and bound to this wallet.`:`Only ${preview.identityBinding.recipient??`the assigned ${preview.identityBinding.type}`} can claim after verification.`}</small></div></div>}
           <Button tone="blue" onClick={claim} disabled={Boolean(preview&&!preview.claimable)}>{preview&&!preview.claimable?unavailableLabel:"Claim your tokens"} <ArrowRight/></Button><p className="claim-note">{preview&&!preview.claimable?unavailableNote:"No wallet or payment required."}</p>
           {claimError&&<p className="auth-system-note is-error"><X/>{claimError}</p>}
           </>}
@@ -942,12 +945,6 @@ function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
     try{return parseRecipientCsv(csvText,defaultAmount)}catch{return []}
   },[csvText,defaultAmount]);
   const total=useMemo(()=>recipients.reduce((sum,row)=>sum+(Number(row.amount)||0),0),[recipients]);
-  const unsupportedIdentityCount=useMemo(
-    ()=>mode==="Identity-bound"
-      ? recipients.filter(row=>row.identityType!=="email"&&row.identityType!=="wallet").length
-      : 0,
-    [mode,recipients],
-  );
   const upload=async(file:File|null)=>{
     if(!file)return;
     if(file.size>2_000_000){setError("Recipient CSV files must be smaller than 2 MB.");return}
@@ -983,7 +980,6 @@ function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
       if(step===1&&!name.trim()){setError("Give this campaign a name first.");return}
       if(step===2&&(!defaultAmount||Number(defaultAmount)<=0)){setError("Enter a valid recipient amount.");return}
       if(step===3&&!recipients.length){setError("Upload or paste at least one valid recipient.");return}
-      if(step===3&&unsupportedIdentityCount){setError("Identity-bound campaigns currently support verified email and exact Arc wallet recipients.");return}
       const nextStep=step+1;setStep(nextStep);setMaxStep(current=>Math.max(current,nextStep));return;
     }
     if(!auth.account){go("claim");return}
@@ -1006,7 +1002,7 @@ function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
         <h2>{["What should this current accomplish?","What value will move?","Who receives it?","What counts as activation?","Fund and publish"][step-1]}</h2>
         {step===1&&<><label className="campaign-name-field">Campaign name<input value={name} onChange={event=>setName(event.target.value)} maxLength={100}/></label><div className="choice-cards">{[["Launch allocation",Gift],["User acquisition",Target],["Community rewards",Users],["Agent payments",Bot]].map(([x,I])=>{const Icon=I as typeof Gift;return <button type="button" className={purpose===x?"selected":""} onClick={()=>setPurpose(String(x))} key={String(x)}><Icon/><b>{String(x)}</b><small>Build a measurable {String(x).toLowerCase()} current.</small></button>})}</div></>}
         {step===2&&<div className="field-grid"><label className="full">Arc token contract<input value={tokenAddress} onChange={event=>setTokenAddress(event.target.value)} placeholder="Leave blank for Arc testnet USDC"/></label><label>Default reward per recipient<input value={defaultAmount} onChange={event=>setDefaultAmount(event.target.value)} inputMode="decimal"/></label><label>Expiration<select><option>7 days</option></select></label><p className="builder-note full"><ShieldCheck/>Custom tokens are verified directly against their Arc contract metadata before funding.</p></div>}
-        {step===3&&<><div className="mode-tabs">{["Allowlist","Identity-bound"].map(x=><button type="button" className={mode===x?"active":""} onClick={()=>{setMode(x);setError(null)}} key={x}>{x}</button>)}</div><div className={`identity-mode-proof ${mode==="Identity-bound"?"active":""}`}><ShieldCheck/><div><b>{mode==="Identity-bound"?"The recipient must prove the assignment":"The private link is the claim credential"}</b><small>{mode==="Identity-bound"?"Verified email and exact Arc wallet commitments are checked before Current signs the onchain claim. A leaked link cannot redirect the reward.":"Any supported identity type can receive a private, single-use link."}</small></div></div><label className="upload-drop"><Upload/><h3>Drop a recipient CSV</h3><p>{mode==="Identity-bound"?"Columns: identity, identity_type, amount. Use email or wallet identities.":"Columns: identity, identity_type, amount. Email, wallet, X, game, and custom IDs are accepted."}</p><span className="cofi-button tone-ghost">Browse file</span><input type="file" accept=".csv,text/csv" onChange={event=>void upload(event.target.files?.[0]??null)}/></label><label className="csv-paste">Or paste recipient rows<textarea value={csvText} onChange={event=>setCsvText(event.target.value)} placeholder={"identity,identity_type,amount\nmember@example.com,email,25\n0x1234...,wallet,50"}/></label><div className={`recipient-validation ${recipients.length&&!unsupportedIdentityCount?"valid":""}`}><CheckCircle2/><div><b>{recipients.length.toLocaleString()} valid recipients</b><small>{unsupportedIdentityCount?`${unsupportedIdentityCount} recipient(s) need email or wallet identity for binding`:`${total.toLocaleString(undefined,{maximumFractionDigits:6})} total units will be fully funded`}</small></div></div></>}
+        {step===3&&<><div className="mode-tabs">{["Allowlist","Identity-bound"].map(x=><button type="button" className={mode===x?"active":""} onClick={()=>{setMode(x);setError(null)}} key={x}>{x}</button>)}</div><div className={`identity-mode-proof ${mode==="Identity-bound"?"active":""}`}><ShieldCheck/><div><b>{mode==="Identity-bound"?"The recipient must prove the assignment":"The private link is the claim credential"}</b><small>{mode==="Identity-bound"?"Email and wallet commitments are verified natively. X, game, and custom identities use a project-signed verifier attestation bound to the recipient wallet. A leaked link cannot redirect the reward.":"Any supported identity type can receive a private, single-use link."}</small></div></div><label className="upload-drop"><Upload/><h3>Drop a recipient CSV</h3><p>Columns: identity, identity_type, amount. Email, wallet, X, game, and custom IDs are accepted.</p><span className="cofi-button tone-ghost">Browse file</span><input type="file" accept=".csv,text/csv" onChange={event=>void upload(event.target.files?.[0]??null)}/></label><label className="csv-paste">Or paste recipient rows<textarea value={csvText} onChange={event=>setCsvText(event.target.value)} placeholder={"identity,identity_type,amount\nmember@example.com,email,25\n@playerone,x,50"}/></label><div className={`recipient-validation ${recipients.length?"valid":""}`}><CheckCircle2/><div><b>{recipients.length.toLocaleString()} valid recipients</b><small>{total.toLocaleString(undefined,{maximumFractionDigits:6})} total units will be fully funded</small></div></div></>}
         {step===4&&<div className="activation-builder"><label><span>Activation event</span><select value={activationEvent} onChange={event=>setActivationEvent(event.target.value)}><option value="account.created">Created embedded wallet</option><option value="project.onboarded">Completed project onboarding</option><option value="game.completed_3">Played 3 matches</option><option value="purchase.completed">Made first purchase</option><option value="custom.signed">Custom signed event</option></select></label><label><span>Referral reward</span><select value={referralReward} onChange={event=>setReferralReward(event.target.value)}><option>No referral reward</option><option>5 USDC per activated referral</option><option>Project token reward</option></select></label><div className="event-code"><Webhook/><code>{activationEvent}</code><Status tone="green">Attribution ready</Status></div></div>}
         {step===5&&<><div className="fund-review"><div><small>CAMPAIGN</small><b>{name}</b></div><div><small>RECIPIENTS</small><b>{recipients.length.toLocaleString()}</b></div><div><small>TOTAL ALLOCATION</small><b>{total.toLocaleString(undefined,{maximumFractionDigits:6})} {tokenAddress?"TOKEN":"USDC"}</b></div><div><small>CLAIM SECURITY</small><b>{mode}</b></div><div><small>SETTLEMENT</small><b>Merkle + signed claim</b></div><div><small>RECOVERY</small><b>Cancel or expiry refund</b></div></div>{created&&<div className="campaign-created-result"><CheckCircle2/><div><b>{fundingStep==="complete"?"Campaign live on Arc":"Campaign commitments secured"}</b><small>{created.recipientCount} {created.claimMode} links generated · {created.asset.symbol} · root {created.merkleRoot.slice(0,10)}…</small></div><div className="campaign-result-actions"><Button tone="ghost" onClick={()=>void copyFirstClaim()}>{copiedClaim?"Link copied":"Copy first link"} <Copy/></Button><Button tone="ghost" onClick={()=>downloadCampaignLinks(created)}>Download all <Download/></Button></div></div>}</>}
         {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
@@ -1137,7 +1133,7 @@ function TokenDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
 }
 
 function Developers({go}:{go:(v:View)=>void}) {
-  const [sample,setSample]=useState<"sdk"|"react"|"curl">("sdk");
+  const [sample,setSample]=useState<"sdk"|"react"|"curl"|"verifier">("sdk");
   const [copied,setCopied]=useState(false);
   const snippets={
     sdk:`import { Current } from "@currentcofi/sdk";
@@ -1180,12 +1176,25 @@ X-Current-Signature: <HMAC-SHA256>
       "amount": "25.00" }
   ]
 }`,
+    verifier:`const verification = await current.identities.attest({
+  externalEventId: xOauthSession.id,
+  distributionId: campaign.id,
+  identityType: "x",
+  identity: xProfile.username,
+  walletAddress: currentWallet,
+  provider: "x-oauth",
+  expiresInMinutes: 30,
+});
+
+// The recipient can now claim.
+// The attestation is single-use and wallet-bound.`,
   };
   const copy=async()=>{await navigator.clipboard.writeText(snippets[sample]);setCopied(true);window.setTimeout(()=>setCopied(false),1800)};
   return <><PageHero eyebrow="CURRENT COFI API" title="One integration. Every activation current." copy="Create real walletless distributions, embed the claim experience, attribute post-claim actions, and let agents move value inside explicit boundaries."><div className="hero-button-row"><Button tone="cyan" onClick={()=>go("api-keys")}>Create API key <ArrowRight/></Button><Button tone="ghost" onClick={()=>document.getElementById("sdk-quickstart")?.scrollIntoView({behavior:"smooth"})}>Read quickstart <ArrowUpRight/></Button></div></PageHero>
-    <div className="developer-proof"><span><i/><b>LIVE ON ARC TESTNET</b></span><p>SDK · React components · HMAC requests · durable webhooks · agent manifest</p><a href="/api/v1/openapi" target="_blank" rel="noreferrer">Open API spec <ArrowUpRight/></a></div>
-    <div className="developer-grid"><article><Braces/><span>SERVER SDK</span><h3>Distribution API</h3><p>Create signed USDC and project-token campaigns from a backend or launchpad.</p><code>current.distributions.create()</code></article><article><Webhook/><span>EVENT DELIVERY</span><h3>Signed webhooks</h3><p>Receive campaign, claim, activation, referral, refund, and delivery events.</p><code>activation.completed</code></article><article><Bot/><span>MACHINE-READABLE</span><h3>Agent tools</h3><p>Let autonomous software create distributions and report activations within scoped policies.</p><code>create_distribution</code></article><article><Layers3/><span>REACT PACKAGE</span><h3>Embeddable claims</h3><p>Put Current’s walletless reward card and referral links directly inside another app.</p><code>&lt;CurrentClaimEmbed /&gt;</code></article></div>
-    <div className="quickstart-panel" id="sdk-quickstart"><div><Eyebrow>PRODUCTION QUICKSTART</Eyebrow><h2>Create a walletless USDC current.</h2><ol><li><span>1</span>Install the Current server SDK</li><li><span>2</span>Create a scoped project key</li><li><span>3</span>Generate signed claim links</li><li><span>4</span>Measure real activation</li></ol><div className="code-tabs">{(["sdk","react","curl"] as const).map(tab=><button className={sample===tab?"active":""} key={tab} onClick={()=>setSample(tab)}>{tab==="sdk"?"TypeScript SDK":tab==="react"?"React embed":"Raw API"}</button>)}</div></div><pre><button className="code-copy" onClick={()=>void copy()}>{copied?<Check/>:<Copy/>}{copied?"Copied":"Copy"}</button><code>{snippets[sample]}</code></pre></div>
+    <div className="developer-proof"><span><i/><b>LIVE ON ARC TESTNET</b></span><p>SDK · identity verifiers · React components · HMAC requests · durable webhooks · agent manifest</p><a href="/api/v1/openapi" target="_blank" rel="noreferrer">Open API spec <ArrowUpRight/></a></div>
+    <div className="developer-grid"><article><Braces/><span>SERVER SDK</span><h3>Distribution API</h3><p>Create signed USDC and project-token campaigns from a backend or launchpad.</p><code>current.distributions.create()</code></article><article><Fingerprint/><span>IDENTITY NETWORK</span><h3>Verifier adapters</h3><p>Bind X, game, ticket, or community identities to a new Arc wallet without exposing the identity onchain.</p><code>current.identities.attest()</code></article><article><Webhook/><span>EVENT DELIVERY</span><h3>Signed webhooks</h3><p>Receive campaign, identity, claim, activation, referral, refund, and delivery events.</p><code>identity.verified</code></article><article><Bot/><span>MACHINE-READABLE</span><h3>Agent tools</h3><p>Let autonomous software create distributions and report activations within scoped policies.</p><code>create_distribution</code></article><article><Layers3/><span>REACT PACKAGE</span><h3>Embeddable claims</h3><p>Put Current’s walletless reward card and referral links directly inside another app.</p><code>&lt;CurrentClaimEmbed /&gt;</code></article></div>
+    <div className="quickstart-panel" id="sdk-quickstart"><div><Eyebrow>PRODUCTION QUICKSTART</Eyebrow><h2>Create a verified activation current.</h2><ol><li><span>1</span>Install the Current server SDK</li><li><span>2</span>Create a scoped project key</li><li><span>3</span>Generate identity-bound claim links</li><li><span>4</span>Attest external identities</li><li><span>5</span>Measure real activation</li></ol><div className="code-tabs">{(["sdk","verifier","react","curl"] as const).map(tab=><button className={sample===tab?"active":""} key={tab} onClick={()=>setSample(tab)}>{tab==="sdk"?"Distribution":tab==="verifier"?"Verifier adapter":tab==="react"?"React embed":"Raw API"}</button>)}</div></div><pre><button className="code-copy" onClick={()=>void copy()}>{copied?<Check/>:<Copy/>}{copied?"Copied":"Copy"}</button><code>{snippets[sample]}</code></pre></div>
+    <div className="verifier-story"><div><Eyebrow>IDENTITY WITHOUT CUSTODY</Eyebrow><h2>Bring any community identity into an Arc wallet.</h2><p>The project verifies the account it already understands—an X profile, game account, ticket, Discord member, or internal customer—and signs a short-lived attestation to the recipient’s Current wallet. Current checks the campaign allocation, API-key scope, wallet binding, expiry, and replay state before signing the onchain claim.</p></div><div className="verifier-flow"><span><b>01</b>Project OAuth or account proof<small>Identity stays with the project</small></span><i/><span><b>02</b>HMAC-signed attestation<small>Hashed identity + exact wallet</small></span><i/><span><b>03</b>Gasless Arc settlement<small>Single-use claim authorization</small></span></div></div>
     <div className="integration-lab"><div className="integration-lab-copy"><Eyebrow>EMBED LAB</Eyebrow><h2>The claim experience travels with your product.</h2><p>Games, communities, launchpads, and AI agents can embed a branded reward without rebuilding wallet creation, claim resolution, or gasless onboarding.</p><div><span><CheckCircle2/> No wallet required</span><span><CheckCircle2/> Referral attribution preserved</span><span><CheckCircle2/> Hosted fallback included</span></div><Button tone="blue" onClick={()=>go("api-keys")}>Start integrating <ArrowRight/></Button></div><div className="integration-lab-preview"><div className="embed-browser"><header><i/><i/><i/><span>play.example/rewards</span></header><main><CurrentClaimEmbed compact accent="#22e4d5" onOpen={()=>go("claim")} preview={{amount:"250",asset:"TIDE",claimable:true,expiresAt:"2026-08-14T00:00:00.000Z",message:"Complete your first match to activate this reward.",project:{name:"Tidebreak",logoUrl:null},sender:"Tidebreak community",status:"claimable"}}/></main></div></div></div>
   </>;
 }
@@ -1237,7 +1246,7 @@ function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
+    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","identity.verified","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Webhook creation failed.")}
     finally{setBusy(false)}
   };

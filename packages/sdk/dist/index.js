@@ -47,6 +47,9 @@ export class Current {
             payload: input.payload ?? {},
         }),
     };
+    identities = {
+        attest: (input) => this.signedPost("/api/v1/developer/identity-attestations", input),
+    };
     analytics = {
         get: () => this.get("/api/v1/developer/analytics"),
     };

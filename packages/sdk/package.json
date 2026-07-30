@@ -1,7 +1,7 @@
 {
   "name": "@currentcofi/sdk",
-  "version": "0.1.0",
-  "description": "Server SDK for Current CoFi walletless Arc distributions and activation attribution.",
+  "version": "0.2.0",
+  "description": "Server SDK for Current CoFi identity-bound Arc distributions, verifier attestations, and activation attribution.",
   "type": "module",
   "sideEffects": false,
   "exports": {

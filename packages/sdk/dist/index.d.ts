@@ -50,6 +50,30 @@ export type ActivationResult = {
     attributedReferrals?: number;
     createdAt?: string;
 };
+export type IdentityAttestationInput = {
+    externalEventId: string;
+    distributionId: string;
+    identityType: "x" | "game" | "custom";
+    identity: string;
+    walletAddress: `0x${string}`;
+    provider?: string;
+    expiresInMinutes?: number;
+    evidence?: {
+        method?: string;
+        provider?: string;
+        verifiedAt?: string;
+        scope?: string;
+    };
+};
+export type IdentityAttestationResult = {
+    id: string;
+    duplicate: boolean;
+    status: "verified" | "consumed" | "expired";
+    identityType: string;
+    walletAddress: string;
+    expiresAt: string;
+    createdAt?: string;
+};
 export type DeveloperAnalytics = {
     totals: {
         campaigns: number;
@@ -89,6 +113,9 @@ export declare class Current {
     };
     readonly activations: {
         submit: (input: ActivationInput) => Promise<ActivationResult>;
+    };
+    readonly identities: {
+        attest: (input: IdentityAttestationInput) => Promise<IdentityAttestationResult>;
     };
     readonly analytics: {
         get: () => Promise<DeveloperAnalytics>;

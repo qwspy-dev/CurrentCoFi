@@ -7,6 +7,7 @@ import { hmacWithSecret, openSecret, randomSecret, sealSecret, sha256 } from "..
 export const webhookEventTypes = [
   "campaign.created",
   "campaign.funded",
+  "identity.verified",
   "claim.completed",
   "activation.completed",
   "referral.attributed",

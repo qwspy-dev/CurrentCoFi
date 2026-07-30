@@ -222,6 +222,30 @@ export const apiKeys = pgTable("api_keys", {
   index("api_keys_project_idx").on(table.projectId),
 ]);
 
+export const identityAttestations = pgTable("identity_attestations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  allocationId: uuid("allocation_id").references(() => allocations.id, { onDelete: "cascade" }).notNull(),
+  verifierKeyId: uuid("verifier_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+  identityType: text("identity_type").notNull(),
+  identityHash: text("identity_hash").notNull(),
+  walletAddress: text("wallet_address").notNull(),
+  externalEventId: text("external_event_id").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("identity_attestations_project_event_unique").on(table.projectId, table.externalEventId),
+  index("identity_attestations_claim_idx").on(
+    table.allocationId,
+    table.walletAddress,
+    table.expiresAt,
+  ),
+  index("identity_attestations_distribution_idx").on(table.distributionId, table.createdAt),
+]);
+
 export const webhookEndpoints = pgTable("webhook_endpoints", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

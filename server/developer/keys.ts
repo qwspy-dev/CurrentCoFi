@@ -15,6 +15,7 @@ export const developerPermissions = [
   "campaigns:read",
   "campaigns:write",
   "claims:write",
+  "identities:write",
   "activations:write",
   "analytics:read",
   "webhooks:write",
@@ -27,6 +28,7 @@ type KeyPolicy = {
   allowedEventTypes?: string[];
   maxRewardAtomic?: string;
   humanApprovalAtomic?: string;
+  allowedIdentityTypes?: string[];
 };
 
 function safePermissions(value: string[]) {
@@ -42,9 +44,13 @@ function safePolicies(value: KeyPolicy = {}) {
   const dailyEventLimit = Math.min(Math.max(Math.round(Number(value.dailyEventLimit ?? 1_000)), 1), 100_000);
   const allowedEventTypes = [...new Set((value.allowedEventTypes ?? []).map((item) => item.trim()).filter(Boolean))]
     .slice(0, 50);
+  const allowedIdentityTypes = [...new Set(
+    (value.allowedIdentityTypes ?? []).map((item) => item.trim().toLowerCase()).filter(Boolean),
+  )].filter((item) => ["x", "game", "custom"].includes(item)).slice(0, 3);
   return {
     dailyEventLimit,
     allowedEventTypes,
+    allowedIdentityTypes,
     ...(value.maxRewardAtomic ? { maxRewardAtomic: value.maxRewardAtomic } : {}),
     ...(value.humanApprovalAtomic ? { humanApprovalAtomic: value.humanApprovalAtomic } : {}),
   };

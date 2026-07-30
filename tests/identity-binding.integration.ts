@@ -75,8 +75,27 @@ await assert.rejects(
     session,
     destinationWalletAddress: wallet,
   }),
-  (error: unknown) => (error as { code?: string }).code === "IDENTITY_VERIFIER_REQUIRED",
+  (error: unknown) => (error as { code?: string }).code === "IDENTITY_ATTESTATION_REQUIRED",
 );
+
+const projectVerifiedProof = await assertSessionMatchesAllocation({
+  mode: "identity-bound",
+  identityType: "x",
+  identityHash: xIdentityHash,
+  walletAddress: null,
+  session,
+  destinationWalletAddress: wallet,
+  externalAttestation: {
+    id: "11111111-1111-1111-1111-111111111111",
+    identityType: "x",
+  },
+});
+assert.deepEqual(projectVerifiedProof, {
+  required: true,
+  verifiedBy: "project-attestation",
+  identityType: "x",
+  attestationId: "11111111-1111-1111-1111-111111111111",
+});
 
 assert.deepEqual(
   await assertSessionMatchesAllocation({

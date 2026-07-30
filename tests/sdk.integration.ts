@@ -29,6 +29,19 @@ const mockFetch: typeof fetch = async (input, init) => {
   if (String(input).endsWith("/developer/activations")) {
     return Response.json({ ok: true, data: { duplicate: false, status: "accepted" } });
   }
+  if (String(input).endsWith("/developer/identity-attestations")) {
+    return Response.json({
+      ok: true,
+      data: {
+        id: "attestation_sdk",
+        duplicate: false,
+        status: "verified",
+        identityType: "x",
+        walletAddress: "0x1111111111111111111111111111111111111111",
+        expiresAt: "2026-08-14T00:30:00.000Z",
+      },
+    }, { status: 201 });
+  }
   if (String(input).endsWith("/developer/analytics")) {
     return Response.json({
       ok: true,
@@ -80,6 +93,19 @@ assert.equal(activation.status, "accepted");
 const activationBody = JSON.parse(String(requests.at(-1)?.init?.body)) as Record<string, unknown>;
 assert.equal(typeof activationBody.occurredAt, "string");
 assert.deepEqual(activationBody.payload, {});
+
+const attestation = await current.identities.attest({
+  externalEventId: "x-oauth-session-1",
+  distributionId: "11111111-1111-1111-1111-111111111111",
+  identityType: "x",
+  identity: "@currentbuilder",
+  walletAddress: "0x1111111111111111111111111111111111111111",
+  provider: "x-oauth",
+});
+assert.equal(attestation.status, "verified");
+const attestationRequest = requests.at(-1);
+assert.ok(attestationRequest?.url.endsWith("/api/v1/developer/identity-attestations"));
+assert.equal(JSON.parse(String(attestationRequest?.init?.body)).identityType, "x");
 
 const analytics = await current.analytics.get();
 assert.equal(analytics.totals.campaigns, 1);

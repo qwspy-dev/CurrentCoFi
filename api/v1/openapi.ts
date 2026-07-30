@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "1.8.0-identity-bound",
+    version: "1.9.0-verifier-network",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -49,6 +49,9 @@ export default withApi((request) => ok(request, {
     "/developer/activations": {
       post: { summary: "Ingest an HMAC-signed post-claim activation event" },
     },
+    "/developer/identity-attestations": {
+      post: { summary: "Bind a verified X, game, or custom project identity to a recipient Arc wallet" },
+    },
     "/developer/distributions": {
       post: { summary: "Create a signed walletless USDC or project-token distribution" },
     },
@@ -71,6 +74,7 @@ export default withApi((request) => ok(request, {
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "project-access-tiers", "buyback-governance",
       "identity-bound-email-claims", "identity-bound-wallet-claims",
+      "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
     ],
     plannedResourceGroups: [],
   },

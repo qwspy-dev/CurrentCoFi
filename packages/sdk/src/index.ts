@@ -50,6 +50,32 @@ export type ActivationResult = {
   createdAt?: string;
 };
 
+export type IdentityAttestationInput = {
+  externalEventId: string;
+  distributionId: string;
+  identityType: "x" | "game" | "custom";
+  identity: string;
+  walletAddress: `0x${string}`;
+  provider?: string;
+  expiresInMinutes?: number;
+  evidence?: {
+    method?: string;
+    provider?: string;
+    verifiedAt?: string;
+    scope?: string;
+  };
+};
+
+export type IdentityAttestationResult = {
+  id: string;
+  duplicate: boolean;
+  status: "verified" | "consumed" | "expired";
+  identityType: string;
+  walletAddress: string;
+  expiresAt: string;
+  createdAt?: string;
+};
+
 export type DeveloperAnalytics = {
   totals: { campaigns: number; recipients: number; claims: number; activations: number };
   campaigns: Array<{
@@ -149,6 +175,13 @@ export class Current {
         occurredAt: input.occurredAt ?? new Date().toISOString(),
         payload: input.payload ?? {},
       },
+    ),
+  };
+
+  readonly identities = {
+    attest: (input: IdentityAttestationInput) => this.signedPost<IdentityAttestationResult>(
+      "/api/v1/developer/identity-attestations",
+      input,
     ),
   };
 
