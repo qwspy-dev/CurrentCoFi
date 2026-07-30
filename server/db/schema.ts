@@ -157,6 +157,17 @@ export const claims = pgTable("claims", {
   index("claims_claimant_idx").on(table.claimantUserId),
 ]);
 
+export const referralCodes = pgTable("referral_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  referrerUserId: uuid("referrer_user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  code: text("code").notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("referral_codes_code_unique").on(table.code),
+  uniqueIndex("referral_codes_distribution_referrer_unique").on(table.distributionId, table.referrerUserId),
+]);
+
 export const referrals = pgTable("referrals", {
   id: uuid("id").primaryKey().defaultRandom(),
   distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
@@ -168,7 +179,12 @@ export const referrals = pgTable("referrals", {
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
   ...timestamps,
 }, (table) => [
-  uniqueIndex("referrals_distribution_code_unique").on(table.distributionId, table.code),
+  index("referrals_distribution_code_idx").on(table.distributionId, table.code),
+  uniqueIndex("referrals_distribution_users_unique").on(
+    table.distributionId,
+    table.referrerUserId,
+    table.referredUserId,
+  ),
   index("referrals_referrer_idx").on(table.referrerUserId),
 ]);
 
@@ -193,7 +209,10 @@ export const apiKeys = pgTable("api_keys", {
   name: text("name").notNull(),
   prefix: text("prefix").notNull(),
   secretHash: text("secret_hash").notNull(),
+  signingSecretCiphertext: text("signing_secret_ciphertext").notNull(),
+  kind: text("kind").default("project").notNull(),
   permissions: jsonb("permissions").$type<string[]>().default([]).notNull(),
+  policies: jsonb("policies").$type<Record<string, unknown>>().default({}).notNull(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
@@ -208,6 +227,7 @@ export const webhookEndpoints = pgTable("webhook_endpoints", {
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
   url: text("url").notNull(),
   secretHash: text("secret_hash").notNull(),
+  secretCiphertext: text("secret_ciphertext").notNull(),
   events: jsonb("events").$type<string[]>().default([]).notNull(),
   enabled: boolean("enabled").default(true).notNull(),
   ...timestamps,
@@ -222,6 +242,7 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   attempts: integer("attempts").default(0).notNull(),
   nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
   responseStatus: integer("response_status"),
+  responseError: text("response_error"),
   payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
   ...timestamps,
 }, (table) => [

@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "1.3.0-campaigns",
+    version: "1.4.0-integrations",
     description: "Walletless USDC and project-token distribution infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -34,14 +34,34 @@ export default withApi((request) => ok(request, {
     "/campaigns/manage": { post: { summary: "Cancel a campaign or refund an expired campaign" } },
     "/campaigns/recipients": { get: { summary: "List masked recipient allocations and settlement states" } },
     "/campaigns/analytics": { get: { summary: "Read live campaign targeting, claims, and activation totals" } },
+    "/referrals": {
+      get: { summary: "Read referral codes, claims, and verified activation attribution" },
+      post: { summary: "Create an attributable referral code for a campaign" },
+    },
+    "/developer/keys": {
+      get: { summary: "List scoped project and agent API keys" },
+      post: { summary: "Create or revoke a scoped API key" },
+    },
+    "/developer/webhooks": {
+      get: { summary: "List signed webhook endpoints and durable delivery attempts" },
+      post: { summary: "Create, pause, test, or retry a signed webhook endpoint" },
+    },
+    "/developer/activations": {
+      post: { summary: "Ingest an HMAC-signed post-claim activation event" },
+    },
+    "/developer/analytics": {
+      get: { summary: "Read project analytics with a scoped API key" },
+    },
+    "/agent/tools": {
+      get: { summary: "Read the machine-readable Current CoFi agent tool manifest" },
+    },
   },
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics",
+      "allocations", "campaigns", "claims", "campaign-analytics", "referrals",
+      "activation-ingestion", "api-keys", "webhooks", "agents",
     ],
-    plannedResourceGroups: [
-      "referrals", "activation-ingestion", "api-keys", "webhooks", "agents",
-    ],
+    plannedResourceGroups: ["sdk", "embedded-components"],
   },
 }), ["GET"]);

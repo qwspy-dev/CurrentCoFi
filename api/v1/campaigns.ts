@@ -6,6 +6,7 @@ import {
   listCampaigns,
   type CampaignRecipientInput,
 } from "../../server/campaigns/repository.js";
+import { deliverQueuedWebhooks, queueWebhookEvent } from "../../server/developer/webhooks.js";
 import { ApiError, ok, readJsonObject, withApi } from "../../server/http.js";
 
 function expiration(value: unknown) {
@@ -46,7 +47,7 @@ async function create(request: Request) {
   if (!wallet) throw new ApiError(409, "ARC_WALLET_REQUIRED", "Create your Arc wallet before making a campaign.");
   const body = await readJsonObject(request);
   if (typeof body.name !== "string") throw new ApiError(400, "INVALID_CAMPAIGN_NAME", "Campaign name is required.");
-  return ok(request, await createCampaign({
+  const campaign = await createCampaign({
     userId: account.userId,
     displayName: session.displayName,
     projectId: project.id,
@@ -58,7 +59,16 @@ async function create(request: Request) {
     expiresInHours: expiration(body.expiresInHours),
     activationEvent: typeof body.activationEvent === "string" ? body.activationEvent : undefined,
     referralReward: typeof body.referralReward === "string" ? body.referralReward : undefined,
-  }), 201);
+  });
+  await queueWebhookEvent(project.id, "campaign.created", {
+    distributionId: campaign.id,
+    name: campaign.name,
+    asset: campaign.asset.symbol,
+    recipientCount: campaign.recipientCount,
+    totalAmount: campaign.totalAmount,
+  });
+  await deliverQueuedWebhooks(10);
+  return ok(request, campaign, 201);
 }
 
 async function read(request: Request) {

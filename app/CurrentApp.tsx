@@ -113,6 +113,68 @@ type CreatedCampaign = {
   links: Array<{ identity: string; identityType: string; amount: string; claimUrl: string }>;
 };
 
+type ReferralState = {
+  totals: { referrals: number; claimed: number; activated: number; activationRate: number };
+  codes: Array<{
+    id: string;
+    campaignId: string;
+    campaignName: string;
+    code: string;
+    referrerName: string;
+    createdAt: string;
+  }>;
+  sources: Array<{
+    referrerUserId: string;
+    name: string;
+    code: string;
+    claimed: number;
+    activated: number;
+    activationRate: number;
+  }>;
+};
+
+type DeveloperKeyRecord = {
+  id: string;
+  name: string;
+  prefix: string;
+  kind: "project" | "agent";
+  permissions: string[];
+  policies: Record<string, unknown>;
+  status: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+};
+
+type CreatedDeveloperKey = DeveloperKeyRecord & {
+  token: string;
+  signingSecret: string;
+  warning: string;
+};
+
+type WebhookState = {
+  endpoints: Array<{
+    id: string;
+    url: string;
+    events: string[];
+    enabled: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  deliveries: Array<{
+    id: string;
+    endpointId: string;
+    eventType: string;
+    eventId: string;
+    status: string;
+    attempts: number;
+    responseStatus: number | null;
+    responseError: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+};
+
 const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function parseRecipientCsv(value: string, defaultAmount: string): CampaignRecipientDraft[] {
@@ -563,6 +625,7 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
   const [emailMode,setEmailMode] = useState(false);
   const [email,setEmail] = useState("");
   const [claimToken] = useState(()=>typeof location==="undefined"?null:new URLSearchParams(location.search).get("claim"));
+  const [referralCode] = useState(()=>typeof location==="undefined"?null:new URLSearchParams(location.search).get("ref"));
   const [preview,setPreview] = useState<ClaimPreview|null>(null);
   const [previewState,setPreviewState] = useState<"demo"|"loading"|"live"|"error">(()=>claimToken?"loading":"demo");
   const [claimError,setClaimError] = useState<string|null>(null);
@@ -577,11 +640,11 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
     if(!claimToken){setStep(auth.account?"success":"auth");return}
     setClaimError(null);setStep("claiming");
     try{
-      const started=await currentApi.post<WalletActionResult>("/links/claim",{token:claimToken});
+      const started=await currentApi.post<WalletActionResult>("/links/claim",{token:claimToken,referralCode});
       if(!started.complete){
         if(!started.challengeId)throw new Error("Circle did not return a wallet approval.");
         await auth.executeChallenge(started.challengeId);
-        await confirmWalletAction("/links/claim",{token:claimToken},started.challengeId);
+        await confirmWalletAction("/links/claim",{token:claimToken,referralCode},started.challengeId);
       }
       setPreview(current=>current?{...current,status:"confirmed",claimable:false}:current);
       setStep("success");
@@ -590,7 +653,7 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
       setClaimError(claimFailure instanceof Error?claimFailure.message:"The claim could not be completed.");
       setStep(auth.account?"ready":"auth");
     }
-  },[auth,claimToken]);
+  },[auth,claimToken,referralCode]);
   const claim=()=>{
     if(!auth.account){setStep("auth");return}
     claimStartedRef.current=true;void settleClaim();
@@ -878,11 +941,34 @@ function Recipients({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     <div className="data-panel"><div className="panel-head"><div><h3>Recipient network</h3><p>{rows.length.toLocaleString()} identities across live workspace campaigns</p></div><div className="table-actions"><label><Search/><input placeholder="Search identity" value={query} onChange={event=>setQuery(event.target.value)}/></label><button onClick={()=>go("new-campaign")}><Upload/>New allowlist</button></div></div><div className="recipient-table"><div className="table-head"><span>Recipient</span><span>Amount</span><span>Status</span><span>Campaign</span><span>Updated</span><span/></div>{loading&&<div className="campaign-empty compact"><RefreshCw className="spin"/><b>Reading allocations…</b></div>}{!loading&&!visible.length&&<div className="campaign-empty compact"><Users/><b>No matching recipients</b><p>Create or select a campaign to populate this verifiable record.</p></div>}{visible.map(row=><div className="table-row" key={row.id}><span className="recipient-name"><i>{row.identity.slice(0,2).toUpperCase()}</i><b>{row.identity}<small>{row.identityType}</small></b></span><b>{row.amount} {row.asset}</b><Status tone={row.status==="confirmed"?"green":row.status==="authorizing"?"blue":row.status==="refunded"?"grey":"cyan"}>{row.status}</Status><span>{row.campaignName}</span><time>{new Date(row.updatedAt).toLocaleDateString()}</time><button><MoreHorizontal/></button></div>)}</div></div></>;
 }
 
-function Referrals() {
-  return <><PageHero eyebrow="ATTRIBUTION NETWORK" title="See which currents create retained users." copy="Every claim keeps its source. Every activation moves credit through the referral tree." mode="branches"/>
-    <div className="referral-top"><div><small>ATTRIBUTED ACTIVATIONS</small><strong>2,842</strong><em><TrendingUp/>+18.2% this week</em></div><div><small>REWARDS EARNED</small><strong>$14,208</strong><span>1,884 referrals settled</span></div><div className="referral-visual"><FluidCanvas mode="branches"/><span className="ref-root">T</span>{["MC","AY","NW","JP","KL"].map((x,i)=><span className={`ref-node r-${i}`} key={x}>{x}</span>)}</div></div>
-    <div className="analysis-grid"><div className="data-panel"><div className="panel-head"><div><h3>Conversion current</h3><p>Genesis campaign · Last 30 days</p></div><Status tone="green">Healthy</Status></div><div className="conversion-current">{[["Links opened","12,420","100%"],["Accounts created","9,884","79.6%"],["Assets claimed","8,241","66.4%"],["Users activated","6,381","51.4%"],["Retained · 30d","4,102","33.0%"]].map(([l,v,p])=><div key={l}><span><b>{l}</b><small>{v}</small></span><i><b style={{width:p}}/></i><em>{p}</em></div>)}</div></div>
-      <div className="data-panel"><div className="panel-head"><div><h3>Top referral sources</h3><p>Ranked by activated users</p></div><button>View all</button></div>{[["1","Mara Chen","@marachain","482","71.8%"],["2","Amina Yusuf","@amina.builds","394","69.2%"],["3","Tidebreak DAO","Discord","318","62.4%"],["4","Openplay","Partner","207","58.1%"]].map(x=><div className="leader-row" key={x[1]}><b>{x[0]}</b><i>{x[1][0]}</i><span><strong>{x[1]}</strong><small>{x[2]}</small></span><em>{x[3]} active</em><Status tone="green">{x[4]}</Status></div>)}</div></div></>;
+function Referrals({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const network=useCampaignNetwork(Boolean(auth.account));
+  const [state,setState]=useState<ReferralState|null>(null);
+  const [campaignId,setCampaignId]=useState("");
+  const [creating,setCreating]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(async()=>{
+    if(!auth.account)return;
+    try{setState(await currentApi.get<ReferralState>("/referrals"));setError(null)}
+    catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"Referral data is unavailable.")}
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const selectedCampaignId=campaignId||network.campaigns[0]?.id||"";
+  const createCode=async()=>{
+    if(!selectedCampaignId)return;
+    setCreating(true);setError(null);
+    try{await currentApi.post("/referrals",{distributionId:selectedCampaignId});await refresh()}
+    catch(createError){setError(createError instanceof Error?createError.message:"Referral code creation failed.")}
+    finally{setCreating(false)}
+  };
+  const totals=state?.totals??{referrals:0,claimed:0,activated:0,activationRate:0};
+  return <><PageHero eyebrow="ATTRIBUTION NETWORK" title="See which currents create active users." copy="Every referral keeps its source. Every signed activation moves credit through a measurable onchain campaign." mode="branches"/>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Sign in to open attribution</h3><p>Referral links and campaign conversion data belong to your Current workspace.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {auth.account&&<><div className="referral-top"><div><small>ATTRIBUTED ACTIVATIONS</small><strong>{totals.activated.toLocaleString()}</strong><em><TrendingUp/>{totals.activationRate.toFixed(1)}% activation rate</em></div><div><small>REFERRALS CLAIMED</small><strong>{totals.claimed.toLocaleString()}</strong><span>{totals.referrals.toLocaleString()} live referral codes</span></div><div className="referral-visual"><FluidCanvas mode="branches"/><span className="ref-root">C</span>{(state?.sources.slice(0,5)??[]).map((source,i)=><span className={`ref-node r-${i}`} key={source.referrerUserId}>{source.name.slice(0,2).toUpperCase()}</span>)}</div></div>
+    <div className="integration-create"><div><Eyebrow>CREATE A REFERRAL CURRENT</Eyebrow><h3>Give a campaign its own attributable path.</h3><p>Claims carrying this code remain tied to the referrer through signed project activation events.</p></div><label>Campaign<select value={selectedCampaignId} onChange={event=>setCampaignId(event.target.value)}><option value="">Choose campaign</option>{network.campaigns.map(campaign=><option value={campaign.id} key={campaign.id}>{campaign.name}</option>)}</select></label><Button tone="blue" disabled={!selectedCampaignId||creating} onClick={()=>void createCode()}>{creating?"Creating…":"Create code"} <Plus/></Button></div>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    <div className="analysis-grid"><div className="data-panel"><div className="panel-head"><div><h3>Referral codes</h3><p>Append a code as <code>?ref=code</code> to its campaign claim link.</p></div><Status tone="green">Live data</Status></div>{state?.codes.map(code=><div className="key-row-new referral-code-row" key={code.id}><span className="key-symbol"><Link2/></span><div><b>{code.campaignName}</b><code>{code.code}</code></div><span>{code.referrerName}</span><time>{new Date(code.createdAt).toLocaleDateString()}</time><button aria-label="Copy referral code" onClick={()=>void navigator.clipboard.writeText(code.code)}><Copy/></button></div>)}{!state?.codes.length&&<div className="campaign-empty compact"><Network/><b>No referral paths yet</b><p>Create one for a funded campaign above.</p></div>}</div>
+      <div className="data-panel"><div className="panel-head"><div><h3>Top referral sources</h3><p>Ranked by verified activations</p></div></div>{state?.sources.map((source,index)=><div className="leader-row" key={source.referrerUserId}><b>{index+1}</b><i>{source.name[0]?.toUpperCase()??"C"}</i><span><strong>{source.name}</strong><small>{source.code}</small></span><em>{source.activated} active</em><Status tone="green">{source.activationRate.toFixed(1)}%</Status></div>)}{!state?.sources.length&&<div className="campaign-empty compact"><Target/><b>Activation sources will appear here</b></div>}</div></div></>}</>;
 }
 
 function Analytics({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
@@ -909,20 +995,107 @@ function Developers({go}:{go:(v:View)=>void}) {
     <div className="quickstart-panel"><div><Eyebrow>THREE-MINUTE QUICKSTART</Eyebrow><h2>Create a walletless USDC current.</h2><ol><li><span>1</span>Install the SDK</li><li><span>2</span>Create a project key</li><li><span>3</span>Generate the distribution</li></ol></div><pre><code><i>import</i> {"{ Current }"} <i>from</i> <b>&quot;@currentcofi/sdk&quot;</b>;<br/><br/><i>const</i> cofi = <i>new</i> Current({"{"} apiKey {"}"});<br/><br/><i>const</i> drop = <i>await</i> cofi.distributions.create({"{"}<br/>  asset: <b>&quot;USDC&quot;</b>,<br/>  amount: <b>&quot;25.00&quot;</b>,<br/>  identity: recipient.email,<br/>  sponsorGas: <b>true</b><br/>{"}"});</code></pre></div></>;
 }
 
-function ApiKeys() {
-  const [created,setCreated]=useState(false);
-  return <><PageHero eyebrow="DEVELOPER ACCESS" title="Keys with deliberate boundaries." copy="Create environment-specific credentials, assign narrow scopes, monitor usage, and revoke access immediately."/><div className="settings-shell"><div className="settings-tabs"><button>General</button><button className="active">API keys</button><button>Webhooks</button><button>Team</button></div><div className="settings-panel"><div className="panel-head"><div><h3>Project API keys</h3><p>Keys are shown once. Store them securely.</p></div><Button tone="blue" onClick={()=>setCreated(true)}>Create key <Plus/></Button></div>{created&&<div className="secret-reveal"><KeyRound/><div><b>Production key created</b><code>cofi_live_7Kp9••••••••••4eQ2</code><small>Copy this key now. It will not be shown again.</small></div><button><Copy/></button></div>}{[["Production","cofi_live_••••••••4eQ2","Distributions · Claims · Analytics","2m ago"],["Staging","cofi_test_••••••••6kL8","All testnet scopes","1d ago"],["Analytics readonly","cofi_ro_••••••••1xP7","Analytics · Recipients","14d ago"]].map((x,i)=><div className="key-row-new" key={x[0]}><span className={`key-symbol k-${i}`}><KeyRound/></span><div><b>{x[0]}</b><code>{x[1]}</code></div><span>{x[2]}</span><time>Used {x[3]}</time><button><MoreHorizontal/></button></div>)}</div></div></>;
+function ApiKeys({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [keys,setKeys]=useState<DeveloperKeyRecord[]>([]);
+  const [created,setCreated]=useState<CreatedDeveloperKey|null>(null);
+  const [name,setName]=useState("Production integration");
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(async()=>{
+    if(!auth.account)return;
+    try{const result=await currentApi.get<{keys:DeveloperKeyRecord[]}>("/developer/keys");setKeys(result.keys);setError(null)}
+    catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"API keys are unavailable.")}
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const create=async()=>{
+    setBusy(true);setError(null);
+    try{setCreated(await currentApi.post<CreatedDeveloperKey>("/developer/keys",{name,kind:"project"}));await refresh()}
+    catch(createError){setError(createError instanceof Error?createError.message:"API key creation failed.")}
+    finally{setBusy(false)}
+  };
+  const revoke=async(keyId:string)=>{
+    setBusy(true);
+    try{await currentApi.post("/developer/keys",{action:"revoke",keyId});await refresh()}
+    catch(revokeError){setError(revokeError instanceof Error?revokeError.message:"API key revocation failed.")}
+    finally{setBusy(false)}
+  };
+  return <><PageHero eyebrow="DEVELOPER ACCESS" title="Keys with deliberate boundaries." copy="Create environment-specific credentials, assign narrow scopes, monitor usage, and revoke access immediately."/>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Developer access requires an account</h3><p>Sign in to create keys for your Current CoFi project.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {auth.account&&<div className="settings-shell"><div className="settings-tabs"><button>General</button><button className="active">API keys</button><button onClick={()=>go("webhooks")}>Webhooks</button><button>Team</button></div><div className="settings-panel"><div className="panel-head"><div><h3>Project API keys</h3><p>The key and signing secret are shown once.</p></div><div className="inline-key-create"><input aria-label="API key name" value={name} maxLength={80} onChange={event=>setName(event.target.value)}/><Button tone="blue" disabled={busy||!name.trim()} onClick={()=>void create()}>{busy?"Working…":"Create key"} <Plus/></Button></div></div>
+    {created&&<div className="credential-reveal"><KeyRound/><div><b>{created.name} is ready</b><label>API key<code>{created.token}</code></label><label>Signing secret<code>{created.signingSecret}</code></label><small>Copy both now. Current CoFi will never reveal them again.</small></div><button aria-label="Copy credentials" onClick={()=>void navigator.clipboard.writeText(`CURRENT_API_KEY=${created.token}\nCURRENT_SIGNING_SECRET=${created.signingSecret}`)}><Copy/></button></div>}
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    {keys.map((key,i)=><div className="key-row-new" key={key.id}><span className={`key-symbol k-${i%3}`}><KeyRound/></span><div><b>{key.name}</b><code>{key.prefix}.••••••••••••</code></div><span>{key.permissions.join(" · ")}</span><time>{key.lastUsedAt?`Used ${new Date(key.lastUsedAt).toLocaleDateString()}`:"Never used"}</time>{key.status==="active"?<button aria-label={`Revoke ${key.name}`} disabled={busy} onClick={()=>void revoke(key.id)}><X/></button>:<Status tone="grey">{key.status}</Status>}</div>)}
+    {!keys.length&&<div className="campaign-empty compact"><KeyRound/><b>No developer keys yet</b><p>Create a scoped key to connect an app or backend.</p></div>}</div></div>}</>;
 }
 
-function WebhooksView() {
-  return <><PageHero eyebrow="EVENT DELIVERY" title="Every important state, delivered." copy="Signed webhooks keep games, communities, launchpads, and autonomous agents synchronized with the current."/><div className="settings-shell"><div className="settings-tabs"><button>General</button><button>API keys</button><button className="active">Webhooks</button><button>Team</button></div><div className="settings-panel"><div className="panel-head"><div><h3>Webhook endpoints</h3><p>Signed with your project secret.</p></div><Button tone="blue">Add endpoint <Plus/></Button></div><div className="webhook-endpoint"><span><Webhook/></span><div><b>Production events</b><code>https://api.tidebreak.xyz/cofi/webhooks</code></div><Status tone="green">Healthy</Status><button><MoreHorizontal/></button><div className="endpoint-meta"><span><small>EVENTS</small>8 subscribed</span><span><small>SUCCESS RATE</small>99.98%</span><span><small>LAST DELIVERY</small>18s ago</span></div></div><h3 className="section-subtitle">Recent deliveries</h3>{[["claim.completed","Tidebreak Genesis","200","18s"],["activation.completed","Tidebreak Genesis","200","46s"],["wallet.created","Founders Current","200","2m"],["campaign.gas_low","Agent Week","200","8m"]].map(x=><div className="delivery-row-new" key={x[0]+x[3]}><i/><code>{x[0]}</code><span>{x[1]}</span><Status tone="green">{x[2]}</Status><time>{x[3]} ago</time><button><Eye/></button></div>)}</div></div></>;
+function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [state,setState]=useState<WebhookState>({endpoints:[],deliveries:[]});
+  const [url,setUrl]=useState("");
+  const [createdSecret,setCreatedSecret]=useState<string|null>(null);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(async()=>{
+    if(!auth.account)return;
+    try{setState(await currentApi.get<WebhookState>("/developer/webhooks"));setError(null)}
+    catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"Webhook state is unavailable.")}
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const create=async()=>{
+    setBusy(true);setError(null);
+    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
+    catch(createError){setError(createError instanceof Error?createError.message:"Webhook creation failed.")}
+    finally{setBusy(false)}
+  };
+  const toggle=async(endpointId:string,enabled:boolean)=>{
+    setBusy(true);
+    try{await currentApi.post("/developer/webhooks",{action:"set_enabled",endpointId,enabled});await refresh()}
+    catch(toggleError){setError(toggleError instanceof Error?toggleError.message:"Webhook update failed.")}
+    finally{setBusy(false)}
+  };
+  const test=async()=>{
+    setBusy(true);
+    try{await currentApi.post("/developer/webhooks",{action:"test"});await refresh()}
+    catch(testError){setError(testError instanceof Error?testError.message:"Webhook test failed.")}
+    finally{setBusy(false)}
+  };
+  return <><PageHero eyebrow="EVENT DELIVERY" title="Every important state, delivered." copy="Signed, durable webhooks keep games, communities, launchpads, and autonomous agents synchronized with the current."/>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Webhook delivery requires an account</h3><p>Sign in to connect your project systems.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {auth.account&&<div className="settings-shell"><div className="settings-tabs"><button>General</button><button onClick={()=>go("api-keys")}>API keys</button><button className="active">Webhooks</button><button>Team</button></div><div className="settings-panel"><div className="panel-head"><div><h3>Webhook endpoints</h3><p>Public HTTPS only. Every delivery carries an HMAC signature.</p></div><div className="inline-key-create"><input aria-label="Webhook endpoint URL" placeholder="https://api.example.com/current" value={url} onChange={event=>setUrl(event.target.value)}/><Button tone="blue" disabled={busy||!url.trim()} onClick={()=>void create()}>Add endpoint <Plus/></Button></div></div>
+    {createdSecret&&<div className="credential-reveal"><Webhook/><div><b>Signing secret created</b><label>Webhook secret<code>{createdSecret}</code></label><small>Copy it now and verify every request before processing the event.</small></div><button aria-label="Copy signing secret" onClick={()=>void navigator.clipboard.writeText(createdSecret)}><Copy/></button></div>}
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    {state.endpoints.map(endpoint=><div className="webhook-endpoint" key={endpoint.id}><span><Webhook/></span><div><b>Production events</b><code>{endpoint.url}</code></div><Status tone={endpoint.enabled?"green":"grey"}>{endpoint.enabled?"Listening":"Paused"}</Status><button disabled={busy} onClick={()=>void toggle(endpoint.id,!endpoint.enabled)}>{endpoint.enabled?<Pause/>:<Play/>}</button><div className="endpoint-meta"><span><small>EVENTS</small>{endpoint.events.length} subscribed</span><span><small>SIGNATURE</small>HMAC-SHA256</span><span><small>CREATED</small>{new Date(endpoint.createdAt).toLocaleDateString()}</span></div></div>)}
+    {!state.endpoints.length&&<div className="campaign-empty compact"><Webhook/><b>No endpoint connected</b><p>Add a public HTTPS destination to receive project events.</p></div>}
+    <div className="section-subtitle-row"><h3 className="section-subtitle">Recent deliveries</h3><Button tone="ghost" disabled={busy||!state.endpoints.length} onClick={()=>void test()}>Send test <Zap/></Button></div>{state.deliveries.map(delivery=><div className="delivery-row-new" key={delivery.id}><i className={delivery.status}/><code>{delivery.eventType}</code><span>{delivery.eventId.slice(0,12)}…</span><Status tone={delivery.status==="delivered"?"green":delivery.status==="failed"?"grey":"cyan"}>{delivery.responseStatus??delivery.status}</Status><time>{new Date(delivery.updatedAt).toLocaleTimeString()}</time><button title={delivery.responseError??`${delivery.attempts} attempt(s)`}><Eye/></button></div>)}</div></div>}</>;
 }
 
-function Agents() {
-  const [paused,setPaused]=useState(false);
-  return <><PageHero eyebrow="POLICY-BOUND AGENT NETWORK" title="Let software move value without losing control." copy="Agents create claims, reward completed work, and pay other agents inside explicit asset, amount, recipient, and approval boundaries." mode="orbit"><Button tone="cyan">Create agent <Plus/></Button></PageHero>
-    <div className="agent-grid-new">{[["Reward Router","Campaign agent","$1,284 / $5,000",Bot],["Quest Verifier","Action oracle","1,842 events",CheckCircle2],["Community Scout","Growth agent","426 rewards",Network]].map(([name,role,metric,I],i)=>{const Icon=I as typeof Bot;return <article key={String(name)}><div className="agent-head"><span><Icon/></span><Status tone={i===0&&paused?"grey":"green"}>{i===0&&paused?"Paused":"Online"}</Status><button><MoreHorizontal/></button></div><h3>{String(name)}</h3><p>{String(role)}</p><strong>{String(metric)}</strong><small>{i===0?"Daily spend":"Last 30 days"}</small><div className="agent-boundaries"><span><Check/>USDC + TIDE</span><span><Check/>Max $50 / reward</span><span><Check/>Human approval over $250</span></div>{i===0&&<button className="agent-pause" onClick={()=>setPaused(!paused)}>{paused?<Play/>:<Pause/>}{paused?"Resume agent":"Pause agent"}</button>}</article>})}</div>
-    <div className="data-panel guardrail-panel"><div className="panel-head"><div><h3>Network guardrails</h3><p>Applied before any agent action reaches a wallet or contract.</p></div><Status tone="green">Enforced</Status></div><div className="guardrail-grid">{[["Daily network limit","$18,000",Gauge],["Approval threshold","$250",ShieldCheck],["Approved assets","3",CircleDollarSign],["Active policy sets","6",SlidersHorizontal]].map(([x,v,I])=>{const Icon=I as typeof Gauge;return <div key={String(x)}><span><Icon/></span><b>{String(v)}</b><small>{String(x)}</small></div>})}</div></div></>;
+function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [keys,setKeys]=useState<DeveloperKeyRecord[]>([]);
+  const [created,setCreated]=useState<CreatedDeveloperKey|null>(null);
+  const [name,setName]=useState("Reward Router");
+  const [eventTypes,setEventTypes]=useState("game.completed,purchase.completed");
+  const [dailyLimit,setDailyLimit]=useState("1000");
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(async()=>{
+    if(!auth.account)return;
+    try{const result=await currentApi.get<{keys:DeveloperKeyRecord[]}>("/developer/keys");setKeys(result.keys.filter(key=>key.kind==="agent"));setError(null)}
+    catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"Agent policies are unavailable.")}
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const create=async()=>{
+    setBusy(true);setError(null);
+    try{setCreated(await currentApi.post<CreatedDeveloperKey>("/developer/keys",{name,kind:"agent",permissions:["campaigns:read","claims:write","activations:write","analytics:read"],policies:{dailyEventLimit:Number(dailyLimit),allowedEventTypes:eventTypes.split(",").map(value=>value.trim()).filter(Boolean)}}));await refresh()}
+    catch(createError){setError(createError instanceof Error?createError.message:"Agent creation failed.")}
+    finally{setBusy(false)}
+  };
+  const revoke=async(keyId:string)=>{setBusy(true);try{await currentApi.post("/developer/keys",{action:"revoke",keyId});await refresh()}finally{setBusy(false)}};
+  return <><PageHero eyebrow="POLICY-BOUND AGENT NETWORK" title="Let software verify growth without losing control." copy="Agent keys submit signed activation events and read campaign intelligence inside explicit event and daily-volume boundaries." mode="orbit"/>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Agent controls require an account</h3><p>Sign in to issue scoped machine credentials.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {auth.account&&<><div className="integration-create agent-create"><div><Eyebrow>NEW AGENT POLICY</Eyebrow><h3>Issue a key with enforceable limits.</h3><p>Agents cannot expand their own permissions or submit event types outside this policy.</p></div><label>Name<input value={name} onChange={event=>setName(event.target.value)}/></label><label>Allowed events<input value={eventTypes} onChange={event=>setEventTypes(event.target.value)}/></label><label>Daily event limit<input inputMode="numeric" value={dailyLimit} onChange={event=>setDailyLimit(event.target.value)}/></label><Button tone="blue" disabled={busy||!name.trim()} onClick={()=>void create()}>{busy?"Issuing…":"Create agent"} <Plus/></Button></div>
+    {created&&<div className="credential-reveal"><Bot/><div><b>{created.name} is ready</b><label>Agent key<code>{created.token}</code></label><label>Signing secret<code>{created.signingSecret}</code></label><small>Store these now; they are not recoverable.</small></div><button onClick={()=>void navigator.clipboard.writeText(`CURRENT_AGENT_KEY=${created.token}\nCURRENT_SIGNING_SECRET=${created.signingSecret}`)}><Copy/></button></div>}
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    <div className="agent-grid-new">{keys.map(key=><article key={key.id}><div className="agent-head"><span><Bot/></span><Status tone={key.status==="active"?"green":"grey"}>{key.status}</Status><button disabled={busy||key.status!=="active"} onClick={()=>void revoke(key.id)}><X/></button></div><h3>{key.name}</h3><p>Signed Current CoFi agent</p><strong>{String(key.policies.dailyEventLimit??1000)}</strong><small>Daily activation limit</small><div className="agent-boundaries"><span><Check/>HMAC signed events</span><span><Check/>{Array.isArray(key.policies.allowedEventTypes)&&key.policies.allowedEventTypes.length?`${key.policies.allowedEventTypes.length} allowed event types`:"Any event type"}</span><span><Check/>{key.permissions.length} API permissions</span></div></article>)}{!keys.length&&<article className="agent-empty"><Bot/><h3>No agents issued</h3><p>Create a policy-bound key above.</p></article>}</div>
+    <div className="data-panel guardrail-panel"><div className="panel-head"><div><h3>Network guardrails</h3><p>Applied before any activation reaches attribution or a webhook.</p></div><Status tone="green">Enforced</Status></div><div className="guardrail-grid">{[["Signature window","5 minutes",Clock3],["Payload limit","64 KB",ShieldCheck],["Idempotency","Project scoped",Fingerprint],["Agent tools","2 live",Braces]].map(([x,v,I])=>{const Icon=I as typeof Gauge;return <div key={String(x)}><span><Icon/></span><b>{String(v)}</b><small>{String(x)}</small></div>})}</div></div></>}</>;
 }
 
 function SettingsView() {
@@ -960,13 +1133,13 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
     case "new-campaign":page=<CampaignBuilder go={go} auth={auth}/>;break;
     case "recipients":page=<Recipients auth={auth} go={go}/>;break;
-    case "referrals":page=<Referrals/>;break;
+    case "referrals":page=<Referrals auth={auth} go={go}/>;break;
     case "analytics":page=<Analytics auth={auth} go={go}/>;break;
     case "token":page=<TokenDashboard/>;break;
     case "developers":page=<Developers go={go}/>;break;
-    case "api-keys":page=<ApiKeys/>;break;
-    case "webhooks":page=<WebhooksView/>;break;
-    case "agents":page=<Agents/>;break;
+    case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
+    case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;
+    case "agents":page=<Agents auth={auth} go={go}/>;break;
     case "settings":page=<SettingsView/>;break;
     default:page=<StateLab go={go}/>;
   }

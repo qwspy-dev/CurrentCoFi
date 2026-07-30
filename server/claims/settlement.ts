@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import {
   encodeAbiParameters,
   keccak256,
@@ -18,6 +18,7 @@ import { allocations, claims, distributions, tokens, wallets } from "../db/schem
 import { ApiError } from "../http.js";
 import { parseClaimToken, sha256 } from "../security/crypto.js";
 import type { CurrentSession } from "../auth/session.js";
+import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
 
 const FINAL_TRANSACTION_STATES = new Set(["COMPLETE", "CONFIRMED"]);
 const FAILED_TRANSACTION_STATES = new Set(["FAILED", "DENIED", "CANCELLED"]);
@@ -191,6 +192,7 @@ async function claimRow(tokenValue: string) {
     storedSecretHash: allocations.claimSecretHash,
     amountAtomic: allocations.amountAtomic,
     distributionId: distributions.id,
+    projectId: distributions.projectId,
     distributionStatus: distributions.status,
     expiresAt: distributions.expiresAt,
   }).from(allocations)
@@ -311,19 +313,29 @@ export async function confirmClaimChallenge(
   }
   const result = await challengeResult(request, session, challengeId);
   if (result.pending) return result;
-  await db.update(claims).set({
+  const updated = await db.update(claims).set({
     status: "confirmed",
     transactionHash: result.transactionHash,
     confirmedAt: new Date(),
     updatedAt: new Date(),
-  }).where(eq(claims.id, claim.id));
-  await db.update(allocations).set({ status: "confirmed", updatedAt: new Date() })
-    .where(eq(allocations.id, row.allocationId));
-  await db.update(distributions).set({
-    status: "completed",
-    claimedAmountAtomic: sql`${distributions.claimedAmountAtomic} + ${row.amountAtomic}`,
-    updatedAt: new Date(),
-  }).where(eq(distributions.id, row.distributionId));
+  }).where(and(eq(claims.id, claim.id), ne(claims.status, "confirmed"))).returning();
+  if (updated.length) {
+    await db.update(allocations).set({ status: "confirmed", updatedAt: new Date() })
+      .where(eq(allocations.id, row.allocationId));
+    await db.update(distributions).set({
+      status: "completed",
+      claimedAmountAtomic: sql`${distributions.claimedAmountAtomic} + ${row.amountAtomic}`,
+      updatedAt: new Date(),
+    }).where(eq(distributions.id, row.distributionId));
+    await queueWebhookEvent(row.projectId, "claim.completed", {
+      distributionId: row.distributionId,
+      allocationId: row.allocationId,
+      claimantUserId: userId,
+      transactionHash: result.transactionHash,
+      network: ARC_TESTNET.network,
+    });
+    await deliverQueuedWebhooks(10);
+  }
   return { ...result, status: "confirmed" };
 }
 

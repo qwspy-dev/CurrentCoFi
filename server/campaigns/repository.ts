@@ -280,14 +280,21 @@ export async function createCampaign(input: {
 }
 
 export async function campaignKindForClaim(tokenValue: string) {
+  return (await claimRoutingForToken(tokenValue))?.kind ?? null;
+}
+
+export async function claimRoutingForToken(tokenValue: string) {
   const allocationId = tokenValue.split(".")[0];
   if (!/^[0-9a-f-]{36}$/i.test(allocationId)) return null;
-  const row = await getDb().select({ kind: distributions.kind })
+  const row = await getDb().select({
+    kind: distributions.kind,
+    distributionId: distributions.id,
+  })
     .from(allocations)
     .innerJoin(distributions, eq(distributions.id, allocations.distributionId))
     .where(eq(allocations.id, allocationId))
     .limit(1);
-  return row[0]?.kind ?? null;
+  return row[0] ?? null;
 }
 
 export async function listCampaigns(userId: string) {

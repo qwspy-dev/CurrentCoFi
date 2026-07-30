@@ -18,6 +18,7 @@ import { getDb } from "../db/client.js";
 import { allocations, claims, distributions, tokens, wallets } from "../db/schema.js";
 import { ApiError } from "../http.js";
 import { parseClaimToken } from "../security/crypto.js";
+import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
 import { buildCampaignTree, contractAllocationId } from "./merkle.js";
 import { campaignAllocations } from "./repository.js";
 
@@ -77,6 +78,7 @@ async function challengeResult(request: Request, session: CurrentSession, challe
 async function ownedCampaign(distributionId: string, userId: string) {
   const [row] = await getDb().select({
     id: distributions.id,
+    projectId: distributions.projectId,
     status: distributions.status,
     amountAtomic: distributions.totalAmountAtomic,
     claimedAmountAtomic: distributions.claimedAmountAtomic,
@@ -175,6 +177,12 @@ export async function confirmCampaignFundingChallenge(
       updatedAt: new Date(),
       metadata: { ...metadata, fundedAt: new Date().toISOString() },
     }).where(eq(distributions.id, distributionId));
+    await queueWebhookEvent(row.projectId, "campaign.funded", {
+      distributionId,
+      transactionHash: result.transactionHash,
+      network: ARC_TESTNET.network,
+    });
+    await deliverQueuedWebhooks(10);
   }
   return { ...result, status: action === "deposit" ? "active" : "approved" };
 }
@@ -188,6 +196,7 @@ async function campaignClaimRow(tokenValue: string, allowCompleted = false) {
     storedSecretHash: allocations.claimSecretHash,
     amountAtomic: allocations.amountAtomic,
     distributionId: distributions.id,
+    projectId: distributions.projectId,
     distributionStatus: distributions.status,
     expiresAt: distributions.expiresAt,
     kind: distributions.kind,
@@ -342,6 +351,14 @@ export async function confirmCampaignClaimChallenge(
       status: sql`CASE WHEN ${distributions.claimedAmountAtomic} + ${row.amountAtomic} >= ${distributions.totalAmountAtomic} THEN 'completed'::distribution_status ELSE ${distributions.status} END`,
       updatedAt: new Date(),
     }).where(eq(distributions.id, row.distributionId));
+    await queueWebhookEvent(row.projectId, "claim.completed", {
+      distributionId: row.distributionId,
+      allocationId: row.allocationId,
+      claimantUserId: userId,
+      transactionHash: result.transactionHash,
+      network: ARC_TESTNET.network,
+    });
+    await deliverQueuedWebhooks(10);
   }
   return { ...result, status: "confirmed" };
 }
@@ -398,5 +415,15 @@ export async function confirmCampaignManagementChallenge(
   }).where(eq(distributions.id, distributionId));
   await getDb().update(allocations).set({ status: "refunded", updatedAt: new Date() })
     .where(and(eq(allocations.distributionId, distributionId), ne(allocations.status, "confirmed")));
+  await queueWebhookEvent(
+    row.projectId,
+    action === "cancel" ? "campaign.cancelled" : "campaign.refunded",
+    {
+      distributionId,
+      transactionHash: result.transactionHash,
+      network: ARC_TESTNET.network,
+    },
+  );
+  await deliverQueuedWebhooks(10);
   return { ...result, status };
 }
