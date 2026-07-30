@@ -19,6 +19,7 @@ export type ServerConfig = {
   CLAIM_SIGNING_SECRET?: string;
   CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY?: `0x${string}`;
   CURRENT_CLAIM_VAULT_ADDRESS?: `0x${string}`;
+  CURRENT_CAMPAIGN_VAULT_ADDRESS?: `0x${string}`;
   CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY?: `0x${string}`;
   ARC_RPC_URL: string;
 };
@@ -61,6 +62,7 @@ export function getServerConfig(): ServerConfig {
       CLAIM_SIGNING_SECRET: secret("CLAIM_SIGNING_SECRET"),
       CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY: optional("CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY") as `0x${string}` | undefined,
       CURRENT_CLAIM_VAULT_ADDRESS: optional("CURRENT_CLAIM_VAULT_ADDRESS") as `0x${string}` | undefined,
+      CURRENT_CAMPAIGN_VAULT_ADDRESS: optional("CURRENT_CAMPAIGN_VAULT_ADDRESS") as `0x${string}` | undefined,
       CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY: optional("CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY") as `0x${string}` | undefined,
     };
   }
@@ -88,6 +90,7 @@ export function getPublicConfig() {
       productionMutations: Boolean(config.DATABASE_URL && config.CLAIM_SIGNING_SECRET),
       arcSettlement: Boolean(
         config.CURRENT_CLAIM_VAULT_ADDRESS &&
+        config.CURRENT_CAMPAIGN_VAULT_ADDRESS &&
         config.CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY,
       ),
     },
@@ -104,6 +107,7 @@ export function getReadiness() {
     claimSigning: Boolean(config.CLAIM_SIGNING_SECRET),
     arcSettlement: Boolean(
       config.CURRENT_CLAIM_VAULT_ADDRESS &&
+      config.CURRENT_CAMPAIGN_VAULT_ADDRESS &&
       config.CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY,
     ),
   };

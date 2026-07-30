@@ -31,6 +31,7 @@ export function compileContracts() {
     language: "Solidity",
     sources: {
       "CurrentClaimVault.sol": { content: readSource("contracts/CurrentClaimVault.sol") },
+      "CurrentCampaignVault.sol": { content: readSource("contracts/CurrentCampaignVault.sol") },
       "test/MockUSDC.sol": { content: readSource("contracts/test/MockUSDC.sol") },
     },
     settings: {
@@ -46,10 +47,17 @@ export function compileContracts() {
   const fatal = output.errors?.filter((entry) => entry.severity === "error") ?? [];
   if (fatal.length) throw new Error(fatal.map((entry) => entry.formattedMessage).join("\n"));
   const vault = output.contracts?.["CurrentClaimVault.sol"]?.CurrentClaimVault;
+  const campaignVault = output.contracts?.["CurrentCampaignVault.sol"]?.CurrentCampaignVault;
   const mockUsdc = output.contracts?.["test/MockUSDC.sol"]?.MockUSDC;
-  if (!vault?.evm.bytecode.object || !mockUsdc?.evm.bytecode.object) throw new Error("Solidity compilation produced no bytecode.");
+  if (!vault?.evm.bytecode.object || !campaignVault?.evm.bytecode.object || !mockUsdc?.evm.bytecode.object) {
+    throw new Error("Solidity compilation produced no bytecode.");
+  }
   return {
     vault: { abi: vault.abi, bytecode: `0x${vault.evm.bytecode.object}` as `0x${string}` },
+    campaignVault: {
+      abi: campaignVault.abi,
+      bytecode: `0x${campaignVault.evm.bytecode.object}` as `0x${string}`,
+    },
     mockUsdc: { abi: mockUsdc.abi, bytecode: `0x${mockUsdc.evm.bytecode.object}` as `0x${string}` },
   };
 }
@@ -59,5 +67,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   const outputDirectory = path.join(root, "contracts", "artifacts");
   fs.mkdirSync(outputDirectory, { recursive: true });
   fs.writeFileSync(path.join(outputDirectory, "CurrentClaimVault.json"), JSON.stringify(compiled.vault, null, 2));
-  console.log("CurrentClaimVault compiled successfully.");
+  fs.writeFileSync(
+    path.join(outputDirectory, "CurrentCampaignVault.json"),
+    JSON.stringify(compiled.campaignVault, null, 2),
+  );
+  console.log("Current claim and campaign vaults compiled successfully.");
 }

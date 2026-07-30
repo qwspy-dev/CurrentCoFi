@@ -6,5 +6,8 @@
   "claimAuthorizerAddress": "0xf877ef47929c1c5df4ec93a6c60459167a175b61",
   "claimVaultAddress": "0x48e692dd16da6af9028eca62ad73386e2c0591f3",
   "deploymentTransactionHash": "0x9a5d350043493ac1923e96c9bcb54d90665a8199db0d99401965114891c5230d",
-  "status": "deployed"
+  "status": "deployed",
+  "campaignVaultAddress": "0xda02632316f5ef6ad05c0fdb2f3011947cec53e3",
+  "campaignDeploymentTransactionHash": "0xaa97449109f4948c9a8f10d9d6a49c1e5fc48dff4540d88765ce5e678d95ecff",
+  "campaignVaultStatus": "deployed"
 }

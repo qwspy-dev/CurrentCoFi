@@ -9,7 +9,7 @@ import {
   Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { currentApi } from "@/lib/api/client";
@@ -44,7 +44,177 @@ type WalletActionResult = {
   transactionHash?: string | null;
 };
 
+type CampaignRecord = {
+  id: string;
+  name: string;
+  status: string;
+  asset: string;
+  tokenAddress: string;
+  totalAmount: string;
+  claimedAmount: string;
+  recipientCount: number;
+  claimedCount: number;
+  claimRate: number;
+  expiresAt: string | null;
+  createdAt: string;
+  fundingTxHash: string | null;
+  activationEvent: unknown;
+};
+
+type CampaignRecipient = {
+  id: string;
+  campaignId: string;
+  campaignName: string;
+  identity: string;
+  identityType: string;
+  amount: string;
+  asset: string;
+  status: string;
+  claimed: boolean;
+  updatedAt: string;
+};
+
+type CampaignAnalytics = {
+  totals: {
+    campaigns: number;
+    liveCampaigns: number;
+    targeted: number;
+    claimed: number;
+    activations: number;
+    claimRate: number;
+    activationRate: number;
+  };
+  campaigns: Array<{
+    id: string;
+    name: string;
+    targeted: number;
+    claimed: number;
+    claimRate: number;
+    activations: number;
+  }>;
+};
+
+type CampaignRecipientDraft = {
+  identityType: "email" | "wallet" | "x" | "game" | "custom";
+  identity: string;
+  amount: string;
+};
+
+type CreatedCampaign = {
+  id: string;
+  status: string;
+  name: string;
+  asset: { address: string; symbol: string; name: string; decimals: number };
+  recipientCount: number;
+  totalAmount: string;
+  totalAmountAtomic: string;
+  merkleRoot: string;
+  expiresAt: string;
+  links: Array<{ identity: string; identityType: string; amount: string; claimUrl: string }>;
+};
+
 const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function parseRecipientCsv(value: string, defaultAmount: string): CampaignRecipientDraft[] {
+  const rows = value.split(/\r?\n/).map((row) => row.trim()).filter(Boolean);
+  if (!rows.length) return [];
+  const firstCells = rows[0].split(",").map((cell) => cell.trim().replace(/^"|"$/g, "").toLowerCase());
+  const start = firstCells[0] === "identity" ||
+    firstCells[0] === "email" ||
+    firstCells[0] === "wallet" ||
+    firstCells.includes("identity_type") ||
+    firstCells.includes("amount")
+    ? 1
+    : 0;
+  return rows.slice(start).map((row, index) => {
+    const cells: string[] = [];
+    let current = "";
+    let quoted = false;
+    for (let cursor = 0; cursor < row.length; cursor += 1) {
+      const character = row[cursor];
+      if (character === '"' && row[cursor + 1] === '"') {
+        current += '"';
+        cursor += 1;
+      } else if (character === '"') {
+        quoted = !quoted;
+      } else if (character === "," && !quoted) {
+        cells.push(current.trim());
+        current = "";
+      } else {
+        current += character;
+      }
+    }
+    cells.push(current.trim());
+    const identity = cells[0] ?? "";
+    const inferred = identity.includes("@") && !identity.startsWith("@")
+      ? "email"
+      : identity.startsWith("0x")
+        ? "wallet"
+        : identity.startsWith("@")
+          ? "x"
+          : "custom";
+    const suppliedType = cells[1]?.toLowerCase();
+    const identityType = ["email", "wallet", "x", "game", "custom"].includes(suppliedType)
+      ? suppliedType
+      : inferred;
+    const amount = cells[2] || (suppliedType && !["email", "wallet", "x", "game", "custom"].includes(suppliedType)
+      ? cells[1]
+      : defaultAmount);
+    if (!identity || !amount) throw new Error(`Recipient row ${index + 1 + start} needs an identity and amount.`);
+    return { identity, identityType, amount } as CampaignRecipientDraft;
+  });
+}
+
+function downloadCampaignLinks(campaign: CreatedCampaign) {
+  const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
+  const csv = [
+    "identity,identity_type,amount,asset,claim_url",
+    ...campaign.links.map((link) => [
+      escape(link.identity),
+      link.identityType,
+      link.amount,
+      campaign.asset.symbol,
+      escape(link.claimUrl),
+    ].join(",")),
+  ].join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${campaign.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-claim-links.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function useCampaignNetwork(enabled: boolean) {
+  const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
+  const [analytics, setAnalytics] = useState<CampaignAnalytics | null>(null);
+  const [loading, setLoading] = useState(enabled);
+  const [error, setError] = useState<string | null>(null);
+  const refresh = useCallback(async () => {
+    if (!enabled) {
+      setCampaigns([]);
+      setAnalytics(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await currentApi.get<{ campaigns: CampaignRecord[]; analytics: CampaignAnalytics }>("/campaigns");
+      setCampaigns(result.campaigns);
+      setAnalytics(result.analytics);
+    } catch (networkError) {
+      setError(networkError instanceof Error ? networkError.message : "Campaign data is unavailable.");
+    } finally {
+      setLoading(false);
+    }
+  }, [enabled]);
+  useEffect(() => {
+    const task = window.setTimeout(() => { void refresh() }, 0);
+    return () => window.clearTimeout(task);
+  }, [refresh]);
+  return { campaigns, analytics, loading, error, refresh };
+}
 
 async function confirmWalletAction(
   path: string,
@@ -71,21 +241,6 @@ function viewFromHash(hash: string): View | null {
   const value = hash.slice(2) as View;
   return validViews.has(value) ? value : null;
 }
-
-const campaigns = [
-  { name: "Tidebreak Genesis", asset: "TIDE", status: "Live", progress: 82, claimed: "8,241 / 10,000", activation: "63.8%", value: "$84.2K" },
-  { name: "Founders Current", asset: "USDC", status: "Live", progress: 78, claimed: "1,174 / 1,500", activation: "71.2%", value: "$23.5K" },
-  { name: "Agent Week", asset: "FLOW", status: "Scheduled", progress: 0, claimed: "0 / 5,000", activation: "—", value: "$50.0K" },
-  { name: "Creator Cohort 01", asset: "USDC", status: "Ended", progress: 93, claimed: "742 / 800", activation: "58.4%", value: "$14.8K" },
-];
-
-const recipientRows = [
-  { user: "Mara Chen", id: "@marachain", amount: "2,500 TIDE", state: "Activated", source: "X referral", time: "2m ago" },
-  { user: "Noah Williams", id: "noah@prism.xyz", amount: "25 USDC", state: "Claimed", source: "Email list", time: "8m ago" },
-  { user: "Amina Yusuf", id: "@amina.builds", amount: "2,500 TIDE", state: "Activated", source: "Discord", time: "14m ago" },
-  { user: "Kaito Labs", id: "player_8d4f", amount: "2,500 TIDE", state: "Opened", source: "Direct", time: "21m ago" },
-  { user: "Jules Park", id: "jules@openplay.gg", amount: "25 USDC", state: "Pending", source: "Partner", time: "34m ago" },
-];
 
 const appNav = [
   { label: "Workspace", items: [
@@ -473,7 +628,7 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
         {visibleStep === "ready" && <>
           {previewState==="loading"?<div className="creating-state"><span className="creating-orbit"><i/><i/><Link2/></span><small>VERIFYING SECURE LINK</small><h2>Following the current…</h2></div>:previewState==="error"?<><span className="claim-brand-avatar"><X/></span><small>LINK UNAVAILABLE</small><h2>This current cannot be opened.</h2><p className="auth-copy">The link may be invalid, expired, or already removed.</p><Button tone="ghost" onClick={()=>go("home")}>Return home</Button></>:<>
           <span className="claim-brand-avatar">{(preview?.project.name??"Tidebreak")[0]}</span><small>{preview?.sender??"Tidebreak"} sent you</small><h1>{preview?.amount??"2,500"} <em>{preview?.asset??"TIDE"}</em></h1>{!preview&&<p className="claim-usd">≈ $42.80</p>}
-          <blockquote>{preview?.message||"Welcome to the Tidebreak Genesis current."}</blockquote>
+          <blockquote>{preview?.message||(preview?"A funded claim is waiting for you on Arc.":"Welcome to the Tidebreak Genesis current.")}</blockquote>
           <div className="claim-meta"><span><Clock3/>{preview?.expiresAt?`Expires ${new Date(preview.expiresAt).toLocaleDateString()}`:"Expires in 6 days"}</span><span><Zap/>Gas sponsored</span></div>
           <Button tone="blue" onClick={claim} disabled={Boolean(preview&&!preview.claimable)}>{preview&&!preview.claimable?unavailableLabel:"Claim your tokens"} <ArrowRight/></Button><p className="claim-note">{preview&&!preview.claimable?unavailableNote:"No wallet or payment required."}</p>
           {claimError&&<p className="auth-system-note is-error"><X/>{claimError}</p>}
@@ -507,17 +662,30 @@ function PageHero({eyebrow,title,copy,mode="network",children}:{eyebrow:string;t
   return <section className="app-page-hero"><FluidCanvas mode={mode}/><div><Eyebrow light>{eyebrow}</Eyebrow><h1>{title}</h1><p>{copy}</p>{children}</div></section>;
 }
 
-function CampaignTable() {
-  return <div className="data-panel"><div className="panel-head"><div><h3>Campaign currents</h3><p>Live distribution and activation performance</p></div><button><SlidersHorizontal/>Filter</button></div><div className="campaign-table">
-    <div className="table-head"><span>Campaign</span><span>Asset</span><span>Status</span><span>Claims</span><span>Activation</span><span>Value</span><span/></div>
-    {campaigns.map(c=><div className="table-row" key={c.name}><span className="campaign-name"><i>{c.name[0]}</i><b>{c.name}</b></span><span>{c.asset}</span><Status tone={c.status==="Live"?"green":c.status==="Scheduled"?"blue":"grey"}>{c.status}</Status><span>{c.claimed}<small className="row-progress"><i style={{width:`${c.progress}%`}}/></small></span><span>{c.activation}</span><b>{c.value}</b><button aria-label={`Open ${c.name}`}><MoreHorizontal/></button></div>)}
+function CampaignTable({
+  campaigns: items,
+  loading = false,
+  onManage,
+}: {
+  campaigns: CampaignRecord[];
+  loading?: boolean;
+  onManage?: (campaign: CampaignRecord) => void;
+}) {
+  return <div className="data-panel"><div className="panel-head"><div><h3>Campaign currents</h3><p>Onchain distribution performance from the live workspace</p></div><button><SlidersHorizontal/>Filter</button></div><div className="campaign-table">
+    <div className="table-head"><span>Campaign</span><span>Asset</span><span>Status</span><span>Claims</span><span>Claim rate</span><span>Value</span><span/></div>
+    {loading&&<div className="campaign-empty compact"><RefreshCw className="spin"/><b>Reading the campaign current…</b></div>}
+    {!loading&&!items.length&&<div className="campaign-empty compact"><Radio/><b>No campaigns yet</b><p>Create a fully funded allowlist to begin generating verifiable usage.</p></div>}
+    {items.map(c=>{const manageable=c.status==="active"||c.status==="expired";return <div className="table-row" key={c.id}><span className="campaign-name"><i>{c.name[0]}</i><b>{c.name}</b></span><span>{c.asset}</span><Status tone={c.status==="active"?"green":c.status==="awaiting_funding"?"blue":c.status==="cancelled"||c.status==="refunded"?"grey":"cyan"}>{c.status.replaceAll("_"," ")}</Status><span>{c.claimedCount.toLocaleString()} / {c.recipientCount.toLocaleString()}<small className="row-progress"><i style={{width:`${c.claimRate}%`}}/></small></span><span>{c.claimRate.toFixed(1)}%</span><b>{c.totalAmount} {c.asset}</b><button aria-label={manageable?`Manage ${c.name}`:`Campaign ${c.name} is closed`} disabled={!manageable} onClick={()=>manageable&&onManage?.(c)}><MoreHorizontal/></button></div>})}
   </div></div>;
 }
 
-function Overview({go}:{go:(v:View)=>void}) {
+function Overview({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
+  const network=useCampaignNetwork(Boolean(auth.account));
+  const totals=network.analytics?.totals;
   return <><PageHero eyebrow="LIVE WORKSPACE" title="Value is flowing." copy="Monitor distribution, wallet creation, activation, and the currents that bring users back."><Button tone="cyan" onClick={()=>go("new-campaign")}>Create distribution <ArrowRight/></Button></PageHero>
-    <div className="metric-grid-new"><MetricCard label="Assets distributed" value="$128.6K" change="+18.4%" icon={CircleDollarSign}/><MetricCard label="Wallets created" value="10,157" change="+22.1%" icon={Wallet}/><MetricCard label="Activated users" value="7,842" change="+12.8%" icon={Activity}/><MetricCard label="Cost per activation" value="$2.18" change="-8.2%" icon={Target}/></div>
-    <div className="overview-grid"><CampaignTable/><div className="data-panel activity-panel"><div className="panel-head"><div><h3>Live current</h3><p>Most recent network events</p></div><Radio/></div>{recipientRows.slice(0,4).map((r,i)=><div className="activity-row" key={r.user}><span className={`activity-node a-${i}`}><i/></span><div><b>{r.user}</b><p>{r.state} · {r.amount}</p></div><time>{r.time}</time></div>)}</div></div></>;
+    <div className="metric-grid-new"><MetricCard label="Campaigns created" value={(totals?.campaigns??0).toLocaleString()} icon={CircleDollarSign}/><MetricCard label="Recipients targeted" value={(totals?.targeted??0).toLocaleString()} icon={Wallet}/><MetricCard label="Claims settled" value={(totals?.claimed??0).toLocaleString()} icon={Activity}/><MetricCard label="Verified claim rate" value={`${(totals?.claimRate??0).toFixed(1)}%`} icon={Target}/></div>
+    {network.error&&<p className="auth-system-note is-error"><X/>{network.error}</p>}
+    <div className="overview-grid"><CampaignTable campaigns={network.campaigns} loading={network.loading}/><div className="data-panel activity-panel"><div className="panel-head"><div><h3>Live protocol proof</h3><p>Production capability status</p></div><Radio/></div>{[["Merkle allowlists","Up to 1,000 recipients per campaign"],["Project tokens","Any readable Arc ERC-20"],["Walletless claims","Circle SCA + sponsored gas"],["Recovery","Cancellation and expiry refunds"]].map((row,i)=><div className="activity-row" key={row[0]}><span className={`activity-node a-${i}`}><i/></span><div><b>{row[0]}</b><p>{row[1]}</p></div><Status tone="green">Live</Status></div>)}</div></div></>;
 }
 
 function CreateLink({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
@@ -585,34 +753,129 @@ function ProjectOnboarding({go}:{go:(v:View)=>void}) {
       </div></div></>;
 }
 
-function Campaigns({go}:{go:(v:View)=>void}) {
-  return <><PageHero eyebrow="CAMPAIGN NETWORK" title="Every current, one operating view." copy="Fund, publish, pause, recover, and compare distribution performance across the entire organization." mode="branches"><Button tone="cyan" onClick={()=>go("new-campaign")}>New campaign <Plus/></Button></PageHero><div className="campaign-summary-grid"><MetricCard label="Live currents" value="2" icon={Radio}/><MetricCard label="Unclaimed value" value="$18.4K" icon={Gift}/><MetricCard label="Gas remaining" value="$684" icon={Zap}/><MetricCard label="$CURRENT locked" value="42.5K" icon={Lock}/></div><CampaignTable/></>;
+function Campaigns({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
+  const network=useCampaignNetwork(Boolean(auth.account));
+  const [managing,setManaging]=useState<string|null>(null);
+  const [actionError,setActionError]=useState<string|null>(null);
+  const manage=async(campaign:CampaignRecord)=>{
+    if(campaign.status!=="active")return;
+    setManaging(campaign.id);setActionError(null);
+    try{
+      const action: "cancel"|"refund"=campaign.expiresAt&&new Date(campaign.expiresAt).getTime()<=Date.now()?"refund":"cancel";
+      const started=await currentApi.post<WalletActionResult>("/campaigns/manage",{distributionId:campaign.id,action});
+      if(!started.complete){
+        if(!started.challengeId)throw new Error("Circle did not return the campaign recovery approval.");
+        await auth.executeChallenge(started.challengeId);
+        await confirmWalletAction("/campaigns/manage",{distributionId:campaign.id,action},started.challengeId);
+      }
+      await network.refresh();
+    }catch(error){setActionError(error instanceof Error?error.message:"The campaign could not be recovered.")}
+    finally{setManaging(null)}
+  };
+  const totals=network.analytics?.totals;
+  return <><PageHero eyebrow="CAMPAIGN NETWORK" title="Every current, one operating view." copy="Fund, publish, recover, and compare verified distribution performance across the organization." mode="branches"><Button tone="cyan" onClick={()=>go("new-campaign")}>New campaign <Plus/></Button></PageHero><div className="campaign-summary-grid"><MetricCard label="Live currents" value={(totals?.liveCampaigns??0).toLocaleString()} icon={Radio}/><MetricCard label="Recipients targeted" value={(totals?.targeted??0).toLocaleString()} icon={Gift}/><MetricCard label="Claims settled" value={(totals?.claimed??0).toLocaleString()} icon={CheckCircle2}/><MetricCard label="Claim conversion" value={`${(totals?.claimRate??0).toFixed(1)}%`} icon={Target}/></div>
+    {actionError&&<p className="auth-system-note is-error"><X/>{actionError}</p>}
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Sign in to operate campaigns</h3><p>Your live campaign data and recovery controls appear after your embedded wallet is open.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {auth.account&&<><CampaignTable campaigns={network.campaigns} loading={network.loading} onManage={campaign=>void manage(campaign)}/>{managing&&<div className="campaign-action-toast"><RefreshCw className="spin"/>Confirming campaign recovery on Arc…</div>}</>}</>;
 }
 
-function CampaignBuilder({go}:{go:(v:View)=>void}) {
-  const [step,setStep]=useState(1); const [mode,setMode]=useState("Identity-bound");
+function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
+  const [step,setStep]=useState(1); const [mode,setMode]=useState("Allowlist");
+  const [maxStep,setMaxStep]=useState(1);
+  const [purpose,setPurpose]=useState("User acquisition");
+  const [name,setName]=useState("Founding community current");
+  const [tokenAddress,setTokenAddress]=useState("");
+  const [defaultAmount,setDefaultAmount]=useState("25");
+  const [csvText,setCsvText]=useState("");
+  const [activationEvent,setActivationEvent]=useState("account.created");
+  const [referralReward,setReferralReward]=useState("No referral reward");
+  const [created,setCreated]=useState<CreatedCampaign|null>(null);
+  const [copiedClaim,setCopiedClaim]=useState(false);
+  const [fundingStep,setFundingStep]=useState<"idle"|"creating"|"approving"|"funding"|"complete">("idle");
+  const [error,setError]=useState<string|null>(null);
+  const [submitting,setSubmitting]=useState(false);
+  const recipients=useMemo(()=>{
+    try{return parseRecipientCsv(csvText,defaultAmount)}catch{return []}
+  },[csvText,defaultAmount]);
+  const total=useMemo(()=>recipients.reduce((sum,row)=>sum+(Number(row.amount)||0),0),[recipients]);
+  const upload=async(file:File|null)=>{
+    if(!file)return;
+    if(file.size>2_000_000){setError("Recipient CSV files must be smaller than 2 MB.");return}
+    setCsvText(await file.text());setError(null);
+  };
+  const fund=async(campaign:CreatedCampaign)=>{
+    setFundingStep("approving");
+    const approval=await currentApi.post<WalletActionResult>("/campaigns/fund",{distributionId:campaign.id,action:"approve"});
+    if(!approval.complete){
+      if(!approval.challengeId)throw new Error("Circle did not return the token approval.");
+      await auth.executeChallenge(approval.challengeId);
+      await confirmWalletAction("/campaigns/fund",{distributionId:campaign.id,action:"approve"},approval.challengeId);
+    }
+    setFundingStep("funding");
+    const deposit=await currentApi.post<WalletActionResult>("/campaigns/fund",{distributionId:campaign.id,action:"deposit"});
+    if(!deposit.complete){
+      if(!deposit.challengeId)throw new Error("Circle did not return the campaign funding approval.");
+      await auth.executeChallenge(deposit.challengeId);
+      await confirmWalletAction("/campaigns/fund",{distributionId:campaign.id,action:"deposit"},deposit.challengeId);
+    }
+    setFundingStep("complete");downloadCampaignLinks(campaign);
+  };
+  const copyFirstClaim=async()=>{
+    const claimUrl=created?.links[0]?.claimUrl;
+    if(!claimUrl)return;
+    await navigator.clipboard.writeText(claimUrl);
+    setCopiedClaim(true);
+    window.setTimeout(()=>setCopiedClaim(false),1800);
+  };
+  const submit=async(event:React.FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();setError(null);
+    if(step<5){
+      if(step===1&&!name.trim()){setError("Give this campaign a name first.");return}
+      if(step===2&&(!defaultAmount||Number(defaultAmount)<=0)){setError("Enter a valid recipient amount.");return}
+      if(step===3&&!recipients.length){setError("Upload or paste at least one valid recipient.");return}
+      const nextStep=step+1;setStep(nextStep);setMaxStep(current=>Math.max(current,nextStep));return;
+    }
+    if(!auth.account){go("claim");return}
+    setSubmitting(true);
+    try{
+      setFundingStep("creating");
+      const campaign=await currentApi.post<CreatedCampaign>("/campaigns",{
+        name,tokenAddress:tokenAddress||undefined,recipients,expiresInHours:168,
+        activationEvent,referralReward,purpose,mode,
+      });
+      setCreated(campaign);await fund(campaign);
+    }catch(campaignError){setError(campaignError instanceof Error?campaignError.message:"The campaign could not be created.");if(!created)setFundingStep("idle")}
+    finally{setSubmitting(false)}
+  };
   const labels=["Purpose","Asset","Recipients","Attribution","Fund"];
   return <><PageHero eyebrow="CAMPAIGN BUILDER" title="Design the current." copy="Every campaign is fully funded, measurable, recoverable, and ready for recipients without wallets." mode="branches"/>
-    <div className="builder-shell"><aside>{labels.map((x,i)=><button className={step===i+1?"active":step>i+1?"done":""} onClick={()=>setStep(i+1)} key={x}><i>{step>i+1?<Check/>:i+1}</i><span>{x}<small>{["Choose the outcome","Select what flows","Define the audience","Measure activation","Review and publish"][i]}</small></span></button>)}</aside>
-      <form className="builder-panel" onSubmit={e=>{e.preventDefault(); if(step<5)setStep(step+1); else go("campaigns")}}>
+    <div className="builder-shell"><aside>{labels.map((x,i)=>{const target=i+1;return <button type="button" disabled={target>maxStep} className={step===target?"active":step>target?"done":""} onClick={()=>setStep(target)} key={x}><i>{step>target?<Check/>:target}</i><span>{x}<small>{["Choose the outcome","Select what flows","Define the audience","Measure activation","Review and publish"][i]}</small></span></button>})}</aside>
+      <form className="builder-panel" onSubmit={submit}>
         <Eyebrow>STEP {step} / 5</Eyebrow>
         <h2>{["What should this current accomplish?","What value will move?","Who receives it?","What counts as activation?","Fund and publish"][step-1]}</h2>
-        {step===1&&<div className="choice-cards">{[["Launch allocation",Gift],["User acquisition",Target],["Community rewards",Users],["Agent payments",Bot]].map(([x,I])=>{const Icon=I as typeof Gift;return <button type="button" key={String(x)}><Icon/><b>{String(x)}</b><small>Build a measurable {String(x).toLowerCase()} current.</small></button>})}</div>}
-        {step===2&&<div className="field-grid"><label>Asset<select><option>TIDE — Project token</option><option>USDC</option><option>$CURRENT</option></select></label><label>Total allocation<input defaultValue="250000"/></label><label>Reward per person<input defaultValue="2500"/></label><label>Sponsored gas budget<input defaultValue="85 USDC"/></label></div>}
-        {step===3&&<><div className="mode-tabs">{["Identity-bound","Private links","Public pool","Allowlist"].map(x=><button type="button" className={mode===x?"active":""} onClick={()=>setMode(x)} key={x}>{x}</button>)}</div><div className="upload-drop"><Upload/><h3>Drop a recipient CSV</h3><p>Email, X handle, game ID, wallet, or custom identity.</p><Button tone="ghost">Browse file</Button></div></>}
-        {step===4&&<div className="activation-builder"><label><span>Activation event</span><select><option>Completed project onboarding</option><option>Played 3 matches</option><option>Made first purchase</option><option>Custom signed event</option></select></label><label><span>Referral reward</span><select><option>5 USDC per activated referral</option><option>250 TIDE per activated referral</option><option>No referral reward</option></select></label><div className="event-code"><Webhook/><code>activation.completed</code><Status tone="green">Signed webhook</Status></div></div>}
-        {step===5&&<div className="fund-review"><div><small>REWARDS</small><b>250,000 TIDE</b></div><div><small>RECIPIENTS</small><b>100</b></div><div><small>SPONSORED GAS</small><b>85 USDC</b></div><div><small>CURRENT COFI FEE</small><b>2,500 TIDE</b></div><div><small>$CURRENT LOCK</small><b>5,000 CURRENT · 30d</b></div></div>}
-        <div className="form-actions"><Button tone="ghost" disabled={step===1} onClick={()=>setStep(step-1)}>Back</Button><Button tone="blue" type="submit">{step===5?"Fund and publish":"Continue"} <ArrowRight/></Button></div>
+        {step===1&&<><label className="campaign-name-field">Campaign name<input value={name} onChange={event=>setName(event.target.value)} maxLength={100}/></label><div className="choice-cards">{[["Launch allocation",Gift],["User acquisition",Target],["Community rewards",Users],["Agent payments",Bot]].map(([x,I])=>{const Icon=I as typeof Gift;return <button type="button" className={purpose===x?"selected":""} onClick={()=>setPurpose(String(x))} key={String(x)}><Icon/><b>{String(x)}</b><small>Build a measurable {String(x).toLowerCase()} current.</small></button>})}</div></>}
+        {step===2&&<div className="field-grid"><label className="full">Arc token contract<input value={tokenAddress} onChange={event=>setTokenAddress(event.target.value)} placeholder="Leave blank for Arc testnet USDC"/></label><label>Default reward per recipient<input value={defaultAmount} onChange={event=>setDefaultAmount(event.target.value)} inputMode="decimal"/></label><label>Expiration<select><option>7 days</option></select></label><p className="builder-note full"><ShieldCheck/>Custom tokens are verified directly against their Arc contract metadata before funding.</p></div>}
+        {step===3&&<><div className="mode-tabs">{["Allowlist","Identity-bound"].map(x=><button type="button" className={mode===x?"active":""} onClick={()=>setMode(x)} key={x}>{x}</button>)}</div><label className="upload-drop"><Upload/><h3>Drop a recipient CSV</h3><p>Columns: identity, identity_type, amount. Email, wallet, X, game, and custom IDs are accepted.</p><span className="cofi-button tone-ghost">Browse file</span><input type="file" accept=".csv,text/csv" onChange={event=>void upload(event.target.files?.[0]??null)}/></label><label className="csv-paste">Or paste recipient rows<textarea value={csvText} onChange={event=>setCsvText(event.target.value)} placeholder={"identity,identity_type,amount\nmember@example.com,email,25\n0x1234...,wallet,50"}/></label><div className={`recipient-validation ${recipients.length?"valid":""}`}><CheckCircle2/><div><b>{recipients.length.toLocaleString()} valid recipients</b><small>{total.toLocaleString(undefined,{maximumFractionDigits:6})} total units will be fully funded</small></div></div></>}
+        {step===4&&<div className="activation-builder"><label><span>Activation event</span><select value={activationEvent} onChange={event=>setActivationEvent(event.target.value)}><option value="account.created">Created embedded wallet</option><option value="project.onboarded">Completed project onboarding</option><option value="game.completed_3">Played 3 matches</option><option value="purchase.completed">Made first purchase</option><option value="custom.signed">Custom signed event</option></select></label><label><span>Referral reward</span><select value={referralReward} onChange={event=>setReferralReward(event.target.value)}><option>No referral reward</option><option>5 USDC per activated referral</option><option>Project token reward</option></select></label><div className="event-code"><Webhook/><code>{activationEvent}</code><Status tone="green">Attribution ready</Status></div></div>}
+        {step===5&&<><div className="fund-review"><div><small>CAMPAIGN</small><b>{name}</b></div><div><small>RECIPIENTS</small><b>{recipients.length.toLocaleString()}</b></div><div><small>TOTAL ALLOCATION</small><b>{total.toLocaleString(undefined,{maximumFractionDigits:6})} {tokenAddress?"TOKEN":"USDC"}</b></div><div><small>SETTLEMENT</small><b>Merkle allowlist</b></div><div><small>RECOVERY</small><b>Cancel or expiry refund</b></div></div>{created&&<div className="campaign-created-result"><CheckCircle2/><div><b>{fundingStep==="complete"?"Campaign live on Arc":"Campaign allowlist secured"}</b><small>{created.recipientCount} private links generated · {created.asset.symbol} · root {created.merkleRoot.slice(0,10)}…</small></div><div className="campaign-result-actions"><Button tone="ghost" onClick={()=>void copyFirstClaim()}>{copiedClaim?"Link copied":"Copy first link"} <Copy/></Button><Button tone="ghost" onClick={()=>downloadCampaignLinks(created)}>Download all <Download/></Button></div></div>}</>}
+        {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+        <div className="form-actions"><Button tone="ghost" disabled={step===1||submitting} onClick={()=>setStep(step-1)}>Back</Button><Button tone="blue" type="submit" disabled={submitting||fundingStep==="complete"}>{step===5?(fundingStep==="creating"?"Building allowlist…":fundingStep==="approving"?"Approve token access…":fundingStep==="funding"?"Fund campaign vault…":fundingStep==="complete"?"Campaign live":auth.account?"Fund and publish":"Sign in to publish"):"Continue"} <ArrowRight/></Button></div>
       </form>
-      <aside className="builder-receipt"><Eyebrow>CAMPAIGN CURRENT</Eyebrow><div className="receipt-source"><span>T</span><b>Tidebreak Genesis</b></div><FluidCanvas mode="branches"/><div className="receipt-stats"><span><small>Recipients</small><b>100</b></span><span><small>Potential reach</small><b>4.8K</b></span><span><small>Fully funded</small><b className="green">Yes</b></span></div></aside>
+      <aside className="builder-receipt"><Eyebrow>CAMPAIGN CURRENT</Eyebrow><div className="receipt-source"><span>C</span><b>{name||"Untitled current"}</b></div><FluidCanvas mode="branches"/><div className="receipt-stats"><span><small>Recipients</small><b>{recipients.length.toLocaleString()}</b></span><span><small>Allocation</small><b>{total.toLocaleString(undefined,{maximumFractionDigits:2})}</b></span><span><small>Fully funded</small><b className="green">{fundingStep==="complete"?"Yes":"Required"}</b></span></div></aside>
     </div></>;
 }
 
-function Recipients() {
-  const [uploaded,setUploaded]=useState(false);
-  return <><PageHero eyebrow="RECIPIENT CURRENT" title="From targeted identity to active user." copy="Inspect every delivery state, resolve interruptions, resend links, and export the complete activation record." mode="branches"><Button tone="cyan" onClick={()=>setUploaded(true)}>Upload recipients <Upload/></Button></PageHero>
-    {uploaded&&<div className="upload-result"><CheckCircle2/><div><b>tidebreak_genesis.csv validated</b><small>2,000 valid · 14 duplicates removed · 3 identities need review</small></div><Button tone="ghost">Review issues</Button></div>}
-    <div className="data-panel"><div className="panel-head"><div><h3>Recipient network</h3><p>2,017 identities across 4 campaigns</p></div><div className="table-actions"><label><Search/><input placeholder="Search identity"/></label><button><Download/>Export</button></div></div><div className="recipient-table"><div className="table-head"><span>Recipient</span><span>Amount</span><span>Status</span><span>Source</span><span>Updated</span><span/></div>{recipientRows.map(r=><div className="table-row" key={r.user}><span className="recipient-name"><i>{r.user.split(" ").map(x=>x[0]).join("")}</i><b>{r.user}<small>{r.id}</small></b></span><b>{r.amount}</b><Status tone={r.state==="Activated"?"green":r.state==="Claimed"?"cyan":r.state==="Opened"?"blue":"grey"}>{r.state}</Status><span>{r.source}</span><time>{r.time}</time><button><MoreHorizontal/></button></div>)}</div></div></>;
+function Recipients({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [rows,setRows]=useState<CampaignRecipient[]>([]);const [loading,setLoading]=useState(Boolean(auth.account));const [query,setQuery]=useState("");const [error,setError]=useState<string|null>(null);
+  useEffect(()=>{
+    if(!auth.account)return;
+    const task=window.setTimeout(()=>{setLoading(true);currentApi.get<{recipients:CampaignRecipient[]}>("/campaigns/recipients").then(result=>setRows(result.recipients)).catch(fetchError=>setError(fetchError instanceof Error?fetchError.message:"Recipients unavailable.")).finally(()=>setLoading(false))},0);
+    return()=>window.clearTimeout(task);
+  },[auth.account]);
+  const visible=rows.filter(row=>`${row.identity} ${row.campaignName} ${row.status}`.toLowerCase().includes(query.toLowerCase()));
+  return <><PageHero eyebrow="RECIPIENT CURRENT" title="From targeted identity to settled user." copy="Inspect every allowlisted allocation and its verified Arc settlement state." mode="branches"><Button tone="cyan" onClick={()=>go("new-campaign")}>Upload recipients <Upload/></Button></PageHero>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    <div className="data-panel"><div className="panel-head"><div><h3>Recipient network</h3><p>{rows.length.toLocaleString()} identities across live workspace campaigns</p></div><div className="table-actions"><label><Search/><input placeholder="Search identity" value={query} onChange={event=>setQuery(event.target.value)}/></label><button onClick={()=>go("new-campaign")}><Upload/>New allowlist</button></div></div><div className="recipient-table"><div className="table-head"><span>Recipient</span><span>Amount</span><span>Status</span><span>Campaign</span><span>Updated</span><span/></div>{loading&&<div className="campaign-empty compact"><RefreshCw className="spin"/><b>Reading allocations…</b></div>}{!loading&&!visible.length&&<div className="campaign-empty compact"><Users/><b>No matching recipients</b><p>Create or select a campaign to populate this verifiable record.</p></div>}{visible.map(row=><div className="table-row" key={row.id}><span className="recipient-name"><i>{row.identity.slice(0,2).toUpperCase()}</i><b>{row.identity}<small>{row.identityType}</small></b></span><b>{row.amount} {row.asset}</b><Status tone={row.status==="confirmed"?"green":row.status==="authorizing"?"blue":row.status==="refunded"?"grey":"cyan"}>{row.status}</Status><span>{row.campaignName}</span><time>{new Date(row.updatedAt).toLocaleDateString()}</time><button><MoreHorizontal/></button></div>)}</div></div></>;
 }
 
 function Referrals() {
@@ -622,12 +885,15 @@ function Referrals() {
       <div className="data-panel"><div className="panel-head"><div><h3>Top referral sources</h3><p>Ranked by activated users</p></div><button>View all</button></div>{[["1","Mara Chen","@marachain","482","71.8%"],["2","Amina Yusuf","@amina.builds","394","69.2%"],["3","Tidebreak DAO","Discord","318","62.4%"],["4","Openplay","Partner","207","58.1%"]].map(x=><div className="leader-row" key={x[1]}><b>{x[0]}</b><i>{x[1][0]}</i><span><strong>{x[1]}</strong><small>{x[2]}</small></span><em>{x[3]} active</em><Status tone="green">{x[4]}</Status></div>)}</div></div></>;
 }
 
-function Analytics() {
-  const bars=[42,58,49,67,72,61,84,76,91,87,96,78];
-  return <><PageHero eyebrow="CAMPAIGN INTELLIGENCE" title="Find where the current accelerates—or breaks." copy="Compare acquisition sources, claim conversion, activation cost, retention, and the exact point where users leave."/>
-    <div className="metric-grid-new"><MetricCard label="Claim conversion" value="66.4%" change="+4.2%" icon={Gift}/><MetricCard label="Activation rate" value="51.4%" change="+7.1%" icon={Activity}/><MetricCard label="30d retention" value="33.0%" change="+2.4%" icon={RefreshCw}/><MetricCard label="Campaign ROI" value="3.8×" change="+0.6×" icon={TrendingUp}/></div>
-    <div className="analysis-grid"><div className="data-panel chart-panel"><div className="panel-head"><div><h3>Claims and activations</h3><p>Last 12 weeks</p></div><select><option>All campaigns</option></select></div><div className="bar-chart-new">{bars.map((h,i)=><span key={i}><i style={{height:`${h}%`}}/><b style={{height:`${h*.68}%`}}/><small>W{i+1}</small></span>)}</div><div className="chart-key"><span><i/>Claims</span><span><i/>Activations</span></div></div>
-      <div className="data-panel"><div className="panel-head"><div><h3>Source quality</h3><p>Cost and retention by channel</p></div></div>{[["X referrals","$1.84","42.8%"],["Discord","$2.02","39.1%"],["Partner apps","$2.26","36.4%"],["Email list","$2.81","28.7%"],["Public link","$3.42","18.2%"]].map((x,i)=><div className="quality-row" key={x[0]}><span className={`source-icon s-${i}`}><Network/></span><b>{x[0]}</b><span><small>CPA</small>{x[1]}</span><span><small>30d retention</small>{x[2]}</span></div>)}</div></div></>;
+function Analytics({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const network=useCampaignNetwork(Boolean(auth.account));
+  const totals=network.analytics?.totals;
+  return <><PageHero eyebrow="CAMPAIGN INTELLIGENCE" title="Find where the current accelerates—or breaks." copy="Compare verified targeting, claim settlement, and activation signals without hiding behind vanity metrics."/>
+    <div className="metric-grid-new"><MetricCard label="Recipients targeted" value={(totals?.targeted??0).toLocaleString()} icon={Users}/><MetricCard label="Claims settled" value={(totals?.claimed??0).toLocaleString()} icon={Gift}/><MetricCard label="Claim conversion" value={`${(totals?.claimRate??0).toFixed(1)}%`} icon={Activity}/><MetricCard label="Activation events" value={(totals?.activations??0).toLocaleString()} icon={Target}/></div>
+    {network.error&&<p className="auth-system-note is-error"><X/>{network.error}</p>}
+    <div className="analysis-grid"><div className="data-panel"><div className="panel-head"><div><h3>Campaign conversion</h3><p>Counts reconciled from confirmed Arc settlement</p></div><Status tone="green">Verifiable</Status></div><div className="conversion-current">{(network.analytics?.campaigns??[]).map(campaign=><div key={campaign.id}><span><b>{campaign.name}</b><small>{campaign.claimed.toLocaleString()} / {campaign.targeted.toLocaleString()}</small></span><i><b style={{width:`${campaign.claimRate}%`}}/></i><em>{campaign.claimRate.toFixed(1)}%</em></div>)}{!network.loading&&!network.analytics?.campaigns.length&&<div className="campaign-empty compact"><BarChart3/><b>No campaign data yet</b></div>}</div></div>
+      <div className="data-panel"><div className="panel-head"><div><h3>Evidence ladder</h3><p>What Current CoFi can prove today</p></div></div>{[["Allowlist generated","Merkle root anchored before funding","Onchain"],["Campaign funded","Full token allocation deposited","Onchain"],["Recipient claimed","Unique bitmap index settled","Onchain"],["Wallet created","Circle user-controlled SCA","Circle"],["Activation completed","Signed project event","API"]].map((row,i)=><div className="quality-row" key={row[0]}><span className={`source-icon s-${i}`}><Network/></span><b>{row[0]}</b><span><small>EVIDENCE</small>{row[1]}</span><span><small>SOURCE</small>{row[2]}</span></div>)}</div></div>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Your live analytics are private</h3><p>Sign in to inspect campaign settlement and conversion data.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}</>;
 }
 
 function TokenDashboard() {
@@ -688,14 +954,14 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
   useEffect(()=>{checkFoundation()},[]);
   let page:React.ReactNode;
   switch(view){
-    case "overview":page=<Overview go={go}/>;break;
+    case "overview":page=<Overview go={go} auth={auth}/>;break;
     case "create":page=<CreateLink auth={auth} go={go}/>;break;
     case "onboarding":page=<ProjectOnboarding go={go}/>;break;
-    case "campaigns":page=<Campaigns go={go}/>;break;
-    case "new-campaign":page=<CampaignBuilder go={go}/>;break;
-    case "recipients":page=<Recipients/>;break;
+    case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
+    case "new-campaign":page=<CampaignBuilder go={go} auth={auth}/>;break;
+    case "recipients":page=<Recipients auth={auth} go={go}/>;break;
     case "referrals":page=<Referrals/>;break;
-    case "analytics":page=<Analytics/>;break;
+    case "analytics":page=<Analytics auth={auth} go={go}/>;break;
     case "token":page=<TokenDashboard/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys/>;break;

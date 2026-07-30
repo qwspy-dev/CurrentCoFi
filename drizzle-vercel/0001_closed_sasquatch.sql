@@ -1,0 +1,1 @@
+ALTER TYPE "public"."distribution_status" ADD VALUE 'cancelled';

@@ -18,7 +18,7 @@ const timestamps = {
 };
 
 export const distributionStatus = pgEnum("distribution_status", [
-  "draft", "awaiting_funding", "active", "paused", "completed", "expired", "refunded",
+  "draft", "awaiting_funding", "active", "paused", "completed", "expired", "refunded", "cancelled",
 ]);
 export const claimStatus = pgEnum("claim_status", [
   "available", "authorizing", "submitted", "confirmed", "failed", "expired", "refunded",

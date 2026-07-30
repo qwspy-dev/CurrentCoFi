@@ -17,7 +17,7 @@
     "db:generate:vercel": "drizzle-kit generate --config=drizzle.config.vercel.ts",
     "db:migrate:vercel": "drizzle-kit migrate --config=drizzle.config.vercel.ts",
     "contracts:compile": "tsx scripts/contracts/compile.ts",
-    "contracts:test": "tsx tests/claim-vault.integration.ts"
+    "contracts:test": "tsx tests/claim-vault.integration.ts && tsx tests/campaign-vault.integration.ts"
   },
   "dependencies": {
     "@circle-fin/w3s-pw-web-sdk": "^1.1.11",

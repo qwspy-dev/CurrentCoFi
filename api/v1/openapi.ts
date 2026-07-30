@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "1.2.0-claim-links",
+    version: "1.3.0-campaigns",
     description: "Walletless USDC and project-token distribution infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -26,11 +26,22 @@ export default withApi((request) => ok(request, {
       post: { summary: "Create a persistent, signed walletless USDC claim link" },
     },
     "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
+    "/campaigns": {
+      get: { summary: "List owned campaigns with verified settlement analytics" },
+      post: { summary: "Create a Merkle-allowlisted USDC or project-token campaign" },
+    },
+    "/campaigns/fund": { post: { summary: "Approve and fully fund a campaign vault on Arc" } },
+    "/campaigns/manage": { post: { summary: "Cancel a campaign or refund an expired campaign" } },
+    "/campaigns/recipients": { get: { summary: "List masked recipient allocations and settlement states" } },
+    "/campaigns/analytics": { get: { summary: "Read live campaign targeting, claims, and activation totals" } },
   },
   "x-current-cofi": {
-    liveResourceGroups: ["auth", "users", "wallets", "projects", "tokens", "distributions", "allocations"],
+    liveResourceGroups: [
+      "auth", "users", "wallets", "projects", "tokens", "distributions",
+      "allocations", "campaigns", "claims", "campaign-analytics",
+    ],
     plannedResourceGroups: [
-      "claims", "referrals", "activations", "api-keys", "webhooks", "agents",
+      "referrals", "activation-ingestion", "api-keys", "webhooks", "agents",
     ],
   },
 }), ["GET"]);
