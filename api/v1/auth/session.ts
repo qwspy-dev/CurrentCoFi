@@ -1,4 +1,5 @@
 import { getCircleUser, listArcWallets } from "../../../server/circle/client.js";
+import { persistSessionAccount } from "../../../server/accounts/repository.js";
 import {
   clearSessionCookie,
   publicSession,
@@ -35,6 +36,9 @@ async function create(request: Request) {
     wallets,
     issuedAt: Date.now(),
   };
+  const account = await persistSessionAccount(session);
+  session.accountId = account.userId;
+  session.username = account.username;
   return ok(request, publicSession(session), 201, { "set-cookie": sessionCookie(await sealSession(session)) });
 }
 

@@ -77,7 +77,7 @@ export function getPublicConfig() {
         config.CIRCLE_EMAIL_OTP_ENABLED,
       ),
       identityClaims: Boolean(config.CLAIM_SIGNING_SECRET),
-      productionMutations: false,
+      productionMutations: Boolean(config.DATABASE_URL && config.CLAIM_SIGNING_SECRET),
     },
   };
 }

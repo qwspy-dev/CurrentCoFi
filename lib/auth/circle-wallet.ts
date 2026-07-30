@@ -29,6 +29,8 @@ export type CurrentAccount = {
   provider: string;
   displayName: string;
   email?: string;
+  accountId?: string;
+  username?: string;
   wallets: Array<{
     id: string;
     address: string;

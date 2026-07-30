@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "1.1.0-accounts",
+    version: "1.2.0-claim-links",
     description: "Walletless USDC and project-token distribution infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -21,12 +21,16 @@ export default withApi((request) => ok(request, {
       delete: { summary: "Sign out and clear the account session" },
     },
     "/auth/refresh": { post: { summary: "Refresh Circle credentials and the encrypted account session" } },
+    "/links": {
+      get: { summary: "List claim links owned by the signed-in account" },
+      post: { summary: "Create a persistent, signed walletless USDC claim link" },
+    },
+    "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
   },
   "x-current-cofi": {
-    liveResourceGroups: ["auth", "users", "wallets"],
+    liveResourceGroups: ["auth", "users", "wallets", "projects", "tokens", "distributions", "allocations"],
     plannedResourceGroups: [
-      "projects", "tokens", "distributions",
-      "allocations", "claims", "referrals", "activations", "api-keys", "webhooks", "agents",
+      "claims", "referrals", "activations", "api-keys", "webhooks", "agents",
     ],
   },
 }), ["GET"]);

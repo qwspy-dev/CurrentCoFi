@@ -22,6 +22,19 @@ type View =
 
 type ClaimStep = "ready" | "auth" | "creating" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
+type ClaimPreview = {
+  id: string;
+  status: string;
+  fundingStatus: string;
+  claimable: boolean;
+  amount: string;
+  asset: string;
+  network: string;
+  project: { name: string; logoUrl: string | null };
+  message: string;
+  sender: string;
+  expiresAt: string | null;
+};
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
@@ -371,8 +384,19 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
   const [step,setStep] = useState<ClaimStep>("ready");
   const [emailMode,setEmailMode] = useState(false);
   const [email,setEmail] = useState("");
+  const [claimToken] = useState(()=>typeof location==="undefined"?null:new URLSearchParams(location.search).get("claim"));
+  const [preview,setPreview] = useState<ClaimPreview|null>(null);
+  const [previewState,setPreviewState] = useState<"demo"|"loading"|"live"|"error">(()=>claimToken?"loading":"demo");
+  useEffect(()=>{
+    if(!claimToken)return;
+    currentApi.post<ClaimPreview>("/links/resolve",{token:claimToken})
+      .then(data=>{setPreview(data);setPreviewState("live")})
+      .catch(()=>setPreviewState("error"));
+  },[claimToken]);
   const claim = () => setStep("auth");
-  const visibleStep: ClaimStep = auth.account
+  const visibleStep: ClaimStep = previewState==="live"&&preview&&!preview.claimable
+    ? "ready"
+    : auth.account
     ? "success"
     : auth.state==="redirecting"||auth.state==="verifying"||auth.state==="creating-wallet"
       ? "creating"
@@ -385,10 +409,12 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
       <header><Brand light onClick={()=>go("home")}/><span><ShieldCheck/>Secured on Arc testnet</span></header>
       <section className="claim-shell" aria-live="polite">
         {visibleStep === "ready" && <>
-          <span className="claim-brand-avatar">T</span><small>Tidebreak sent you</small><h1>2,500 <em>TIDE</em></h1><p className="claim-usd">≈ $42.80</p>
-          <blockquote>Welcome to the Tidebreak Genesis current.</blockquote>
-          <div className="claim-meta"><span><Clock3/>Expires in 6 days</span><span><Zap/>Gas sponsored</span></div>
-          <Button tone="blue" onClick={claim}>Claim your tokens <ArrowRight/></Button><p className="claim-note">No wallet or payment required.</p>
+          {previewState==="loading"?<div className="creating-state"><span className="creating-orbit"><i/><i/><Link2/></span><small>VERIFYING SECURE LINK</small><h2>Following the current…</h2></div>:previewState==="error"?<><span className="claim-brand-avatar"><X/></span><small>LINK UNAVAILABLE</small><h2>This current cannot be opened.</h2><p className="auth-copy">The link may be invalid, expired, or already removed.</p><Button tone="ghost" onClick={()=>go("home")}>Return home</Button></>:<>
+          <span className="claim-brand-avatar">{(preview?.project.name??"Tidebreak")[0]}</span><small>{preview?.sender??"Tidebreak"} sent you</small><h1>{preview?.amount??"2,500"} <em>{preview?.asset??"TIDE"}</em></h1>{!preview&&<p className="claim-usd">≈ $42.80</p>}
+          <blockquote>{preview?.message||"Welcome to the Tidebreak Genesis current."}</blockquote>
+          <div className="claim-meta"><span><Clock3/>{preview?.expiresAt?`Expires ${new Date(preview.expiresAt).toLocaleDateString()}`:"Expires in 6 days"}</span><span><Zap/>Gas sponsored</span></div>
+          <Button tone="blue" onClick={claim} disabled={Boolean(preview&&!preview.claimable)}>{preview&&!preview.claimable?"Awaiting sender funding":"Claim your tokens"} <ArrowRight/></Button><p className="claim-note">{preview&&!preview.claimable?"This link is secured, but its Arc vault has not been funded yet.":"No wallet or payment required."}</p>
+          </>}
         </>}
         {visibleStep === "auth" && <>
           <button className="claim-back" onClick={()=>setStep("ready")}><ArrowLeft/>Back</button><span className="claim-brand-avatar"><Fingerprint/></span><small>CREATE YOUR CURRENT ACCOUNT</small><h2>Claim with an identity you already use.</h2>
@@ -429,17 +455,32 @@ function Overview({go}:{go:(v:View)=>void}) {
     <div className="overview-grid"><CampaignTable/><div className="data-panel activity-panel"><div className="panel-head"><div><h3>Live current</h3><p>Most recent network events</p></div><Radio/></div>{recipientRows.slice(0,4).map((r,i)=><div className="activity-row" key={r.user}><span className={`activity-node a-${i}`}><i/></span><div><b>{r.user}</b><p>{r.state} · {r.amount}</p></div><time>{r.time}</time></div>)}</div></div></>;
 }
 
-function CreateLink() {
-  const [asset,setAsset]=useState("USDC"); const [amount,setAmount]=useState("25"); const [created,setCreated]=useState(false);
+function CreateLink({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [asset,setAsset]=useState("USDC"); const [amount,setAmount]=useState("25"); const [message,setMessage]=useState("A little value for your next current.");
+  const [created,setCreated]=useState<{claimUrl:string;status:string}|null>(null);
+  const [submitting,setSubmitting]=useState(false); const [error,setError]=useState<string|null>(null);
+  const submit=async(event:React.FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();setError(null);
+    if(!auth.account){go("claim");return}
+    setSubmitting(true);
+    try{
+      const result=await currentApi.post<{claimUrl:string;status:string}>("/links",{amount,message,expiresInHours:168});
+      setCreated(result);
+      await navigator.clipboard?.writeText(result.claimUrl);
+    }catch(linkError){setError(linkError instanceof Error?linkError.message:"The link could not be created.")}
+    finally{setSubmitting(false)}
+  };
   return <><PageHero eyebrow="PERSONAL CURRENT" title="Send value before a wallet exists." copy="Create one private, identity-bound, or open link for USDC or any supported project token."/>
-    <div className="form-preview-grid"><form className="form-panel" onSubmit={e=>{e.preventDefault();setCreated(true)}}><div className="panel-head"><div><h3>Create an asset link</h3><p>Funds remain recoverable until claimed.</p></div><Status tone="blue">Arc testnet</Status></div>
-      <label>Asset<div className="asset-options">{["USDC","TIDE","$CURRENT"].map(x=><button type="button" className={asset===x?"selected":""} onClick={()=>setAsset(x)} key={x}>{x}</button>)}</div></label>
+    <div className="form-preview-grid"><form className="form-panel" onSubmit={submit}><div className="panel-head"><div><h3>Create an asset link</h3><p>Funds remain recoverable until claimed.</p></div><Status tone="blue">Arc testnet</Status></div>
+      <label>Asset<div className="asset-options">{["USDC","TIDE","$CURRENT"].map(x=><button type="button" disabled={x!=="USDC"} title={x==="USDC"?"Live now":"Project tokens arrive with campaign distributions"} className={asset===x?"selected":""} onClick={()=>setAsset(x)} key={x}>{x}</button>)}</div></label>
       <label>Amount<div className="amount-input"><input value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal"/><span>{asset}</span></div></label>
       <div className="two-fields"><label>Recipient rule<select><option>Anyone with the private link</option><option>Verified email</option><option>Verified X identity</option></select></label><label>Expiration<select><option>7 days</option><option>24 hours</option><option>30 days</option></select></label></div>
-      <label>Message<textarea defaultValue="A little value for your next current."/></label>
+      <label>Message<textarea value={message} onChange={event=>setMessage(event.target.value)}/></label>
       <div className="fee-summary"><span>Distribution <b>{amount} {asset}</b></span><span>Sponsored gas <b>$0.02</b></span><span>Current CoFi fee <b>$0.00</b></span></div>
-      <Button tone="blue" type="submit">Fund and create link <ArrowRight/></Button></form>
-      <aside className="live-link-preview"><FluidCanvas/><Eyebrow light>LIVE PREVIEW</Eyebrow><span className="preview-token">{asset[0]}</span><small>You’re sending</small><strong>{amount || "0"} {asset}</strong><p>A little value for your next current.</p><button>Claim — no gas required</button>{created&&<div className="created-toast"><CheckCircle2/>Link copied to clipboard</div>}</aside></div></>;
+      {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+      <Button tone="blue" type="submit" disabled={submitting}>{submitting?"Securing link…":auth.account?"Create funding-ready link":"Sign in to create"} <ArrowRight/></Button>
+      {created&&<div className="link-result"><CheckCircle2/><div><b>Secure link created and copied</b><small>It becomes claimable after the Arc vault funding transaction confirms.</small></div><button type="button" onClick={()=>void navigator.clipboard?.writeText(created.claimUrl)}><Copy/></button></div>}</form>
+      <aside className="live-link-preview"><FluidCanvas/><Eyebrow light>LIVE PREVIEW</Eyebrow><span className="preview-token">{asset[0]}</span><small>You’re sending</small><strong>{amount || "0"} {asset}</strong><p>{message}</p><button>Claim — no gas required</button>{created&&<div className="created-toast"><CheckCircle2/>Signed link secured</div>}</aside></div></>;
 }
 
 function ProjectOnboarding({go}:{go:(v:View)=>void}) {
@@ -559,7 +600,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
   let page:React.ReactNode;
   switch(view){
     case "overview":page=<Overview go={go}/>;break;
-    case "create":page=<CreateLink/>;break;
+    case "create":page=<CreateLink auth={auth} go={go}/>;break;
     case "onboarding":page=<ProjectOnboarding go={go}/>;break;
     case "campaigns":page=<Campaigns go={go}/>;break;
     case "new-campaign":page=<CampaignBuilder go={go}/>;break;

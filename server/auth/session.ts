@@ -14,6 +14,8 @@ export type CurrentSession = {
   displayName: string;
   email?: string;
   wallets: CircleWallet[];
+  accountId?: string;
+  username?: string;
   issuedAt: number;
 };
 
@@ -89,5 +91,7 @@ export function publicSession(session: CurrentSession) {
     displayName: session.displayName,
     email: session.email,
     wallets: session.wallets,
+    accountId: session.accountId,
+    username: session.username,
   };
 }

@@ -1,4 +1,5 @@
 import { getPublicConfig, getReadiness, getServerConfig } from "../../server/config.js";
+import { pingDatabase } from "../../server/db/client.js";
 import { ok, withApi } from "../../server/http.js";
 
 async function checkArcRpc() {
@@ -24,14 +25,18 @@ async function checkArcRpc() {
 
 export default withApi(async (request) => {
   const arc = await checkArcRpc();
+  const databaseStartedAt = Date.now();
+  const databaseConfigured = Boolean(getServerConfig().DATABASE_URL);
+  const databaseReachable = databaseConfigured ? await pingDatabase().catch(() => false) : false;
   const database = {
-    configured: Boolean(getServerConfig().DATABASE_URL),
-    reachable: false,
-    state: getServerConfig().DATABASE_URL ? "check-deferred" : "not-provisioned",
+    configured: databaseConfigured,
+    reachable: databaseReachable,
+    state: databaseConfigured ? databaseReachable ? "ready" : "unreachable" : "not-provisioned",
+    latencyMs: Date.now() - databaseStartedAt,
   };
   const config = getPublicConfig();
   return ok(request, {
-    status: arc.reachable ? "operational" : "degraded",
+    status: arc.reachable && databaseReachable ? "operational" : "degraded",
     service: "current-cofi-api",
     version: "v1",
     network: config.chain.network,

@@ -2,6 +2,13 @@
 
 Each group ends with automated checks, a Vercel production deployment, browser verification, and a user check-in.
 
+## Delivery status
+
+- Group 1 — Foundation: complete and deployed.
+- Group 2 — Accounts: Google/Circle onboarding, embedded Arc testnet wallet, encrypted recovery session; complete and deployed.
+- Group 3A — Claim persistence: production Postgres, persistent account/wallet records, signed private USDC links, owner history, public claim previews, expiration metadata, and tamper rejection; complete.
+- Group 3B — Arc settlement: vault contracts, funding transaction, gas-sponsored claim execution, onchain confirmation, expiration, and refunds; next.
+
 1. **Foundation** — architecture, schema, API contract, Arc configuration, health and frontend boundary.
 2. **Accounts** — social/email authentication, embedded Circle wallet provisioning, recovery, profile.
 3. **Claims** — funded USDC links, Arc testnet contracts, sponsored claiming, expiration, refunds.
