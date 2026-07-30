@@ -5,6 +5,7 @@ import { projectMembers, users, wallets } from "../db/schema.js";
 import type { CampaignRecipientInput } from "../campaigns/repository.js";
 import { createCampaign } from "../campaigns/repository.js";
 import { ApiError } from "../http.js";
+import { parseCampaignClaimMode } from "../claims/identity-binding.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "./webhooks.js";
 
 type DistributionInput = {
@@ -14,6 +15,7 @@ type DistributionInput = {
   expiresInHours?: unknown;
   activationEvent?: unknown;
   referralReward?: unknown;
+  mode?: unknown;
 };
 
 const recipientTypes = new Set<CampaignRecipientInput["identityType"]>([
@@ -104,6 +106,7 @@ export async function createDeveloperDistribution(
     expiresInHours,
     activationEvent: optionalString(input.activationEvent, 100),
     referralReward: optionalString(input.referralReward, 100),
+    claimMode: parseCampaignClaimMode(input.mode),
   });
   await queueWebhookEvent(projectId, "campaign.created", {
     distributionId: campaign.id,

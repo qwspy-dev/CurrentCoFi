@@ -8,6 +8,7 @@ import {
 } from "../../server/campaigns/repository.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../../server/developer/webhooks.js";
 import { ApiError, ok, readJsonObject, withApi } from "../../server/http.js";
+import { parseCampaignClaimMode } from "../../server/claims/identity-binding.js";
 
 function expiration(value: unknown) {
   const hours = typeof value === "number" ? value : Number(value ?? 168);
@@ -59,6 +60,7 @@ async function create(request: Request) {
     expiresInHours: expiration(body.expiresInHours),
     activationEvent: typeof body.activationEvent === "string" ? body.activationEvent : undefined,
     referralReward: typeof body.referralReward === "string" ? body.referralReward : undefined,
+    claimMode: parseCampaignClaimMode(body.mode),
   });
   await queueWebhookEvent(project.id, "campaign.created", {
     distributionId: campaign.id,

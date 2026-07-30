@@ -32,7 +32,7 @@ export async function persistSessionAccount(session: CurrentSession) {
       provider: session.provider,
       providerSubjectHash,
       verifiedAt: new Date(),
-      metadata: session.email ? { emailHash: await sha256(session.email) } : {},
+      metadata: session.email ? { emailHash: await sha256(session.email.trim().toLowerCase()) } : {},
     }).onConflictDoNothing().returning();
     identity = createdIdentity ?? await db.query.identities.findFirst({
       where: and(
@@ -43,6 +43,16 @@ export async function persistSessionAccount(session: CurrentSession) {
     userId = identity?.userId ?? userId;
   } else {
     await db.update(users).set({ displayName: session.displayName, updatedAt: new Date() }).where(eq(users.id, userId));
+    if (session.email && identity) {
+      await db.update(identities).set({
+        metadata: {
+          ...(identity.metadata as Record<string, unknown>),
+          emailHash: await sha256(session.email.trim().toLowerCase()),
+        },
+        verifiedAt: identity.verifiedAt ?? new Date(),
+        updatedAt: new Date(),
+      }).where(eq(identities.id, identity.id));
+    }
   }
 
   for (const wallet of session.wallets) {

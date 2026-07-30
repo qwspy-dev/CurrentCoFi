@@ -21,6 +21,11 @@ import { parseClaimToken } from "../security/crypto.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
 import { buildCampaignTree, contractAllocationId } from "./merkle.js";
 import { campaignAllocations } from "./repository.js";
+import {
+  assertSessionMatchesAllocation,
+  type CampaignClaimMode,
+  type IdentityBindingType,
+} from "../claims/identity-binding.js";
 
 const FINAL_TRANSACTION_STATES = new Set(["COMPLETE", "CONFIRMED"]);
 const FAILED_TRANSACTION_STATES = new Set(["FAILED", "DENIED", "CANCELLED"]);
@@ -195,11 +200,15 @@ async function campaignClaimRow(tokenValue: string, allowCompleted = false) {
     allocationStatus: allocations.status,
     storedSecretHash: allocations.claimSecretHash,
     amountAtomic: allocations.amountAtomic,
+    identityType: allocations.identityType,
+    identityHash: allocations.identityHash,
+    walletAddress: allocations.walletAddress,
     distributionId: distributions.id,
     projectId: distributions.projectId,
     distributionStatus: distributions.status,
     expiresAt: distributions.expiresAt,
     kind: distributions.kind,
+    rules: distributions.rules,
   }).from(allocations)
     .innerJoin(distributions, eq(distributions.id, allocations.distributionId))
     .where(eq(allocations.id, allocationId))
@@ -233,6 +242,16 @@ export async function createCampaignClaimChallenge(
   });
   if (!wallet) throw new ApiError(409, "ARC_WALLET_REQUIRED", "Your Arc wallet is not ready.");
   const row = await campaignClaimRow(tokenValue);
+  const rules = row.rules as Record<string, unknown>;
+  const claimMode: CampaignClaimMode = rules.claimMode === "identity-bound" ? "identity-bound" : "allowlist";
+  const identityProof = await assertSessionMatchesAllocation({
+    mode: claimMode,
+    identityType: row.identityType as IdentityBindingType,
+    identityHash: row.identityHash,
+    walletAddress: row.walletAddress,
+    session,
+    destinationWalletAddress: sessionWallet.address,
+  });
   const existing = await db.query.claims.findFirst({ where: eq(claims.allocationId, row.allocationId) });
   if (existing?.status === "confirmed") {
     return { complete: true, status: "confirmed", transactionHash: existing.transactionHash };
@@ -290,7 +309,12 @@ export async function createCampaignClaimChallenge(
     ],
     refId: `campaign-claim-${row.allocationId}`.slice(0, 100),
   });
-  const claimMetadata = { challengeId, authorizationDeadline, merkleProof: tree.proof(row.allocationIndex) };
+  const claimMetadata = {
+    challengeId,
+    authorizationDeadline,
+    merkleProof: tree.proof(row.allocationIndex),
+    identityBinding: identityProof,
+  };
   if (existing) {
     await db.update(claims).set({
       status: "authorizing",

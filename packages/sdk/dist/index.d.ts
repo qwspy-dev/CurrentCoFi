@@ -10,6 +10,7 @@ export type CreateDistributionInput = {
     expiresInHours?: number;
     activationEvent?: string;
     referralReward?: string;
+    mode?: "allowlist" | "identity-bound";
 };
 export type CreatedDistribution = {
     id: string;
@@ -25,6 +26,7 @@ export type CreatedDistribution = {
     totalAmount: string;
     totalAmountAtomic: string;
     merkleRoot: string;
+    claimMode: "allowlist" | "identity-bound";
     expiresAt: string;
     links: Array<{
         identity: string;

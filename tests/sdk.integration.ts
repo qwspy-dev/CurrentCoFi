@@ -20,6 +20,7 @@ const mockFetch: typeof fetch = async (input, init) => {
         totalAmount: "25.00",
         totalAmountAtomic: "25000000",
         merkleRoot: "0xroot",
+        claimMode: "identity-bound",
         expiresAt: "2026-08-14T00:00:00.000Z",
         links: [],
       },
@@ -51,8 +52,10 @@ const current = new Current({
 const distribution = await current.distributions.create({
   name: "SDK proof",
   recipients: [{ identityType: "email", identity: "builder@example.com", amount: "25.00" }],
+  mode: "identity-bound",
 });
 assert.equal(distribution.id, "dist_sdk");
+assert.equal(distribution.claimMode, "identity-bound");
 const signedRequest = requests.at(-1);
 assert.ok(signedRequest);
 assert.equal(signedRequest.url, "https://current.test/api/v1/developer/distributions");
@@ -61,6 +64,7 @@ const timestamp = new Headers(signedRequest.init?.headers).get("x-current-timest
 const suppliedSignature = new Headers(signedRequest.init?.headers).get("x-current-signature");
 assert.ok(timestamp);
 assert.ok(suppliedSignature);
+assert.equal(JSON.parse(String(signedRequest.init?.body)).mode, "identity-bound");
 const expectedSignature = createHmac("sha256", signingSecret)
   .update(`${timestamp}.${signedRequest.init?.body}`)
   .digest("base64url");

@@ -19,6 +19,11 @@ import {
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
 import { sha256, signClaimToken } from "../security/crypto.js";
+import {
+  LIVE_IDENTITY_BINDING_TYPES,
+  normalizeBoundIdentity,
+  type CampaignClaimMode,
+} from "../claims/identity-binding.js";
 import { buildCampaignTree } from "./merkle.js";
 
 const AMOUNT_PATTERN = /^\d{1,30}(?:\.\d{1,18})?$/;
@@ -74,20 +79,7 @@ export function formatAtomic(atomic: string, decimals: number) {
 }
 
 function normalizeIdentity(type: CampaignRecipientInput["identityType"], identity: string) {
-  const value = identity.trim();
-  if (!value || value.length > 320) throw new ApiError(400, "INVALID_RECIPIENT", "Every recipient needs a valid identity.");
-  if (type === "email") {
-    const email = value.toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new ApiError(400, "INVALID_RECIPIENT", `Invalid email recipient: ${value}`);
-    }
-    return email;
-  }
-  if (type === "wallet") {
-    if (!isAddress(value)) throw new ApiError(400, "INVALID_RECIPIENT", `Invalid wallet recipient: ${value}`);
-    return getAddress(value).toLowerCase();
-  }
-  return value.toLowerCase();
+  return normalizeBoundIdentity(type, identity);
 }
 
 function maskedIdentity(type: CampaignRecipientInput["identityType"], value: string) {
@@ -160,12 +152,24 @@ export async function createCampaign(input: {
   expiresInHours: number;
   activationEvent?: string;
   referralReward?: string;
+  claimMode?: CampaignClaimMode;
 }) {
   if (!input.name.trim() || input.name.length > 100) {
     throw new ApiError(400, "INVALID_CAMPAIGN_NAME", "Campaign names must contain 1–100 characters.");
   }
   if (!input.recipients.length || input.recipients.length > 1_000) {
     throw new ApiError(400, "INVALID_RECIPIENT_COUNT", "Campaigns require 1–1,000 recipients.");
+  }
+  const claimMode = input.claimMode ?? "allowlist";
+  if (
+    claimMode === "identity-bound" &&
+    input.recipients.some((recipient) => !LIVE_IDENTITY_BINDING_TYPES.has(recipient.identityType))
+  ) {
+    throw new ApiError(
+      400,
+      "IDENTITY_TYPE_NOT_LIVE",
+      "Identity-bound campaigns currently support verified email addresses and exact Arc wallet addresses.",
+    );
   }
   await projectAccess(input.userId, input.projectId);
   const db = getDb();
@@ -218,7 +222,7 @@ export async function createCampaign(input: {
     refundAddress: input.refundAddress.toLowerCase(),
     expiresAt,
     rules: {
-      claimMode: "allowlist",
+      claimMode,
       recipientPaysGas: false,
       activationEvent: input.activationEvent?.slice(0, 100) || null,
       referralReward: input.referralReward?.slice(0, 100) || null,
@@ -252,6 +256,7 @@ export async function createCampaign(input: {
       totalAmountAtomic,
       asset: token.symbol,
       merkleRoot: tree.root,
+      claimMode,
     },
   });
   const links = await Promise.all(prepared.map(async (recipient) => ({
@@ -274,6 +279,7 @@ export async function createCampaign(input: {
     totalAmount: formatAtomic(totalAmountAtomic, token.decimals),
     totalAmountAtomic,
     merkleRoot: tree.root,
+    claimMode,
     expiresAt: expiresAt.toISOString(),
     links,
   };
@@ -346,6 +352,9 @@ export async function listCampaigns(userId: string) {
     expiresAt: row.expiresAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     fundingTxHash: row.fundingTxHash,
+    claimMode: ((row.rules as Record<string, unknown>).claimMode === "identity-bound"
+      ? "identity-bound"
+      : "allowlist"),
     activationEvent: (row.rules as Record<string, unknown>).activationEvent ?? null,
     refundTransactionHash: (row.metadata as Record<string, unknown>).refundTransactionHash ?? null,
   }));
@@ -407,6 +416,12 @@ export async function campaignAnalytics(userId: string) {
   const activations = activationRows.reduce((sum, row) => sum + Number(row.total), 0);
   const confirmed = recipients.filter((recipient) => recipient.status === "confirmed").length;
   const targeted = recipients.length;
+  const identityBoundCampaigns = campaigns.filter((campaign) => campaign.claimMode === "identity-bound");
+  const identityBoundIds = new Set(identityBoundCampaigns.map((campaign) => campaign.id));
+  const identityBoundTargeted = recipients.filter((recipient) => identityBoundIds.has(recipient.campaignId)).length;
+  const identityBoundClaims = recipients.filter(
+    (recipient) => identityBoundIds.has(recipient.campaignId) && recipient.status === "confirmed",
+  ).length;
   return {
     totals: {
       campaigns: campaigns.length,
@@ -416,6 +431,9 @@ export async function campaignAnalytics(userId: string) {
       activations,
       claimRate: targeted ? Math.round((confirmed / targeted) * 10_000) / 100 : 0,
       activationRate: confirmed ? Math.round((activations / confirmed) * 10_000) / 100 : 0,
+      identityBoundCampaigns: identityBoundCampaigns.length,
+      identityBoundTargeted,
+      identityBoundClaims,
     },
     campaigns: campaigns.map((campaign) => ({
       id: campaign.id,

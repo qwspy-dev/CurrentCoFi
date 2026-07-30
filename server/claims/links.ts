@@ -156,10 +156,12 @@ export async function resolveClaimLink(tokenValue: string) {
     allocationId: allocations.id,
     allocationStatus: allocations.status,
     claimSecretHash: allocations.claimSecretHash,
+    identityType: allocations.identityType,
     amountAtomic: allocations.amountAtomic,
     expiresAt: allocations.expiresAt,
     distributionId: distributions.id,
     distributionStatus: distributions.status,
+    rules: distributions.rules,
     message: distributions.metadata,
     projectName: projects.name,
     projectLogo: projects.logoUrl,
@@ -181,6 +183,9 @@ export async function resolveClaimLink(tokenValue: string) {
   }
   const expired = Boolean(row.expiresAt && row.expiresAt.getTime() <= Date.now());
   const metadata = row.message as Record<string, unknown>;
+  const rules = row.rules as Record<string, unknown>;
+  const identityBound = rules.claimMode === "identity-bound";
+  const recipientLabels = metadata.recipientLabels as Record<string, string> | undefined;
   return {
     id: row.distributionId,
     allocationId: row.allocationId,
@@ -194,5 +199,12 @@ export async function resolveClaimLink(tokenValue: string) {
     message: typeof metadata.message === "string" ? metadata.message : "",
     sender: typeof metadata.creatorDisplayName === "string" ? metadata.creatorDisplayName : row.projectName,
     expiresAt: row.expiresAt?.toISOString() ?? null,
+    identityBinding: {
+      required: identityBound,
+      type: identityBound ? row.identityType : null,
+      recipient: identityBound ? recipientLabels?.[row.allocationId] ?? null : null,
+      status: identityBound ? "sign-in-required" : "link-secured",
+      supported: row.identityType === "email" || row.identityType === "wallet",
+    },
   };
 }

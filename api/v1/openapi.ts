@@ -4,8 +4,8 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "1.7.0-governance",
-    description: "Walletless USDC and project-token distribution infrastructure for Arc.",
+    version: "1.8.0-identity-bound",
+    description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
   paths: {
@@ -28,7 +28,7 @@ export default withApi((request) => ok(request, {
     "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
     "/campaigns": {
       get: { summary: "List owned campaigns with verified settlement analytics" },
-      post: { summary: "Create a Merkle-allowlisted USDC or project-token campaign" },
+      post: { summary: "Create an allowlisted or identity-bound USDC or project-token campaign" },
     },
     "/campaigns/fund": { post: { summary: "Approve and fully fund a campaign vault on Arc" } },
     "/campaigns/manage": { post: { summary: "Cancel a campaign or refund an expired campaign" } },
@@ -70,6 +70,7 @@ export default withApi((request) => ok(request, {
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "project-access-tiers", "buyback-governance",
+      "identity-bound-email-claims", "identity-bound-wallet-claims",
     ],
     plannedResourceGroups: [],
   },
