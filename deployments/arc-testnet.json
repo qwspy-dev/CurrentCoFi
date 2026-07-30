@@ -1,0 +1,10 @@
+{
+  "network": "ARC-TESTNET",
+  "chainId": 5042002,
+  "accountType": "EOA",
+  "protocolWalletAddress": "0x6422532587b8Fe53631862F84aC59884A47552F8",
+  "claimAuthorizerAddress": "0xf877ef47929c1c5df4ec93a6c60459167a175b61",
+  "claimVaultAddress": "0x48e692dd16da6af9028eca62ad73386e2c0591f3",
+  "deploymentTransactionHash": "0x9a5d350043493ac1923e96c9bcb54d90665a8199db0d99401965114891c5230d",
+  "status": "deployed"
+}

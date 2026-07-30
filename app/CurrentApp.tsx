@@ -9,7 +9,7 @@ import {
   Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { currentApi } from "@/lib/api/client";
@@ -20,7 +20,7 @@ type View =
   | "new-campaign" | "recipients" | "referrals" | "analytics" | "token"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
-type ClaimStep = "ready" | "auth" | "creating" | "success";
+type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
 type ClaimPreview = {
   id: string;
@@ -35,6 +35,29 @@ type ClaimPreview = {
   sender: string;
   expiresAt: string | null;
 };
+
+type WalletActionResult = {
+  complete?: boolean;
+  challengeId?: string;
+  pending?: boolean;
+  status?: string;
+  transactionHash?: string | null;
+};
+
+const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function confirmWalletAction(
+  path: string,
+  body: Record<string, unknown>,
+  challengeId: string,
+) {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const result = await currentApi.post<WalletActionResult>(path, { ...body, challengeId });
+    if (!result.pending) return result;
+    await pause(1_500);
+  }
+  throw new Error("Arc is still confirming this action. You can safely try again in a moment.");
+}
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
@@ -387,22 +410,61 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
   const [claimToken] = useState(()=>typeof location==="undefined"?null:new URLSearchParams(location.search).get("claim"));
   const [preview,setPreview] = useState<ClaimPreview|null>(null);
   const [previewState,setPreviewState] = useState<"demo"|"loading"|"live"|"error">(()=>claimToken?"loading":"demo");
+  const [claimError,setClaimError] = useState<string|null>(null);
+  const claimStartedRef = useRef(false);
   useEffect(()=>{
     if(!claimToken)return;
     currentApi.post<ClaimPreview>("/links/resolve",{token:claimToken})
       .then(data=>{setPreview(data);setPreviewState("live")})
       .catch(()=>setPreviewState("error"));
   },[claimToken]);
-  const claim = () => setStep("auth");
-  const visibleStep: ClaimStep = previewState==="live"&&preview&&!preview.claimable
+  const settleClaim = useCallback(async () => {
+    if(!claimToken){setStep(auth.account?"success":"auth");return}
+    setClaimError(null);setStep("claiming");
+    try{
+      const started=await currentApi.post<WalletActionResult>("/links/claim",{token:claimToken});
+      if(!started.complete){
+        if(!started.challengeId)throw new Error("Circle did not return a wallet approval.");
+        await auth.executeChallenge(started.challengeId);
+        await confirmWalletAction("/links/claim",{token:claimToken},started.challengeId);
+      }
+      setPreview(current=>current?{...current,status:"confirmed",claimable:false}:current);
+      setStep("success");
+    }catch(claimFailure){
+      claimStartedRef.current=false;
+      setClaimError(claimFailure instanceof Error?claimFailure.message:"The claim could not be completed.");
+      setStep(auth.account?"ready":"auth");
+    }
+  },[auth,claimToken]);
+  const claim=()=>{
+    if(!auth.account){setStep("auth");return}
+    claimStartedRef.current=true;void settleClaim();
+  };
+  useEffect(()=>{
+    if(!claimToken||!auth.account||step!=="auth"||claimStartedRef.current)return;
+    claimStartedRef.current=true;void settleClaim();
+  },[auth.account,claimToken,settleClaim,step]);
+  const visibleStep: ClaimStep = previewState==="live"&&preview&&!preview.claimable&&step!=="success"
     ? "ready"
-    : auth.account
-    ? "success"
     : auth.state==="redirecting"||auth.state==="verifying"||auth.state==="creating-wallet"
       ? "creating"
       : auth.state==="error"
         ? "auth"
         : step;
+  const unavailableLabel = preview?.status==="confirmed"
+    ? "Already claimed"
+    : preview?.status==="expired"
+      ? "Claim expired"
+      : preview?.fundingStatus==="awaiting_funding"
+        ? "Awaiting sender funding"
+        : "Claim unavailable";
+  const unavailableNote = preview?.status==="confirmed"
+    ? "This value has already settled into its recipient wallet."
+    : preview?.status==="expired"
+      ? "The claim window ended and the sender can recover the funds."
+      : preview?.fundingStatus==="awaiting_funding"
+        ? "This link is secured, but its Arc vault has not been funded yet."
+        : "This claim can no longer be completed.";
   return (
     <main className="claim-route">
       <FluidCanvas mode="network"/>
@@ -413,7 +475,8 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
           <span className="claim-brand-avatar">{(preview?.project.name??"Tidebreak")[0]}</span><small>{preview?.sender??"Tidebreak"} sent you</small><h1>{preview?.amount??"2,500"} <em>{preview?.asset??"TIDE"}</em></h1>{!preview&&<p className="claim-usd">≈ $42.80</p>}
           <blockquote>{preview?.message||"Welcome to the Tidebreak Genesis current."}</blockquote>
           <div className="claim-meta"><span><Clock3/>{preview?.expiresAt?`Expires ${new Date(preview.expiresAt).toLocaleDateString()}`:"Expires in 6 days"}</span><span><Zap/>Gas sponsored</span></div>
-          <Button tone="blue" onClick={claim} disabled={Boolean(preview&&!preview.claimable)}>{preview&&!preview.claimable?"Awaiting sender funding":"Claim your tokens"} <ArrowRight/></Button><p className="claim-note">{preview&&!preview.claimable?"This link is secured, but its Arc vault has not been funded yet.":"No wallet or payment required."}</p>
+          <Button tone="blue" onClick={claim} disabled={Boolean(preview&&!preview.claimable)}>{preview&&!preview.claimable?unavailableLabel:"Claim your tokens"} <ArrowRight/></Button><p className="claim-note">{preview&&!preview.claimable?unavailableNote:"No wallet or payment required."}</p>
+          {claimError&&<p className="auth-system-note is-error"><X/>{claimError}</p>}
           </>}
         </>}
         {visibleStep === "auth" && <>
@@ -425,9 +488,11 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
           {emailMode&&<form className="auth-email-form" onSubmit={(event)=>{event.preventDefault();void auth.startEmail(email)}}><label>Email address<input type="email" required value={email} onChange={event=>setEmail(event.target.value)} placeholder="you@community.xyz" autoFocus/></label><Button tone="blue">Send secure code <ArrowRight/></Button><button type="button" onClick={()=>setEmailMode(false)}>Use another method</button></form>}
           {auth.state==="unavailable"&&<p className="auth-system-note"><ShieldCheck/>The production onboarding flow is installed. Circle credentials are the final activation switch.</p>}
           {auth.error&&<p className="auth-system-note is-error"><X/>{auth.error}</p>}
+          {claimError&&<p className="auth-system-note is-error"><X/>{claimError}</p>}
         </>}
         {visibleStep === "creating" && <div className="creating-state"><span className="creating-orbit"><i/><i/><Wallet/></span><small>CREATING YOUR EMBEDDED WALLET</small><h2>Opening your current…</h2><div className="creating-steps"><span className="done"><Check/>Identity verified</span><span className={auth.state==="creating-wallet"?"done":""}><RefreshCw/>Creating Arc wallet</span><span>Securing account recovery</span></div></div>}
-        {visibleStep === "success" && <div className="success-state"><span className="success-ripple"><Check/></span><small>ACCOUNT READY</small><h2>Your wallet is open.</h2><p>Your user-controlled Arc wallet is ready. The funded claim itself activates in the next protocol milestone.</p><div className="success-balance"><span>Arc wallet</span><b>{auth.account?.wallets[0]?.address?`${auth.account.wallets[0].address.slice(0,8)}…${auth.account.wallets[0].address.slice(-5)}`:"Creating address"}</b><small>Gas sponsorship compatible · SCA</small></div><Button tone="blue" onClick={()=>go("overview")}>Open your account <ArrowRight/></Button></div>}
+        {visibleStep === "claiming" && <div className="creating-state"><span className="creating-orbit"><i/><i/><Zap/></span><small>SETTLING ON ARC</small><h2>Bringing the value into your wallet…</h2><div className="creating-steps"><span className="done"><Check/>Identity authorized</span><span className="done"><RefreshCw/>Gasless claim submitted</span><span>Confirming settlement</span></div></div>}
+        {visibleStep === "success" && <div className="success-state"><span className="success-ripple"><Check/></span><small>{claimToken?"CLAIM SETTLED":"ACCOUNT READY"}</small><h2>{claimToken?"The value is yours.":"Your wallet is open."}</h2><p>{claimToken?`${preview?.amount??""} ${preview?.asset??"tokens"} settled into your user-controlled Arc wallet.`:"Your user-controlled Arc wallet is ready for walletless distributions."}</p><div className="success-balance"><span>Arc wallet</span><b>{auth.account?.wallets[0]?.address?`${auth.account.wallets[0].address.slice(0,8)}…${auth.account.wallets[0].address.slice(-5)}`:"Creating address"}</b><small>Gas sponsored · Arc testnet SCA</small></div><Button tone="blue" onClick={()=>go("overview")}>Open your account <ArrowRight/></Button></div>}
       </section>
       <div className="claim-trust"><span><Lock/>Identity bound</span><span><Wallet/>Embedded wallet</span><span><Zap/>No gas needed</span></div>
     </main>
@@ -457,19 +522,43 @@ function Overview({go}:{go:(v:View)=>void}) {
 
 function CreateLink({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const [asset,setAsset]=useState("USDC"); const [amount,setAmount]=useState("25"); const [message,setMessage]=useState("A little value for your next current.");
-  const [created,setCreated]=useState<{claimUrl:string;status:string}|null>(null);
+  const [created,setCreated]=useState<{id:string;claimUrl:string;status:string}|null>(null);
+  const [fundingStep,setFundingStep]=useState<"idle"|"creating"|"approving"|"funding"|"complete">("idle");
   const [submitting,setSubmitting]=useState(false); const [error,setError]=useState<string|null>(null);
+  const fund=async(link:{id:string;claimUrl:string;status:string})=>{
+    setFundingStep("approving");
+    const approval=await currentApi.post<WalletActionResult>("/links/fund",{distributionId:link.id,action:"approve"});
+    if(!approval.complete){
+      if(!approval.challengeId)throw new Error("Circle did not return the USDC approval.");
+      await auth.executeChallenge(approval.challengeId);
+      await confirmWalletAction("/links/fund",{distributionId:link.id,action:"approve"},approval.challengeId);
+    }
+    setFundingStep("funding");
+    const deposit=await currentApi.post<WalletActionResult>("/links/fund",{distributionId:link.id,action:"deposit"});
+    if(!deposit.complete){
+      if(!deposit.challengeId)throw new Error("Circle did not return the vault funding approval.");
+      await auth.executeChallenge(deposit.challengeId);
+      await confirmWalletAction("/links/fund",{distributionId:link.id,action:"deposit"},deposit.challengeId);
+    }
+    setCreated({...link,status:"active"});setFundingStep("complete");
+    await navigator.clipboard?.writeText(link.claimUrl);
+  };
   const submit=async(event:React.FormEvent<HTMLFormElement>)=>{
     event.preventDefault();setError(null);
     if(!auth.account){go("claim");return}
     setSubmitting(true);
     try{
-      const result=await currentApi.post<{claimUrl:string;status:string}>("/links",{amount,message,expiresInHours:168});
-      setCreated(result);
-      await navigator.clipboard?.writeText(result.claimUrl);
-    }catch(linkError){setError(linkError instanceof Error?linkError.message:"The link could not be created.")}
+      if(created&&fundingStep!=="complete"){
+        await fund(created);
+      }else{
+        setFundingStep("creating");
+        const result=await currentApi.post<{id:string;claimUrl:string;status:string}>("/links",{amount,message,expiresInHours:168});
+        setCreated(result);await fund(result);
+      }
+    }catch(linkError){if(!created)setFundingStep("idle");setError(linkError instanceof Error?linkError.message:"The link could not be created.")}
     finally{setSubmitting(false)}
   };
+  const buttonLabel=fundingStep==="creating"?"Securing link…":fundingStep==="approving"?"Approve USDC access…":fundingStep==="funding"?"Fund the Arc vault…":created&&fundingStep!=="complete"?"Resume secure funding":auth.account?"Create and fund link":"Sign in to create";
   return <><PageHero eyebrow="PERSONAL CURRENT" title="Send value before a wallet exists." copy="Create one private, identity-bound, or open link for USDC or any supported project token."/>
     <div className="form-preview-grid"><form className="form-panel" onSubmit={submit}><div className="panel-head"><div><h3>Create an asset link</h3><p>Funds remain recoverable until claimed.</p></div><Status tone="blue">Arc testnet</Status></div>
       <label>Asset<div className="asset-options">{["USDC","TIDE","$CURRENT"].map(x=><button type="button" disabled={x!=="USDC"} title={x==="USDC"?"Live now":"Project tokens arrive with campaign distributions"} className={asset===x?"selected":""} onClick={()=>setAsset(x)} key={x}>{x}</button>)}</div></label>
@@ -478,9 +567,9 @@ function CreateLink({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
       <label>Message<textarea value={message} onChange={event=>setMessage(event.target.value)}/></label>
       <div className="fee-summary"><span>Distribution <b>{amount} {asset}</b></span><span>Sponsored gas <b>$0.02</b></span><span>Current CoFi fee <b>$0.00</b></span></div>
       {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
-      <Button tone="blue" type="submit" disabled={submitting}>{submitting?"Securing link…":auth.account?"Create funding-ready link":"Sign in to create"} <ArrowRight/></Button>
-      {created&&<div className="link-result"><CheckCircle2/><div><b>Secure link created and copied</b><small>It becomes claimable after the Arc vault funding transaction confirms.</small></div><button type="button" onClick={()=>void navigator.clipboard?.writeText(created.claimUrl)}><Copy/></button></div>}</form>
-      <aside className="live-link-preview"><FluidCanvas/><Eyebrow light>LIVE PREVIEW</Eyebrow><span className="preview-token">{asset[0]}</span><small>You’re sending</small><strong>{amount || "0"} {asset}</strong><p>{message}</p><button>Claim — no gas required</button>{created&&<div className="created-toast"><CheckCircle2/>Signed link secured</div>}</aside></div></>;
+      <Button tone="blue" type="submit" disabled={submitting||fundingStep==="complete"}>{buttonLabel} <ArrowRight/></Button>
+      {created&&<div className="link-result"><CheckCircle2/><div><b>{fundingStep==="complete"?"Funded claim link copied":"Secure claim link reserved"}</b><small>{fundingStep==="complete"?"The USDC is locked in the Arc vault and ready to claim.":"Complete both wallet approvals to make the link claimable."}</small></div><button type="button" onClick={()=>void navigator.clipboard?.writeText(created.claimUrl)} aria-label="Copy claim link"><Copy/></button></div>}</form>
+      <aside className="live-link-preview"><FluidCanvas/><Eyebrow light>LIVE PREVIEW</Eyebrow><span className="preview-token">{asset[0]}</span><small>You’re sending</small><strong>{amount || "0"} {asset}</strong><p>{message}</p><button>Claim — no gas required</button>{created&&<div className="created-toast"><CheckCircle2/>{fundingStep==="complete"?"Vault funded":"Link secured"}</div>}</aside></div></>;
 }
 
 function ProjectOnboarding({go}:{go:(v:View)=>void}) {

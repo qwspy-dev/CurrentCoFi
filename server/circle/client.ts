@@ -21,6 +21,23 @@ export type CircleWallet = {
   refId?: string;
 };
 
+export type CircleChallenge = {
+  id: string;
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETE" | "COMPLETED" | "FAILED" | "EXPIRED";
+  type: string;
+  correlationIds?: string[];
+  errorCode?: number;
+  errorMessage?: string;
+};
+
+export type CircleTransaction = {
+  id: string;
+  state: string;
+  txHash?: string;
+  errorReason?: string;
+  errorDetails?: string;
+};
+
 export function circleConfigured() {
   const config = getServerConfig();
   return Boolean(config.CIRCLE_API_KEY && config.CIRCLE_APP_ID);
@@ -122,4 +139,51 @@ export function refreshCircleToken(
       body: { idempotencyKey: crypto.randomUUID(), refreshToken, deviceId },
     },
   );
+}
+
+export function createUserContractExecutionChallenge(
+  request: Request,
+  userToken: string,
+  input: {
+    walletId: string;
+    contractAddress: string;
+    abiFunctionSignature: string;
+    abiParameters: Array<string | number | boolean | unknown[]>;
+    refId: string;
+  },
+) {
+  return circleRequest<{ challengeId: string }>(
+    request,
+    "/v1/w3s/user/transactions/contractExecution",
+    {
+      userToken,
+      body: {
+        idempotencyKey: crypto.randomUUID(),
+        walletId: input.walletId,
+        contractAddress: input.contractAddress,
+        abiFunctionSignature: input.abiFunctionSignature,
+        abiParameters: input.abiParameters,
+        feeLevel: "MEDIUM",
+        refId: input.refId,
+      },
+    },
+  );
+}
+
+export async function getUserChallenge(request: Request, userToken: string, challengeId: string) {
+  const data = await circleRequest<{ challenge: CircleChallenge }>(
+    request,
+    `/v1/w3s/user/challenges/${encodeURIComponent(challengeId)}`,
+    { userToken },
+  );
+  return data.challenge;
+}
+
+export async function getUserTransaction(request: Request, userToken: string, transactionId: string) {
+  const data = await circleRequest<{ transaction: CircleTransaction }>(
+    request,
+    `/v1/w3s/transactions/${encodeURIComponent(transactionId)}`,
+    { userToken },
+  );
+  return data.transaction;
 }

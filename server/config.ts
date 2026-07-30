@@ -12,10 +12,14 @@ export type ServerConfig = {
   DATABASE_URL?: string;
   CIRCLE_API_KEY?: string;
   CIRCLE_APP_ID?: string;
+  CIRCLE_ENTITY_SECRET?: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;
   CIRCLE_EMAIL_OTP_ENABLED: boolean;
   CURRENT_COFI_INTERNAL_SECRET?: string;
   CLAIM_SIGNING_SECRET?: string;
+  CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY?: `0x${string}`;
+  CURRENT_CLAIM_VAULT_ADDRESS?: `0x${string}`;
+  CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY?: `0x${string}`;
   ARC_RPC_URL: string;
 };
 
@@ -50,10 +54,14 @@ export function getServerConfig(): ServerConfig {
       DATABASE_URL: optional("DATABASE_URL"),
       CIRCLE_API_KEY: optional("CIRCLE_API_KEY"),
       CIRCLE_APP_ID: optional("CIRCLE_APP_ID"),
+      CIRCLE_ENTITY_SECRET: optional("CIRCLE_ENTITY_SECRET"),
       GOOGLE_OAUTH_CLIENT_ID: optional("GOOGLE_OAUTH_CLIENT_ID"),
       CIRCLE_EMAIL_OTP_ENABLED: enabled("CIRCLE_EMAIL_OTP_ENABLED"),
       CURRENT_COFI_INTERNAL_SECRET: secret("CURRENT_COFI_INTERNAL_SECRET"),
       CLAIM_SIGNING_SECRET: secret("CLAIM_SIGNING_SECRET"),
+      CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY: optional("CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY") as `0x${string}` | undefined,
+      CURRENT_CLAIM_VAULT_ADDRESS: optional("CURRENT_CLAIM_VAULT_ADDRESS") as `0x${string}` | undefined,
+      CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY: optional("CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY") as `0x${string}` | undefined,
     };
   }
   return cachedConfig;
@@ -78,6 +86,10 @@ export function getPublicConfig() {
       ),
       identityClaims: Boolean(config.CLAIM_SIGNING_SECRET),
       productionMutations: Boolean(config.DATABASE_URL && config.CLAIM_SIGNING_SECRET),
+      arcSettlement: Boolean(
+        config.CURRENT_CLAIM_VAULT_ADDRESS &&
+        config.CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY,
+      ),
     },
   };
 }
@@ -90,5 +102,9 @@ export function getReadiness() {
     circle: Boolean(config.CIRCLE_API_KEY && config.CIRCLE_APP_ID),
     internalAuth: Boolean(config.CURRENT_COFI_INTERNAL_SECRET),
     claimSigning: Boolean(config.CLAIM_SIGNING_SECRET),
+    arcSettlement: Boolean(
+      config.CURRENT_CLAIM_VAULT_ADDRESS &&
+      config.CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY,
+    ),
   };
 }

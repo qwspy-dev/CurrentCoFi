@@ -10,7 +10,8 @@ import {
   tokens,
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
-import { parseClaimToken, randomSecret, sha256, signClaimToken } from "../security/crypto.js";
+import { parseClaimToken, sha256, signClaimToken } from "../security/crypto.js";
+import { keccak256 } from "viem";
 
 const AMOUNT_PATTERN = /^\d{1,18}(?:\.\d{1,6})?$/;
 
@@ -84,11 +85,11 @@ export async function createClaimLink(input: {
     rules: { claimMode: "secret", recipientPaysGas: false },
     metadata: { message: input.message?.slice(0, 280) ?? "", creatorDisplayName: input.displayName },
   }).returning();
-  const secret = randomSecret();
+  const secret = `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("hex")}` as `0x${string}`;
   const [allocation] = await db.insert(allocations).values({
     distributionId: distribution.id,
     identityType: "secret",
-    claimSecretHash: await sha256(secret),
+    claimSecretHash: keccak256(secret),
     amountAtomic,
     expiresAt,
   }).returning();
@@ -171,7 +172,11 @@ export async function resolveClaimLink(tokenValue: string) {
     .innerJoin(tokens, eq(tokens.id, distributions.tokenId))
     .where(eq(allocations.id, allocationId))
     .limit(1);
-  if (!row || !row.claimSecretHash || row.claimSecretHash !== await sha256(secret)) {
+  const secretMatches = row?.claimSecretHash && (
+    row.claimSecretHash === await sha256(secret) ||
+    (/^0x[0-9a-f]{64}$/i.test(secret) && row.claimSecretHash === keccak256(secret as `0x${string}`))
+  );
+  if (!row || !secretMatches) {
     throw new ApiError(404, "CLAIM_NOT_FOUND", "This claim link is invalid or no longer available.");
   }
   const expired = Boolean(row.expiresAt && row.expiresAt.getTime() <= Date.now());

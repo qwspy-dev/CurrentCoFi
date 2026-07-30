@@ -43,6 +43,7 @@ export type CurrentAccount = {
 type AuthState = "loading" | "ready" | "redirecting" | "verifying" | "creating-wallet" | "authenticated" | "unavailable" | "error";
 
 const STORAGE_PREFIX = "current.circle.";
+const AUTH_SESSION_KEY = `${STORAGE_PREFIX}challengeAuth`;
 
 function messageFrom(error: unknown) {
   if (error instanceof Error) return error.message;
@@ -61,12 +62,17 @@ function messageFrom(error: unknown) {
 export function useCircleWalletAuth() {
   const sdkRef = useRef<W3SSdk | null>(null);
   const configRef = useRef<AuthConfig | null>(null);
+  const loginCallbackRef = useRef<NonNullable<Parameters<W3SSdk["updateConfigs"]>[1]> | null>(null);
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [account, setAccount] = useState<CurrentAccount | null>(null);
   const [state, setState] = useState<AuthState>("loading");
   const [error, setError] = useState<string | null>(null);
 
   const createSession = useCallback(async (result: LoginResult, deviceId: string, provider: "google" | "email") => {
+    sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+      userToken: result.userToken,
+      encryptionKey: result.encryptionKey,
+    }));
     const initialized = await currentApi.post<{
       initialized: boolean;
       challengeId: string | null;
@@ -149,6 +155,7 @@ export function useCircleWalletAuth() {
             setState("error");
           });
         };
+        loginCallbackRef.current = onLoginComplete;
         const sdk = new circleSdkModule.W3SSdk({
           appSettings: { appId: nextConfig.appId },
           loginConfigs: storedDeviceToken && storedDeviceEncryptionKey ? {
@@ -217,7 +224,7 @@ export function useCircleWalletAuth() {
           },
         } : {}),
       },
-    });
+    }, loginCallbackRef.current ?? undefined);
     return sdk;
   }, []);
 
@@ -255,9 +262,33 @@ export function useCircleWalletAuth() {
 
   const signOut = useCallback(async () => {
     await currentApi.delete("/auth/session");
+    sessionStorage.removeItem(AUTH_SESSION_KEY);
     setAccount(null);
     setState(configRef.current?.configured ? "ready" : "unavailable");
   }, []);
 
-  return { config, account, state, error, startGoogle, startEmail, signOut };
+  const executeChallenge = useCallback(async (challengeId: string) => {
+    const sdk = sdkRef.current;
+    if (!sdk) throw new Error("Circle wallet approval is not ready.");
+    const rawAuth = sessionStorage.getItem(AUTH_SESSION_KEY);
+    if (!rawAuth) {
+      throw new Error("For your security, sign in again before approving this wallet action.");
+    }
+    const auth = JSON.parse(rawAuth) as { userToken?: string; encryptionKey?: string };
+    if (!auth.userToken || !auth.encryptionKey) {
+      throw new Error("Your secure wallet session has expired. Sign in again to continue.");
+    }
+    sdk.setAuthentication({ userToken: auth.userToken, encryptionKey: auth.encryptionKey });
+    await new Promise<void>((resolve, reject) => {
+      sdk.execute(challengeId, (challengeError, challengeResult) => {
+        if (challengeError || challengeResult?.status === "FAILED") {
+          reject(new Error(challengeError?.message ?? "The wallet action was not approved."));
+          return;
+        }
+        resolve();
+      });
+    });
+  }, []);
+
+  return { config, account, state, error, startGoogle, startEmail, signOut, executeChallenge };
 }

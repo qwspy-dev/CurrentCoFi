@@ -15,17 +15,21 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:generate:vercel": "drizzle-kit generate --config=drizzle.config.vercel.ts",
-    "db:migrate:vercel": "drizzle-kit migrate --config=drizzle.config.vercel.ts"
+    "db:migrate:vercel": "drizzle-kit migrate --config=drizzle.config.vercel.ts",
+    "contracts:compile": "tsx scripts/contracts/compile.ts",
+    "contracts:test": "tsx tests/claim-vault.integration.ts"
   },
   "dependencies": {
     "@circle-fin/w3s-pw-web-sdk": "^1.1.11",
     "@neondatabase/serverless": "1.0.2",
+    "@openzeppelin/contracts": "^5.6.1",
     "drizzle-orm": "0.45.2",
     "gsap": "3.13.0",
     "lucide-react": "0.468.0",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "viem": "^2.55.10",
     "zod": "4.1.12"
   },
   "devDependencies": {
@@ -40,8 +44,11 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
+    "ganache": "^7.9.2",
     "react-server-dom-webpack": "19.2.6",
+    "solc": "^0.8.36",
     "tailwindcss": "4.2.1",
+    "tsx": "^4.23.1",
     "typescript": "5.9.3",
     "vinext": "0.0.50",
     "vite": "8.0.13",
