@@ -1,0 +1,117 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "feeRouter_",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "currentPerUsdcMicro_",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "MinimumOutputNotMet",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyFeeRouter",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        }
+      ],
+      "name": "SafeERC20FailedOperation",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "currentPerUsdcMicro",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "feeRouter",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "usdc",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "current",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minimumOut",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "recipient",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "",
+          "type": "bytes"
+        }
+      ],
+      "name": "swapExactUSDCForCurrent",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "currentOut",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60c060405234801561000f575f5ffd5b5060405161060d38038061060d83398101604081905261002e91610076565b6001600160a01b0382161580610042575080155b156100605760405163e6c4247b60e01b815260040160405180910390fd5b6001600160a01b0390911660805260a0526100ad565b5f5f60408385031215610087575f5ffd5b82516001600160a01b038116811461009d575f5ffd5b6020939093015192949293505050565b60805160a0516105346100d95f395f81816048015261017301525f81816095015260f501526105345ff3fe608060405234801561000f575f5ffd5b506004361061003f575f3560e01c80639f6f986b14610043578063b8248ef41461007d578063f29ebf6114610090575b5f5ffd5b61006a7f000000000000000000000000000000000000000000000000000000000000000081565b6040519081526020015b60405180910390f35b61006a61008b36600461040a565b6100dc565b6100b77f000000000000000000000000000000000000000000000000000000000000000081565b60405173ffffffffffffffffffffffffffffffffffffffff9091168152602001610074565b5f3373ffffffffffffffffffffffffffffffffffffffff7f0000000000000000000000000000000000000000000000000000000000000000161461014c576040517ff9c3738900000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b61016e73ffffffffffffffffffffffffffffffffffffffff8916333089610200565b6101987f0000000000000000000000000000000000000000000000000000000000000000876104bc565b9050848110156101d4576040517fc2d3c1fd00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6101f573ffffffffffffffffffffffffffffffffffffffff88168583610267565b979650505050505050565b61020e8484848460016102c7565b610261576040517f5274afe700000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff851660048201526024015b60405180910390fd5b50505050565b610274838383600161035a565b6102c2576040517f5274afe700000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff84166004820152602401610258565b505050565b6040517f23b872dd000000000000000000000000000000000000000000000000000000005f81815273ffffffffffffffffffffffffffffffffffffffff8781166004528616602452604485905291602083606481808c5af1925060015f5114831661034957838315161561033d573d5f823e3d81fd5b5f883b113d1516831692505b604052505f60605295945050505050565b6040517fa9059cbb000000000000000000000000000000000000000000000000000000005f81815273ffffffffffffffffffffffffffffffffffffffff8616600452602485905291602083604481808b5af1925060015f511483166103d65783831516156103ca573d5f823e3d81fd5b5f873b113d1516831692505b60405250949350505050565b803573ffffffffffffffffffffffffffffffffffffffff81168114610405575f5ffd5b919050565b5f5f5f5f5f5f5f60c0888a031215610420575f5ffd5b610429886103e2565b9650610437602089016103e2565b95506040880135945060608801359350610453608089016103e2565b925060a088013567ffffffffffffffff81111561046e575f5ffd5b8801601f81018a1361047e575f5ffd5b803567ffffffffffffffff811115610494575f5ffd5b8a60208284010111156104a5575f5ffd5b602082019350809250505092959891949750929550565b80820281158282048414176104f8577f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b9291505056fea26469706673582212204435c027f56701268fc5f3760ebd6c5232625acb10cb242a35f5097d8bc5aff364736f6c63430008240033"
+}

@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "1.6.0-economy",
+    version: "1.7.0-governance",
     description: "Walletless USDC and project-token distribution infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -56,8 +56,8 @@ export default withApi((request) => ok(request, {
       get: { summary: "Read project analytics with a scoped API key" },
     },
     "/token/economy": {
-      get: { summary: "Read the public $CURRENT testnet economy and verifiable activity" },
-      post: { summary: "Approve and execute a project lock or product-fee route" },
+      get: { summary: "Read the public $CURRENT economy, access tiers, and governed buyback proof" },
+      post: { summary: "Approve, execute, and activate a project lock or route a product fee" },
     },
     "/agent/tools": {
       get: { summary: "Read the machine-readable Current CoFi agent tool manifest" },
@@ -69,6 +69,7 @@ export default withApi((request) => ok(request, {
       "allocations", "campaigns", "claims", "campaign-analytics", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
+      "project-access-tiers", "buyback-governance",
     ],
     plannedResourceGroups: [],
   },

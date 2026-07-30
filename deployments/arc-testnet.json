@@ -18,5 +18,37 @@
   "currentFeeRouterDeploymentTransactionHash": "0x73a10d2ebd6317b821cac17293d0510384e967d7e85c18ad89855791e2579a89",
   "currentEconomySeedTransactionHash": "0x65a3284d3d9dcd2b1ca2f84556db023f6abf67afa074de452be5521c16c579e4",
   "currentEconomyStatus": "deployed",
-  "currentEconomyDeployer": "0x6422532587b8Fe53631862F84aC59884A47552F8"
+  "currentEconomyDeployer": "0x6422532587b8Fe53631862F84aC59884A47552F8",
+  "currentAccessManagerAddress": "0x5709e4e8fd4fbc368617ad41a872d34efaa92fee",
+  "currentAccessManagerDeploymentTransactionHash": "0x397bf20fbe1cbe6735b7438ee55b9db364441637dfb0c450f8758eb0dd2f3327",
+  "currentBuybackGovernorAddress": "0xec7807bcb30989ab068b98ab622cefae0c8f31cc",
+  "currentBuybackGovernorDeploymentTransactionHash": "0x91160f24bf056deecf51eae2b260fac57c00814b564ce2d13281f1b02f94ad94",
+  "currentTestnetExchangeAdapterAddress": "0x354e0577667a37ec9d0ec71c23a5c9370782f1e5",
+  "currentTestnetExchangeAdapterDeploymentTransactionHash": "0x275d3134babfed5f0b8667400c9bcdd84630ec65e7d785c64ee524815a0b3063",
+  "currentGovernanceGuardianAddress": "0xA4280df5909b46cF0a2D9Bba33d4A9988b4455e9",
+  "currentFeeRouterOwnershipTransactionHash": "0xd4e80e64b105c7b8dabc129365dc91ad83d656e75256dffd7b7364464c37530d",
+  "currentAccessProof": {
+    "projectId": "0x9222d059eb2c06cfd1a50039be519b74339f780f5cee70655c98b701851f0149",
+    "lockId": "0xc7c95953e4489a1e594a2678c7f8cf2816001e96cdbdcd139f589853c28646ae",
+    "lockTransactionHash": "0x5a3b084f553d1019c50e5d8188e9d36ba7b2cd832d62ded8e4de4878c70aff94",
+    "tier": "Current",
+    "amount": "25000",
+    "unlockAt": 1816980683
+  },
+  "currentGovernanceProof": {
+    "adapterOperationId": "0x4adca9f5569e81ebce30d4fd678b49d9a8674a935801882ed64c65ac01cb2f15",
+    "adapterQueueTransactionHash": "0x6ff324e7d4e8305221c4a58b4f4b0d7168042d2a7b193f7aa62af3b6767aee35",
+    "adapterExecutionTransactionHash": "0x14459b9150d38273da7a8f4e84779b3130456cf5845f0d5e6c883dc5880ab27e",
+    "productFeeTransactionHash": "0xf26070505cb3743d7b5656753751c9a28843caa12ba0e81cbf15386825419470",
+    "buybackOperationId": "0x603ac3d7626829776fc3c02355e2288037a8266cf797afdc8652b57367461a62",
+    "buybackQueueTransactionHash": "0xe16369d6003a641c738d5f76bd0b52f8f8b41abb6f150f9e612c81d095c00105",
+    "buybackExecutionTransactionHash": "0x514bf985934111d88beedc9a4cefd9afc28d7652c4aad289de5670c4b63c93db",
+    "productFeesUSDC": "2",
+    "buybackUSDC": "0.5",
+    "currentPurchased": "50",
+    "currentBurned": "25",
+    "currentProtocolLocked": "12.5",
+    "status": "executed"
+  },
+  "currentGovernanceStatus": "deployed-and-proven"
 }

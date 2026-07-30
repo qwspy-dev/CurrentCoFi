@@ -50,7 +50,7 @@ export default withApi((request) => ok(request, {
     },
     {
       name: "current_economy",
-      description: "Read verifiable $CURRENT supply, project locks, product fees, and buyback-reserve totals.",
+      description: "Read verifiable $CURRENT supply, access tiers, product fees, and governed buyback execution.",
       method: "GET",
       path: "/api/v1/token/economy",
       permission: "public",

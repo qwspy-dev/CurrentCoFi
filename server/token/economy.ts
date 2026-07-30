@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import {
   createPublicClient,
   formatUnits,
@@ -27,12 +27,29 @@ const lockAbi = parseAbi([
   "function totalLocked() view returns (uint256)",
 ]);
 const routerAbi = parseAbi([
+  "function owner() view returns (address)",
+  "function exchangeAdapters(address) view returns (bool)",
   "function totalProductFees() view returns (uint256)",
   "function buybackReserve() view returns (uint256)",
   "function totalBuybackUSDC() view returns (uint256)",
   "function totalCurrentPurchased() view returns (uint256)",
   "function totalCurrentBurned() view returns (uint256)",
   "function totalCurrentProtocolLocked() view returns (uint256)",
+]);
+const accessAbi = parseAbi([
+  "function totalAccessActivations() view returns (uint256)",
+  "function STREAM_REQUIREMENT() view returns (uint256)",
+  "function SURGE_REQUIREMENT() view returns (uint256)",
+  "function CURRENT_REQUIREMENT() view returns (uint256)",
+  "function accessOf(bytes32) view returns (uint8 tier,uint64 expiresAt,bytes32 lockId,address owner)",
+]);
+const governorAbi = parseAbi([
+  "function feeRouter() view returns (address)",
+  "function guardian() view returns (address)",
+  "function minimumDelay() view returns (uint64)",
+  "function totalQueued() view returns (uint256)",
+  "function totalExecuted() view returns (uint256)",
+  "function totalCancelled() view returns (uint256)",
 ]);
 
 function contracts() {
@@ -44,6 +61,9 @@ function contracts() {
     current: config.CURRENT_TOKEN_ADDRESS as Address,
     lockVault: config.CURRENT_LOCK_VAULT_ADDRESS as Address,
     feeRouter: config.CURRENT_FEE_ROUTER_ADDRESS as Address,
+    accessManager: config.CURRENT_ACCESS_MANAGER_ADDRESS as Address | undefined,
+    buybackGovernor: config.CURRENT_BUYBACK_GOVERNOR_ADDRESS as Address | undefined,
+    testnetAdapter: config.CURRENT_TESTNET_EXCHANGE_ADAPTER_ADDRESS as Address | undefined,
   };
 }
 
@@ -54,11 +74,17 @@ const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as Address;
 
 function display(value: bigint, decimals: number) {
   return Number(formatUnits(value, decimals)).toLocaleString("en-US", {
-    maximumFractionDigits: decimals === 6 ? 2 : 0,
+    maximumFractionDigits: decimals === 6 ? 2 : 4,
   });
 }
 
-export async function economySnapshot(walletAddress?: string) {
+const tierNames = ["None", "Stream", "Surge", "Current"] as const;
+
+function projectContractId(projectId?: string) {
+  return projectId ? keccak256(stringToHex(projectId)) : null;
+}
+
+export async function economySnapshot(walletAddress?: string, projectId?: string) {
   const addresses = contracts();
   if (!addresses) {
     return {
@@ -81,44 +107,96 @@ export async function economySnapshot(walletAddress?: string) {
     { address: addresses.feeRouter, abi: routerAbi, functionName: "totalCurrentBurned" },
     { address: addresses.feeRouter, abi: routerAbi, functionName: "totalCurrentProtocolLocked" },
   ] as const;
+  const governanceConfigured = Boolean(
+    addresses.accessManager && addresses.buybackGovernor && addresses.testnetAdapter,
+  );
+  const accessProjectId = projectContractId(projectId);
   let rpcStatus: "live" | "degraded" = "live";
-  let results: readonly bigint[];
+  let results: readonly unknown[];
   try {
-    results = walletAddress && /^0x[0-9a-f]{40}$/i.test(walletAddress)
-      ? await client.multicall({
-        contracts: [
-          ...baseReads,
-          {
-            address: addresses.current,
-            abi: tokenAbi,
-            functionName: "balanceOf",
-            args: [walletAddress as Address],
-          },
-        ] as const,
-        multicallAddress: MULTICALL3,
-        allowFailure: false,
-      }) as readonly bigint[]
-      : await client.multicall({
-        contracts: baseReads,
-        multicallAddress: MULTICALL3,
-        allowFailure: false,
-      }) as readonly bigint[];
+    const reads: Array<Record<string, unknown>> = [...baseReads];
+    if (walletAddress && /^0x[0-9a-f]{40}$/i.test(walletAddress)) {
+      reads.push({
+        address: addresses.current,
+        abi: tokenAbi,
+        functionName: "balanceOf",
+        args: [walletAddress as Address],
+      });
+    }
+    if (governanceConfigured) {
+      reads.push(
+        { address: addresses.accessManager!, abi: accessAbi, functionName: "totalAccessActivations" },
+        { address: addresses.accessManager!, abi: accessAbi, functionName: "STREAM_REQUIREMENT" },
+        { address: addresses.accessManager!, abi: accessAbi, functionName: "SURGE_REQUIREMENT" },
+        { address: addresses.accessManager!, abi: accessAbi, functionName: "CURRENT_REQUIREMENT" },
+        { address: addresses.buybackGovernor!, abi: governorAbi, functionName: "feeRouter" },
+        { address: addresses.buybackGovernor!, abi: governorAbi, functionName: "guardian" },
+        { address: addresses.buybackGovernor!, abi: governorAbi, functionName: "minimumDelay" },
+        { address: addresses.buybackGovernor!, abi: governorAbi, functionName: "totalQueued" },
+        { address: addresses.buybackGovernor!, abi: governorAbi, functionName: "totalExecuted" },
+        { address: addresses.buybackGovernor!, abi: governorAbi, functionName: "totalCancelled" },
+        { address: addresses.feeRouter, abi: routerAbi, functionName: "owner" },
+        {
+          address: addresses.feeRouter,
+          abi: routerAbi,
+          functionName: "exchangeAdapters",
+          args: [addresses.testnetAdapter!],
+        },
+      );
+      if (accessProjectId) {
+        reads.push({
+          address: addresses.accessManager!,
+          abi: accessAbi,
+          functionName: "accessOf",
+          args: [accessProjectId],
+        });
+      }
+    }
+    results = await client.multicall({
+      contracts: reads as never,
+      multicallAddress: MULTICALL3,
+      allowFailure: false,
+    }) as readonly unknown[];
   } catch {
     rpcStatus = "degraded";
-    results = [BigInt("1000000000000000000000000000"), ...Array<bigint>(8).fill(BigInt(0))];
+    results = [BigInt("1000000000000000000000000000"), ...Array<bigint>(20).fill(BigInt(0))];
   }
-  const [
-    totalSupply,
-    totalLocked,
-    totalProductFees,
-    buybackReserve,
-    totalBuybackUSDC,
-    totalCurrentPurchased,
-    totalCurrentBurned,
-    totalCurrentProtocolLocked,
-  ] = results;
+  const totalSupply = BigInt(results[0] as bigint);
+  const totalLocked = BigInt(results[1] as bigint);
+  const totalProductFees = BigInt(results[2] as bigint);
+  const buybackReserve = BigInt(results[3] as bigint);
+  const totalBuybackUSDC = BigInt(results[4] as bigint);
+  const totalCurrentPurchased = BigInt(results[5] as bigint);
+  const totalCurrentBurned = BigInt(results[6] as bigint);
+  const totalCurrentProtocolLocked = BigInt(results[7] as bigint);
   const walletCurrent = walletAddress && /^0x[0-9a-f]{40}$/i.test(walletAddress)
-    ? results[8] ?? BigInt(0)
+    ? BigInt((results[8] as bigint | undefined) ?? BigInt(0))
+    : null;
+  const governanceOffset = walletCurrent === null ? 8 : 9;
+  const governanceValues = governanceConfigured ? results.slice(governanceOffset) : [];
+  const [
+    totalAccessActivations = BigInt(0),
+    streamRequirement = BigInt(0),
+    surgeRequirement = BigInt(0),
+    currentRequirement = BigInt(0),
+    governedRouter = "0x0000000000000000000000000000000000000000",
+    guardian = "0x0000000000000000000000000000000000000000",
+    minimumDelay = BigInt(0),
+    totalQueued = BigInt(0),
+    totalExecuted = BigInt(0),
+    totalCancelled = BigInt(0),
+    routerOwner = "0x0000000000000000000000000000000000000000",
+    adapterAllowed = false,
+    accessTuple,
+  ] = governanceValues;
+  const projectAccess = Array.isArray(accessTuple)
+    ? {
+      tier: Number(accessTuple[0]),
+      tierName: tierNames[Number(accessTuple[0])] ?? "None",
+      expiresAt: Number(accessTuple[1]),
+      lockId: String(accessTuple[2]),
+      owner: String(accessTuple[3]),
+    }
     : null;
   const recentActions = hasDatabaseConfig()
     ? await getDb().select({
@@ -130,7 +208,7 @@ export async function economySnapshot(walletAddress?: string) {
       transactionHash: tokenEconomyActions.transactionHash,
       createdAt: tokenEconomyActions.createdAt,
     }).from(tokenEconomyActions)
-      .where(eq(tokenEconomyActions.status, "confirmed"))
+      .where(inArray(tokenEconomyActions.status, ["confirmed", "activated"]))
       .orderBy(desc(tokenEconomyActions.createdAt))
       .limit(8)
     : [];
@@ -165,6 +243,25 @@ export async function economySnapshot(walletAddress?: string) {
       liquidityBps: 2_000,
       operationsBps: 2_000,
     },
+    governance: {
+      configured: governanceConfigured,
+      governorOwnsRouter: governanceConfigured &&
+        String(governedRouter).toLowerCase() === addresses.feeRouter.toLowerCase() &&
+        String(routerOwner).toLowerCase() === addresses.buybackGovernor!.toLowerCase(),
+      adapterAllowed: Boolean(adapterAllowed),
+      guardian: governanceConfigured ? String(guardian) : null,
+      minimumDelaySeconds: Number(minimumDelay),
+      totalQueued: Number(totalQueued),
+      totalExecuted: Number(totalExecuted),
+      totalCancelled: Number(totalCancelled),
+      totalAccessActivations: Number(totalAccessActivations),
+    },
+    accessTiers: governanceConfigured ? [
+      { name: "Stream", requirement: display(BigInt(streamRequirement as bigint), 18), recipientLimit: 1_000 },
+      { name: "Surge", requirement: display(BigInt(surgeRequirement as bigint), 18), recipientLimit: 10_000 },
+      { name: "Current", requirement: display(BigInt(currentRequirement as bigint), 18), recipientLimit: 100_000 },
+    ] : [],
+    projectAccess,
     recentActions: recentActions.map((action) => ({
       ...action,
       amount: action.kind === "product-fee"
@@ -213,6 +310,12 @@ export async function listEconomyActions(userId: string) {
     contractActionId: row.contractActionId,
     status: row.status,
     transactionHash: row.transactionHash,
+    accessTier: typeof (row.metadata as Record<string, unknown>).accessTier === "string"
+      ? (row.metadata as Record<string, unknown>).accessTier
+      : null,
+    accessExpiresAt: typeof (row.metadata as Record<string, unknown>).accessExpiresAt === "number"
+      ? (row.metadata as Record<string, unknown>).accessExpiresAt
+      : null,
     createdAt: row.createdAt.toISOString(),
   }));
 }
@@ -385,4 +488,102 @@ export async function confirmEconomyExecution(
     await deliverQueuedWebhooks(10);
   }
   return { ...result, actionId, status: "confirmed" };
+}
+
+function tierForAmount(amountAtomic: string) {
+  const amount = BigInt(amountAtomic);
+  if (amount >= parseUnits("25000", 18)) return "Current";
+  if (amount >= parseUnits("5000", 18)) return "Surge";
+  if (amount >= parseUnits("100", 18)) return "Stream";
+  return "None";
+}
+
+export async function beginAccessActivation(
+  request: Request,
+  session: CurrentSession,
+  userId: string,
+  actionId: string,
+) {
+  const row = await ownedAction(actionId, userId);
+  if (row.kind !== "project-lock") {
+    throw new ApiError(409, "LOCK_REQUIRED", "Only a confirmed $CURRENT lock can activate project access.");
+  }
+  if (row.status === "activated") {
+    const metadata = row.metadata as Record<string, unknown>;
+    return {
+      actionId,
+      complete: true,
+      status: "activated",
+      transactionHash: metadata.accessTransactionHash ?? row.transactionHash,
+      accessTier: metadata.accessTier,
+    };
+  }
+  if (row.status !== "confirmed" && row.status !== "activating") {
+    throw new ApiError(409, "LOCK_NOT_CONFIRMED", "Confirm the $CURRENT lock before activating access.");
+  }
+  const addresses = actionContracts();
+  if (!addresses.accessManager) {
+    throw new ApiError(503, "ACCESS_MANAGER_NOT_CONFIGURED", "Project access tiers are not configured.");
+  }
+  const wallet = arcWallet(session);
+  const { challengeId } = await createUserContractExecutionChallenge(request, session.userToken, {
+    walletId: wallet.id,
+    contractAddress: addresses.accessManager,
+    abiFunctionSignature: "syncAccess(bytes32,bytes32)",
+    abiParameters: [
+      keccak256(stringToHex(row.projectId ?? "current-project")),
+      row.contractActionId,
+    ],
+    refId: `current-access-${row.id}`.slice(0, 100),
+  });
+  const metadata = row.metadata as Record<string, unknown>;
+  await getDb().update(tokenEconomyActions).set({
+    status: "activating",
+    metadata: { ...metadata, accessChallengeId: challengeId },
+    updatedAt: new Date(),
+  }).where(eq(tokenEconomyActions.id, row.id));
+  return { actionId, challengeId, status: "activating" };
+}
+
+export async function confirmAccessActivation(
+  request: Request,
+  session: CurrentSession,
+  userId: string,
+  actionId: string,
+  challengeId: string,
+) {
+  const row = await ownedAction(actionId, userId);
+  const metadata = row.metadata as Record<string, unknown>;
+  if (metadata.accessChallengeId !== challengeId) {
+    throw new ApiError(403, "CHALLENGE_MISMATCH", "This access activation does not belong to the lock.");
+  }
+  const result = await circleChallengeResult(request, session, challengeId);
+  if (result.pending) return { ...result, actionId };
+  const accessTier = tierForAmount(row.amountAtomic);
+  const accessExpiresAt = typeof metadata.unlockAt === "number" ? metadata.unlockAt : null;
+  const updated = await getDb().update(tokenEconomyActions).set({
+    status: "activated",
+    metadata: {
+      ...metadata,
+      accessTier,
+      accessExpiresAt,
+      accessTransactionHash: result.transactionHash,
+    },
+    updatedAt: new Date(),
+  }).where(and(
+    eq(tokenEconomyActions.id, actionId),
+    eq(tokenEconomyActions.status, "activating"),
+  )).returning();
+  if (updated.length && row.projectId) {
+    await queueWebhookEvent(row.projectId, "current.access-activated", {
+      actionId: row.id,
+      contractActionId: row.contractActionId,
+      accessTier,
+      accessExpiresAt,
+      transactionHash: result.transactionHash,
+      network: ARC_TESTNET.network,
+    });
+    await deliverQueuedWebhooks(10);
+  }
+  return { ...result, actionId, status: "activated", accessTier, accessExpiresAt };
 }

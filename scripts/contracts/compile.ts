@@ -35,8 +35,13 @@ export function compileContracts() {
       "CurrentToken.sol": { content: readSource("contracts/CurrentToken.sol") },
       "CurrentLockVault.sol": { content: readSource("contracts/CurrentLockVault.sol") },
       "CurrentFeeRouter.sol": { content: readSource("contracts/CurrentFeeRouter.sol") },
+      "CurrentAccessManager.sol": { content: readSource("contracts/CurrentAccessManager.sol") },
+      "CurrentBuybackGovernor.sol": { content: readSource("contracts/CurrentBuybackGovernor.sol") },
       "test/MockUSDC.sol": { content: readSource("contracts/test/MockUSDC.sol") },
       "test/MockExchangeAdapter.sol": { content: readSource("contracts/test/MockExchangeAdapter.sol") },
+      "test/CurrentTestnetExchangeAdapter.sol": {
+        content: readSource("contracts/test/CurrentTestnetExchangeAdapter.sol"),
+      },
     },
     settings: {
       optimizer: { enabled: true, runs: 10_000 },
@@ -55,16 +60,23 @@ export function compileContracts() {
   const currentToken = output.contracts?.["CurrentToken.sol"]?.CurrentToken;
   const currentLockVault = output.contracts?.["CurrentLockVault.sol"]?.CurrentLockVault;
   const currentFeeRouter = output.contracts?.["CurrentFeeRouter.sol"]?.CurrentFeeRouter;
+  const currentAccessManager = output.contracts?.["CurrentAccessManager.sol"]?.CurrentAccessManager;
+  const currentBuybackGovernor = output.contracts?.["CurrentBuybackGovernor.sol"]?.CurrentBuybackGovernor;
   const mockUsdc = output.contracts?.["test/MockUSDC.sol"]?.MockUSDC;
   const mockExchangeAdapter = output.contracts?.["test/MockExchangeAdapter.sol"]?.MockExchangeAdapter;
+  const currentTestnetExchangeAdapter =
+    output.contracts?.["test/CurrentTestnetExchangeAdapter.sol"]?.CurrentTestnetExchangeAdapter;
   if (
     !vault?.evm.bytecode.object ||
     !campaignVault?.evm.bytecode.object ||
     !currentToken?.evm.bytecode.object ||
     !currentLockVault?.evm.bytecode.object ||
     !currentFeeRouter?.evm.bytecode.object ||
+    !currentAccessManager?.evm.bytecode.object ||
+    !currentBuybackGovernor?.evm.bytecode.object ||
     !mockUsdc?.evm.bytecode.object ||
-    !mockExchangeAdapter?.evm.bytecode.object
+    !mockExchangeAdapter?.evm.bytecode.object ||
+    !currentTestnetExchangeAdapter?.evm.bytecode.object
   ) {
     throw new Error("Solidity compilation produced no bytecode.");
   }
@@ -86,10 +98,22 @@ export function compileContracts() {
       abi: currentFeeRouter.abi,
       bytecode: `0x${currentFeeRouter.evm.bytecode.object}` as `0x${string}`,
     },
+    currentAccessManager: {
+      abi: currentAccessManager.abi,
+      bytecode: `0x${currentAccessManager.evm.bytecode.object}` as `0x${string}`,
+    },
+    currentBuybackGovernor: {
+      abi: currentBuybackGovernor.abi,
+      bytecode: `0x${currentBuybackGovernor.evm.bytecode.object}` as `0x${string}`,
+    },
     mockUsdc: { abi: mockUsdc.abi, bytecode: `0x${mockUsdc.evm.bytecode.object}` as `0x${string}` },
     mockExchangeAdapter: {
       abi: mockExchangeAdapter.abi,
       bytecode: `0x${mockExchangeAdapter.evm.bytecode.object}` as `0x${string}`,
+    },
+    currentTestnetExchangeAdapter: {
+      abi: currentTestnetExchangeAdapter.abi,
+      bytecode: `0x${currentTestnetExchangeAdapter.evm.bytecode.object}` as `0x${string}`,
     },
   };
 }
@@ -114,6 +138,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   fs.writeFileSync(
     path.join(outputDirectory, "CurrentFeeRouter.json"),
     JSON.stringify(compiled.currentFeeRouter, null, 2),
+  );
+  fs.writeFileSync(
+    path.join(outputDirectory, "CurrentAccessManager.json"),
+    JSON.stringify(compiled.currentAccessManager, null, 2),
+  );
+  fs.writeFileSync(
+    path.join(outputDirectory, "CurrentBuybackGovernor.json"),
+    JSON.stringify(compiled.currentBuybackGovernor, null, 2),
+  );
+  fs.writeFileSync(
+    path.join(outputDirectory, "CurrentTestnetExchangeAdapter.json"),
+    JSON.stringify(compiled.currentTestnetExchangeAdapter, null, 2),
   );
   console.log("Current protocol contracts compiled successfully.");
 }

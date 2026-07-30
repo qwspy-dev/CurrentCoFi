@@ -3,6 +3,8 @@ import { sessionFromRequest } from "../../../server/auth/session.js";
 import {
   beginEconomyAction,
   beginEconomyExecution,
+  beginAccessActivation,
+  confirmAccessActivation,
   confirmEconomyApproval,
   confirmEconomyExecution,
   economySnapshot,
@@ -14,9 +16,10 @@ async function read(request: Request) {
   try {
     const session = await sessionFromRequest(request);
     const account = await persistSessionAccount(session);
+    const project = await getOrCreatePersonalProject(account.userId, session.displayName);
     const wallet = session.wallets.find((item) => item.blockchain === "ARC-TESTNET");
     const [snapshot, actions] = await Promise.all([
-      economySnapshot(wallet?.address),
+      economySnapshot(wallet?.address, project.id),
       listEconomyActions(account.userId),
     ]);
     return ok(request, { ...snapshot, actions });
@@ -62,7 +65,14 @@ async function write(request: Request) {
       : await beginEconomyExecution(request, session, account.userId, actionId);
     return ok(request, data);
   }
-  throw new ApiError(400, "INVALID_ECONOMY_STAGE", "Stage must be approve or execute.");
+  if (body.stage === "activate") {
+    const actionId = requiredString(body, "actionId", 100);
+    const data = typeof body.challengeId === "string"
+      ? await confirmAccessActivation(request, session, account.userId, actionId, body.challengeId)
+      : await beginAccessActivation(request, session, account.userId, actionId);
+    return ok(request, data);
+  }
+  throw new ApiError(400, "INVALID_ECONOMY_STAGE", "Stage must be approve, execute, or activate.");
 }
 
 export default withApi(
