@@ -88,3 +88,6 @@
   *,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
   .hero-video{display:none}.story-scroll{height:auto}.story-stage{height:auto;min-height:0}.story-phase,.story-node{opacity:1!important;transform:none!important}.partner-current,.word-current{transform:none!important}.fluid-canvas{opacity:.45}
 }
+.testnet-strip button>span{width:6px;height:6px;border-radius:50%;background:#77909a;box-shadow:0 0 0 3px rgba(119,144,154,.1)}
+.testnet-strip button.foundation-live>span{background:var(--green);box-shadow:0 0 0 3px rgba(0,190,119,.12)}
+.testnet-strip button.foundation-degraded>span{background:#f4ad54;box-shadow:0 0 0 3px rgba(244,173,84,.12)}

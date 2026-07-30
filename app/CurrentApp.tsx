@@ -12,6 +12,7 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { currentApi } from "@/lib/api/client";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
@@ -527,6 +528,9 @@ function Sidebar({view,go,open,setOpen}:{view:View;go:(v:View)=>void;open:boolea
 
 function AppShell({view,go}:{view:View;go:(v:View)=>void}) {
   const [open,setOpen]=useState(false);
+  const [foundation,setFoundation]=useState<"checking"|"live"|"degraded">("checking");
+  const checkFoundation=()=>currentApi.health().then(data=>setFoundation(data.status==="operational"?"live":"degraded")).catch(()=>setFoundation("degraded"));
+  useEffect(()=>{checkFoundation()},[]);
   let page:React.ReactNode;
   switch(view){
     case "overview":page=<Overview go={go}/>;break;
@@ -545,7 +549,7 @@ function AppShell({view,go}:{view:View;go:(v:View)=>void}) {
     case "settings":page=<SettingsView/>;break;
     default:page=<StateLab go={go}/>;
   }
-  return <div className="app-shell"><Sidebar view={view} go={go} open={open} setOpen={setOpen}/><main className="app-main-new"><div className="testnet-strip"><TestTube2/>Arc testnet environment · Balances have no monetary value.<button>Network status <ArrowUpRight/></button></div><header className="app-topbar"><button className="mobile-sidebar-button" onClick={()=>setOpen(true)} aria-label="Open navigation"><Menu/></button><div><span>WORKSPACE /</span><b>{view.replace("-"," ")}</b></div><div><button aria-label="Search"><Search/></button><button aria-label="Notifications"><Bell/></button><Button tone="blue" onClick={()=>go("new-campaign")}>New current <Plus/></Button></div></header><div className="app-view" key={view}>{page}</div></main></div>;
+  return <div className="app-shell"><Sidebar view={view} go={go} open={open} setOpen={setOpen}/><main className="app-main-new"><div className="testnet-strip"><TestTube2/>Arc testnet environment · Balances have no monetary value.<button className={`foundation-${foundation}`} onClick={checkFoundation} title="Refresh backend status"><span/>{foundation==="checking"?"Checking foundation":foundation==="live"?"Foundation live":"Foundation degraded"} <ArrowUpRight/></button></div><header className="app-topbar"><button className="mobile-sidebar-button" onClick={()=>setOpen(true)} aria-label="Open navigation"><Menu/></button><div><span>WORKSPACE /</span><b>{view.replace("-"," ")}</b></div><div><button aria-label="Search"><Search/></button><button aria-label="Notifications"><Bell/></button><Button tone="blue" onClick={()=>go("new-campaign")}>New current <Plus/></Button></div></header><div className="app-view" key={view}>{page}</div></main></div>;
 }
 
 export default function CurrentApp() {

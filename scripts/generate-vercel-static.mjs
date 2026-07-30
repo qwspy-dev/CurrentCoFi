@@ -2,9 +2,9 @@ import { writeFile } from "node:fs/promises";
 import worker from "../dist/server/index.js";
 
 const hostname =
-  process.env.VERCEL_PROJECT_PRODUCTION_URL ??
-  process.env.VERCEL_URL ??
-  "current-cofi.vercel.app";
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+  process.env.VERCEL_URL ||
+  "currentco.finance";
 
 const response = await worker.fetch(
   new Request(`https://${hostname}/`),
