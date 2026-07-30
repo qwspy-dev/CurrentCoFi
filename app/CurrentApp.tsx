@@ -176,6 +176,45 @@ type WebhookState = {
   }>;
 };
 
+type TokenEconomyState = {
+  configured: boolean;
+  rpcStatus?: "live" | "degraded";
+  verifiedAt?: string | null;
+  network: string;
+  explorerUrl?: string;
+  addresses: null | { current: string; lockVault: string; feeRouter: string };
+  metrics: null | {
+    totalSupply: string;
+    totalLocked: string;
+    totalProductFees: string;
+    buybackReserve: string;
+    totalBuybackUSDC: string;
+    totalCurrentPurchased: string;
+    totalCurrentBurned: string;
+    totalCurrentProtocolLocked: string;
+  };
+  walletCurrent: null | { display: string; atomic: string };
+  allocations?: { buybackBps: number; gasBps: number; liquidityBps: number; operationsBps: number };
+  recentActions: Array<{
+    id: string;
+    kind: string;
+    reference: string;
+    amount: string;
+    transactionHash: string | null;
+    createdAt: string;
+  }>;
+  actions: Array<{
+    id: string;
+    kind: string;
+    reference: string;
+    amount: string;
+    durationDays: number | null;
+    status: string;
+    transactionHash: string | null;
+    createdAt: string;
+  }>;
+};
+
 const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function parseRecipientCsv(value: string, defaultAmount: string): CampaignRecipientDraft[] {
@@ -983,11 +1022,60 @@ function Analytics({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     {!auth.account&&<div className="campaign-empty"><Lock/><h3>Your live analytics are private</h3><p>Sign in to inspect campaign settlement and conversion data.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}</>;
 }
 
-function TokenDashboard() {
-  return <><PageHero eyebrow="TRANSPARENT PRODUCT ECONOMICS" title="$CURRENT follows product demand." copy="Watch product fees enter the reserve, batch into market purchases, and route toward burn, project locks, and protocol-owned liquidity." mode="orbit"><Button tone="cyan">View contract <ArrowUpRight/></Button></PageHero>
-    <div className="token-metrics-new"><div><small>Product fees generated</small><strong>$284,620</strong><span>All time</span></div><div><small>USDC awaiting buyback</small><strong>$18,420</strong><span>74% to threshold</span></div><div><small>$CURRENT purchased</small><strong>4.82M</strong><span>$96.4K market value</span></div><div><small>Project locks</small><strong>18.7M</strong><span>38 active projects</span></div></div>
-    <div className="token-dashboard-grid"><div className="data-panel fee-flow-panel"><div className="panel-head"><div><h3>Fee allocation current</h3><p>Verified product revenue routing</p></div><Status tone="green">Live</Status></div><div className="fee-flow-graphic"><div className="fee-source"><CircleDollarSign/><b>Product fees</b><strong>$284.6K</strong></div><div className="fee-paths">{[["Buyback reserve","35%","#25E8E1"],["Gas sponsorship","25%","#173BFF"],["Protocol liquidity","20%","#20D66B"],["Operations","20%","#6B7E86"]].map(([x,p,c])=><span key={x} style={{"--c":c} as React.CSSProperties}><i/><b>{x}</b><em>{p}</em></span>)}</div></div></div>
-      <div className="data-panel"><div className="panel-head"><div><h3>Project lock demand</h3><p>Largest active locks</p></div></div>{[["Tidebreak","5.2M","84 days"],["Openplay","3.8M","112 days"],["Noma Agents","2.4M","64 days"],["Kairo","1.9M","29 days"]].map(x=><div className="lock-row" key={x[0]}><i>{x[0][0]}</i><b>{x[0]}</b><span>{x[1]} CURRENT</span><small>{x[2]}</small></div>)}</div></div></>;
+function TokenDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [economy,setEconomy]=useState<TokenEconomyState|null>(null);
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const [lockAmount,setLockAmount]=useState("100");
+  const [durationDays,setDurationDays]=useState("90");
+  const [feeAmount,setFeeAmount]=useState("1");
+  const refresh=useCallback(async()=>{
+    setLoading(true);
+    try{setEconomy(await currentApi.get<TokenEconomyState>("/token/economy"));setError(null)}
+    catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"The live economy could not be read.")}
+    finally{setLoading(false)}
+  },[]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh,auth.account]);
+  const runAction=async(kind:"project-lock"|"product-fee")=>{
+    if(!auth.account){go("claim");return}
+    setBusy(true);setError(null);
+    try{
+      const started=await currentApi.post<WalletActionResult&{actionId:string}>("/token/economy",{
+        stage:"approve",kind,amount:kind==="project-lock"?lockAmount:feeAmount,
+        durationDays:kind==="project-lock"?Number(durationDays):undefined,
+        reference:kind==="project-lock"?"Current workspace access":`Product fee proof ${new Date().toISOString()}`,
+      });
+      if(!started.challengeId)throw new Error("The asset approval challenge was not created.");
+      await auth.executeChallenge(started.challengeId);
+      await confirmWalletAction("/token/economy",{stage:"approve",actionId:started.actionId},started.challengeId);
+      const execution=await currentApi.post<WalletActionResult>("/token/economy",{stage:"execute",actionId:started.actionId});
+      if(!execution.challengeId)throw new Error("The economy action challenge was not created.");
+      await auth.executeChallenge(execution.challengeId);
+      await confirmWalletAction("/token/economy",{stage:"execute",actionId:started.actionId},execution.challengeId);
+      await refresh();
+    }catch(actionError){setError(actionError instanceof Error?actionError.message:"The economy action did not complete.")}
+    finally{setBusy(false)}
+  };
+  const metrics=economy?.metrics;
+  const explorer=economy?.explorerUrl;
+  const openContract=(address?:string)=>{if(address&&explorer)window.open(`${explorer}/address/${address}`,"_blank","noopener,noreferrer")};
+  const allocations=[
+    ["Buyback reserve",economy?.allocations?.buybackBps??3500,"#25E8E1"],
+    ["Gas sponsorship",economy?.allocations?.gasBps??2500,"#173BFF"],
+    ["Protocol liquidity",economy?.allocations?.liquidityBps??2000,"#20D66B"],
+    ["Operations",economy?.allocations?.operationsBps??2000,"#6B7E86"],
+  ] as const;
+  return <><PageHero eyebrow="TRANSPARENT PRODUCT ECONOMICS" title="$CURRENT follows product demand." copy="Every displayed number is read from Arc testnet. Product fees are routed into a public reserve for batched market purchases, gas, liquidity, and operations." mode="orbit"><Button tone="cyan" disabled={!economy?.addresses} onClick={()=>openContract(economy?.addresses?.current)}>View token contract <ArrowUpRight/></Button></PageHero>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    {!economy?.configured&&!loading&&<div className="campaign-empty"><TestTube2/><h3>The economy contracts are not configured</h3><p>The dashboard will switch to live Arc data when the public contract addresses are available.</p></div>}
+    <div className="token-metrics-new"><div><small>Product fees routed</small><strong>{loading?"—":`${metrics?.totalProductFees??"0"} USDC`}</strong><span>Verified on Arc testnet</span></div><div><small>USDC awaiting buyback</small><strong>{loading?"—":`${metrics?.buybackReserve??"0"} USDC`}</strong><span>Reserved, not simulated</span></div><div><small>$CURRENT purchased</small><strong>{loading?"—":metrics?.totalCurrentPurchased??"0"}</strong><span>{metrics?.totalCurrentBurned??"0"} burned</span></div><div><small>Total $CURRENT locked</small><strong>{loading?"—":metrics?.totalLocked??"0"}</strong><span>{metrics?.totalCurrentProtocolLocked??"0"} protocol locked</span></div></div>
+    <div className="token-dashboard-grid"><div className="data-panel fee-flow-panel"><div className="panel-head"><div><h3>Fee allocation current</h3><p>Immutable routing percentages in the deployed fee contract</p></div><Status tone={economy?.rpcStatus==="live"?"green":"grey"}>{economy?.rpcStatus==="live"?"Live testnet":"RPC delayed"}</Status></div><div className="fee-flow-graphic"><div className="fee-source"><CircleDollarSign/><b>Product fees</b><strong>{metrics?.totalProductFees??"0"} USDC</strong></div><div className="fee-paths">{allocations.map(([label,bps,color])=><span key={label} style={{"--c":color} as React.CSSProperties}><i/><b>{label}</b><em>{bps/100}%</em></span>)}</div></div></div>
+      <div className="data-panel economy-contracts"><div className="panel-head"><div><h3>Public contract stack</h3><p>Inspect the exact testnet system</p></div><ShieldCheck/></div>{[["$CURRENT token",economy?.addresses?.current],["Project lock vault",economy?.addresses?.lockVault],["Product fee router",economy?.addresses?.feeRouter]].map(([label,address])=><button className="economy-contract-row" key={label} disabled={!address} onClick={()=>openContract(address)}><span><Network/></span><b>{label}<small>{address?`${address.slice(0,8)}…${address.slice(-6)}`:"Awaiting deployment"}</small></b><ArrowUpRight/></button>)}</div></div>
+    <div className="economy-action-grid"><div className="data-panel economy-action-card"><div className="panel-head"><div><h3>Lock $CURRENT for project access</h3><p>Noncustodial: the beneficiary withdraws after the selected term.</p></div><Lock/></div>{!auth.account?<div className="economy-action-body"><p>Sign in to test a real project lock from your embedded Arc wallet.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>:<div className="economy-action-body"><div className="wallet-economy-balance"><small>YOUR TESTNET BALANCE</small><strong>{economy?.walletCurrent?.display??"0"} CURRENT</strong></div><label>Amount<input inputMode="decimal" value={lockAmount} onChange={event=>setLockAmount(event.target.value)}/></label><label>Lock term<select value={durationDays} onChange={event=>setDurationDays(event.target.value)}><option value="30">30 days</option><option value="90">90 days</option><option value="180">180 days</option><option value="365">365 days</option></select></label><Button tone="blue" disabled={busy||!economy?.configured} onClick={()=>void runAction("project-lock")}>{busy?"Confirming on Arc…":"Approve and lock"} <Lock/></Button></div>}</div>
+      <div className="data-panel economy-action-card"><div className="panel-head"><div><h3>Route a product fee</h3><p>Prove the 35 / 25 / 20 / 20 USDC allocation end to end.</p></div><CircleDollarSign/></div><div className="economy-action-body"><p>This uses test USDC and produces a public fee receipt. It does not execute a buyback until an exchange adapter is approved.</p><label>Test USDC amount<input inputMode="decimal" value={feeAmount} onChange={event=>setFeeAmount(event.target.value)}/></label><Button tone="cyan" disabled={busy||!economy?.configured||!auth.account} onClick={()=>void runAction("product-fee")}>{auth.account?"Route test fee":"Sign in to test"} <ArrowRight/></Button></div></div>
+      <div className="data-panel economy-activity-card"><div className="panel-head"><div><h3>Verified economy activity</h3><p>No estimated volume or placeholder project locks</p></div><RefreshCw className={loading?"spin":""}/></div>{(economy?.recentActions??[]).map(action=><button className="economy-activity-row" key={action.id} onClick={()=>action.transactionHash&&explorer&&window.open(`${explorer}/tx/${action.transactionHash}`,"_blank","noopener,noreferrer")}><span className={action.kind==="project-lock"?"lock-action":"fee-action"}>{action.kind==="project-lock"?<Lock/>:<CircleDollarSign/>}</span><b>{action.reference}<small>{action.amount} {action.kind==="project-lock"?"CURRENT":"USDC"} · {new Date(action.createdAt).toLocaleDateString()}</small></b><Status tone="green">Confirmed</Status></button>)}{!loading&&!economy?.recentActions.length&&<div className="campaign-empty compact"><Activity/><b>No economy actions yet</b><p>The first confirmed lock or product fee will appear here.</p></div>}</div></div>
+    <p className="economy-disclaimer"><TestTube2/>{economy?.rpcStatus==="degraded"?"Arc's public RPC is rate-limited right now, so zero activity values are the safe fallback until the next verified read. ":""}$CURRENT and all balances shown here are Arc testnet assets with no monetary value. Mainnet supply and allocations remain unissued.</p></>;
 }
 
 function Developers({go}:{go:(v:View)=>void}) {
@@ -1091,7 +1179,7 @@ function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
+    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Webhook creation failed.")}
     finally{setBusy(false)}
   };
@@ -1184,7 +1272,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "recipients":page=<Recipients auth={auth} go={go}/>;break;
     case "referrals":page=<Referrals auth={auth} go={go}/>;break;
     case "analytics":page=<Analytics auth={auth} go={go}/>;break;
-    case "token":page=<TokenDashboard/>;break;
+    case "token":page=<TokenDashboard auth={auth} go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;

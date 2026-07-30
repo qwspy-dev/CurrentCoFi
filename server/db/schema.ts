@@ -280,3 +280,24 @@ export const auditEvents = pgTable("audit_events", {
   index("audit_events_project_created_idx").on(table.projectId, table.createdAt),
   index("audit_events_resource_idx").on(table.resourceType, table.resourceId),
 ]);
+
+export const tokenEconomyActions = pgTable("token_economy_actions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  kind: text("kind").notNull(),
+  reference: text("reference").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  durationDays: integer("duration_days"),
+  contractActionId: text("contract_action_id").notNull(),
+  status: text("status").default("created").notNull(),
+  approvalChallengeId: text("approval_challenge_id"),
+  executionChallengeId: text("execution_challenge_id"),
+  transactionHash: text("transaction_hash"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("token_economy_contract_action_unique").on(table.contractActionId),
+  index("token_economy_project_kind_idx").on(table.projectId, table.kind),
+  index("token_economy_status_idx").on(table.status),
+]);

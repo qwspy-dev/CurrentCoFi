@@ -9,5 +9,14 @@
   "status": "deployed",
   "campaignVaultAddress": "0xda02632316f5ef6ad05c0fdb2f3011947cec53e3",
   "campaignDeploymentTransactionHash": "0xaa97449109f4948c9a8f10d9d6a49c1e5fc48dff4540d88765ce5e678d95ecff",
-  "campaignVaultStatus": "deployed"
+  "campaignVaultStatus": "deployed",
+  "currentTokenAddress": "0x65a1ae2b0932efdbff8740f4098d260b0913a72d",
+  "currentTokenDeploymentTransactionHash": "0x772d7f30d84e8c6f24e30ad97920a558377ab7bec496065d7b7b6be7f0350584",
+  "currentLockVaultAddress": "0x178a8a5c905797005df2b8fbe7f5b1f922cccc33",
+  "currentLockVaultDeploymentTransactionHash": "0xe957073006aa71ff5a8e08921c6778e31855d4f395afcbd1aa1f65c90cc1c8ef",
+  "currentFeeRouterAddress": "0xe2f660fa3fc2449b6f432993196b0b942f74e617",
+  "currentFeeRouterDeploymentTransactionHash": "0x73a10d2ebd6317b821cac17293d0510384e967d7e85c18ad89855791e2579a89",
+  "currentEconomySeedTransactionHash": "0x65a3284d3d9dcd2b1ca2f84556db023f6abf67afa074de452be5521c16c579e4",
+  "currentEconomyStatus": "deployed",
+  "currentEconomyDeployer": "0x6422532587b8Fe53631862F84aC59884A47552F8"
 }

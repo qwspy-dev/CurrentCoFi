@@ -12,6 +12,8 @@ export const webhookEventTypes = [
   "referral.attributed",
   "campaign.cancelled",
   "campaign.refunded",
+  "current.locked",
+  "fee.routed",
   "integration.test",
 ] as const;
 

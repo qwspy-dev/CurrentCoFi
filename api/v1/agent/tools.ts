@@ -48,5 +48,12 @@ export default withApi((request) => ok(request, {
       path: "/api/v1/developer/analytics",
       permission: "analytics:read",
     },
+    {
+      name: "current_economy",
+      description: "Read verifiable $CURRENT supply, project locks, product fees, and buyback-reserve totals.",
+      method: "GET",
+      path: "/api/v1/token/economy",
+      permission: "public",
+    },
   ],
 }), ["GET"]);

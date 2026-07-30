@@ -40,13 +40,13 @@ export function contractCampaignId(distributionId: string) {
   return keccak256(stringToHex(distributionId));
 }
 
-function arcWallet(session: CurrentSession) {
+export function arcWallet(session: CurrentSession) {
   const wallet = session.wallets.find((item) => item.blockchain === ARC_TESTNET.network);
   if (!wallet) throw new ApiError(409, "ARC_WALLET_REQUIRED", "Create your Arc wallet to continue.");
   return wallet;
 }
 
-async function challengeResult(request: Request, session: CurrentSession, challengeId: string) {
+export async function circleChallengeResult(request: Request, session: CurrentSession, challengeId: string) {
   const challenge = await getUserChallenge(request, session.userToken, challengeId);
   if (challenge.status === "FAILED" || challenge.status === "EXPIRED") {
     throw new ApiError(409, "WALLET_ACTION_FAILED", challenge.errorMessage ?? "The wallet action failed.");
@@ -168,7 +168,7 @@ export async function confirmCampaignFundingChallenge(
   if (metadata[`${action}ChallengeId`] !== challengeId) {
     throw new ApiError(403, "CHALLENGE_MISMATCH", "This wallet action does not belong to the campaign.");
   }
-  const result = await challengeResult(request, session, challengeId);
+  const result = await circleChallengeResult(request, session, challengeId);
   if (result.pending) return result;
   if (action === "deposit") {
     await getDb().update(distributions).set({
@@ -335,7 +335,7 @@ export async function confirmCampaignClaimChallenge(
   if (!claim || metadata?.challengeId !== challengeId) {
     throw new ApiError(403, "CHALLENGE_MISMATCH", "This wallet action does not belong to the campaign claim.");
   }
-  const result = await challengeResult(request, session, challengeId);
+  const result = await circleChallengeResult(request, session, challengeId);
   if (result.pending) return result;
   const updated = await db.update(claims).set({
     status: "confirmed",
@@ -405,7 +405,7 @@ export async function confirmCampaignManagementChallenge(
   if (metadata[`${action}ChallengeId`] !== challengeId) {
     throw new ApiError(403, "CHALLENGE_MISMATCH", "This wallet action does not belong to the campaign.");
   }
-  const result = await challengeResult(request, session, challengeId);
+  const result = await circleChallengeResult(request, session, challengeId);
   if (result.pending) return result;
   const status = action === "cancel" ? "cancelled" : "refunded";
   await getDb().update(distributions).set({
