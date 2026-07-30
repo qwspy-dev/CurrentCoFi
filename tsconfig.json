@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@currentcofi/sdk": ["./packages/sdk/src/index.ts"],
+      "@currentcofi/react": ["./packages/react/src/index.tsx"]
     }
   },
   "include": [

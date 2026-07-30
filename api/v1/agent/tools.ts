@@ -12,6 +12,21 @@ export default withApi((request) => ok(request, {
   },
   tools: [
     {
+      name: "create_distribution",
+      description: "Create a funded-wallet onboarding campaign for USDC or an Arc project token.",
+      method: "POST",
+      path: "/api/v1/developer/distributions",
+      permission: "campaigns:write",
+      input: {
+        name: "string",
+        tokenAddress: "optional Arc ERC-20 address; omit for USDC",
+        recipients: "array of { identityType, identity, amount }",
+        expiresInHours: "1-720",
+        activationEvent: "optional project event type",
+        referralReward: "optional project-defined reward label",
+      },
+    },
+    {
       name: "submit_activation",
       description: "Submit a verified post-claim activation for attribution and webhook delivery.",
       method: "POST",

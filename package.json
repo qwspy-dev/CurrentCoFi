@@ -8,17 +8,19 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
-    "vercel:build": "pnpm run build && node scripts/generate-vercel-static.mjs",
+    "vercel:build": "pnpm run packages:build && pnpm run build && node scripts/generate-vercel-static.mjs",
     "start": "vinext start",
     "test": "pnpm run build && node --test tests/rendered-html.test.mjs",
-    "lint": "eslint app api lib server db worker *.ts *.mjs",
+    "lint": "eslint app api lib server db worker packages examples *.ts *.mjs",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:generate:vercel": "drizzle-kit generate --config=drizzle.config.vercel.ts",
     "db:migrate:vercel": "drizzle-kit migrate --config=drizzle.config.vercel.ts",
     "contracts:compile": "tsx scripts/contracts/compile.ts",
     "contracts:test": "tsx tests/claim-vault.integration.ts && tsx tests/campaign-vault.integration.ts",
-    "developer:test": "tsx tests/developer-security.integration.ts"
+    "developer:test": "tsx tests/developer-security.integration.ts",
+    "sdk:test": "tsx tests/sdk.integration.ts",
+    "packages:build": "pnpm --filter @currentcofi/sdk build && pnpm --filter @currentcofi/react build"
   },
   "dependencies": {
     "@circle-fin/w3s-pw-web-sdk": "^1.1.11",

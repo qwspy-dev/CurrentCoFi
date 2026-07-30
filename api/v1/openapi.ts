@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "1.4.0-integrations",
+    version: "1.5.0-sdk",
     description: "Walletless USDC and project-token distribution infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -49,6 +49,9 @@ export default withApi((request) => ok(request, {
     "/developer/activations": {
       post: { summary: "Ingest an HMAC-signed post-claim activation event" },
     },
+    "/developer/distributions": {
+      post: { summary: "Create a signed walletless USDC or project-token distribution" },
+    },
     "/developer/analytics": {
       get: { summary: "Read project analytics with a scoped API key" },
     },
@@ -60,8 +63,9 @@ export default withApi((request) => ok(request, {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
       "allocations", "campaigns", "claims", "campaign-analytics", "referrals",
-      "activation-ingestion", "api-keys", "webhooks", "agents",
+      "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
+      "embedded-components",
     ],
-    plannedResourceGroups: ["sdk", "embedded-components"],
+    plannedResourceGroups: [],
   },
 }), ["GET"]);

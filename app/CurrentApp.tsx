@@ -14,6 +14,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { currentApi } from "@/lib/api/client";
 import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
+import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
@@ -990,9 +991,57 @@ function TokenDashboard() {
 }
 
 function Developers({go}:{go:(v:View)=>void}) {
-  return <><PageHero eyebrow="CURRENT COFI API" title="One integration. Every activation current." copy="Create distributions, generate walletless links, submit signed activation events, reward referrals, and let agents move value inside explicit boundaries."><div className="hero-button-row"><Button tone="cyan" onClick={()=>go("api-keys")}>Create API key <ArrowRight/></Button><Button tone="ghost">Read documentation <ArrowUpRight/></Button></div></PageHero>
-    <div className="developer-grid"><article><Braces/><h3>Distribution API</h3><p>Create private, identity-bound, public, allowlist, and action-based campaigns.</p><code>POST /v1/distributions</code></article><article><Webhook/><h3>Signed webhooks</h3><p>Receive wallet, claim, activation, referral, refund, and gas-budget events.</p><code>activation.completed</code></article><article><Bot/><h3>Agent tools</h3><p>Let autonomous software reward users under asset, amount, and policy limits.</p><code>cofi.send_reward()</code></article><article><Layers3/><h3>Embeddable UI</h3><p>Place claim, referral, balance, and campaign components inside your own app.</p><code>&lt;CofiClaim /&gt;</code></article></div>
-    <div className="quickstart-panel"><div><Eyebrow>THREE-MINUTE QUICKSTART</Eyebrow><h2>Create a walletless USDC current.</h2><ol><li><span>1</span>Install the SDK</li><li><span>2</span>Create a project key</li><li><span>3</span>Generate the distribution</li></ol></div><pre><code><i>import</i> {"{ Current }"} <i>from</i> <b>&quot;@currentcofi/sdk&quot;</b>;<br/><br/><i>const</i> cofi = <i>new</i> Current({"{"} apiKey {"}"});<br/><br/><i>const</i> drop = <i>await</i> cofi.distributions.create({"{"}<br/>  asset: <b>&quot;USDC&quot;</b>,<br/>  amount: <b>&quot;25.00&quot;</b>,<br/>  identity: recipient.email,<br/>  sponsorGas: <b>true</b><br/>{"}"});</code></pre></div></>;
+  const [sample,setSample]=useState<"sdk"|"react"|"curl">("sdk");
+  const [copied,setCopied]=useState(false);
+  const snippets={
+    sdk:`import { Current } from "@currentcofi/sdk";
+
+const current = new Current({
+  apiKey: process.env.CURRENT_API_KEY!,
+  signingSecret: process.env.CURRENT_SIGNING_SECRET!,
+});
+
+const drop = await current.distributions.create({
+  name: "Founding current",
+  recipients: [{
+    identityType: "email",
+    identity: "builder@example.com",
+    amount: "25.00",
+  }],
+  activationEvent: "game.first_match",
+});`,
+    react:`import { CurrentClaimEmbed } from "@currentcofi/react";
+
+export function Reward({ claimUrl }) {
+  return (
+    <CurrentClaimEmbed
+      claimUrl={claimUrl}
+      referralCode="founding-current"
+      accent="#22e4d5"
+    />
+  );
+}`,
+    curl:`POST /api/v1/developer/distributions
+Authorization: Bearer current_live_••••
+X-Current-Timestamp: 1785373200000
+X-Current-Signature: <HMAC-SHA256>
+
+{
+  "name": "Founding current",
+  "recipients": [
+    { "identityType": "email",
+      "identity": "builder@example.com",
+      "amount": "25.00" }
+  ]
+}`,
+  };
+  const copy=async()=>{await navigator.clipboard.writeText(snippets[sample]);setCopied(true);window.setTimeout(()=>setCopied(false),1800)};
+  return <><PageHero eyebrow="CURRENT COFI API" title="One integration. Every activation current." copy="Create real walletless distributions, embed the claim experience, attribute post-claim actions, and let agents move value inside explicit boundaries."><div className="hero-button-row"><Button tone="cyan" onClick={()=>go("api-keys")}>Create API key <ArrowRight/></Button><Button tone="ghost" onClick={()=>document.getElementById("sdk-quickstart")?.scrollIntoView({behavior:"smooth"})}>Read quickstart <ArrowUpRight/></Button></div></PageHero>
+    <div className="developer-proof"><span><i/><b>LIVE ON ARC TESTNET</b></span><p>SDK · React components · HMAC requests · durable webhooks · agent manifest</p><a href="/api/v1/openapi" target="_blank" rel="noreferrer">Open API spec <ArrowUpRight/></a></div>
+    <div className="developer-grid"><article><Braces/><span>SERVER SDK</span><h3>Distribution API</h3><p>Create signed USDC and project-token campaigns from a backend or launchpad.</p><code>current.distributions.create()</code></article><article><Webhook/><span>EVENT DELIVERY</span><h3>Signed webhooks</h3><p>Receive campaign, claim, activation, referral, refund, and delivery events.</p><code>activation.completed</code></article><article><Bot/><span>MACHINE-READABLE</span><h3>Agent tools</h3><p>Let autonomous software create distributions and report activations within scoped policies.</p><code>create_distribution</code></article><article><Layers3/><span>REACT PACKAGE</span><h3>Embeddable claims</h3><p>Put Current’s walletless reward card and referral links directly inside another app.</p><code>&lt;CurrentClaimEmbed /&gt;</code></article></div>
+    <div className="quickstart-panel" id="sdk-quickstart"><div><Eyebrow>PRODUCTION QUICKSTART</Eyebrow><h2>Create a walletless USDC current.</h2><ol><li><span>1</span>Install the Current server SDK</li><li><span>2</span>Create a scoped project key</li><li><span>3</span>Generate signed claim links</li><li><span>4</span>Measure real activation</li></ol><div className="code-tabs">{(["sdk","react","curl"] as const).map(tab=><button className={sample===tab?"active":""} key={tab} onClick={()=>setSample(tab)}>{tab==="sdk"?"TypeScript SDK":tab==="react"?"React embed":"Raw API"}</button>)}</div></div><pre><button className="code-copy" onClick={()=>void copy()}>{copied?<Check/>:<Copy/>}{copied?"Copied":"Copy"}</button><code>{snippets[sample]}</code></pre></div>
+    <div className="integration-lab"><div className="integration-lab-copy"><Eyebrow>EMBED LAB</Eyebrow><h2>The claim experience travels with your product.</h2><p>Games, communities, launchpads, and AI agents can embed a branded reward without rebuilding wallet creation, claim resolution, or gasless onboarding.</p><div><span><CheckCircle2/> No wallet required</span><span><CheckCircle2/> Referral attribution preserved</span><span><CheckCircle2/> Hosted fallback included</span></div><Button tone="blue" onClick={()=>go("api-keys")}>Start integrating <ArrowRight/></Button></div><div className="integration-lab-preview"><div className="embed-browser"><header><i/><i/><i/><span>play.example/rewards</span></header><main><CurrentClaimEmbed compact accent="#22e4d5" onOpen={()=>go("claim")} preview={{amount:"250",asset:"TIDE",claimable:true,expiresAt:"2026-08-14T00:00:00.000Z",message:"Complete your first match to activate this reward.",project:{name:"Tidebreak",logoUrl:null},sender:"Tidebreak community",status:"claimable"}}/></main></div></div></div>
+  </>;
 }
 
 function ApiKeys({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
