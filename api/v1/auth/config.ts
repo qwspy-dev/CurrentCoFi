@@ -9,7 +9,11 @@ export default withApi((request) => {
     appId: config.CIRCLE_APP_ID ?? null,
     methods: {
       google: Boolean(config.CIRCLE_API_KEY && config.CIRCLE_APP_ID && config.GOOGLE_OAUTH_CLIENT_ID),
-      email: Boolean(config.CIRCLE_API_KEY && config.CIRCLE_APP_ID),
+      email: Boolean(
+        config.CIRCLE_API_KEY &&
+        config.CIRCLE_APP_ID &&
+        config.CIRCLE_EMAIL_OTP_ENABLED,
+      ),
       apple: false,
       facebook: false,
     },
