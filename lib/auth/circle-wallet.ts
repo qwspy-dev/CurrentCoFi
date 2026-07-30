@@ -43,7 +43,17 @@ type AuthState = "loading" | "ready" | "redirecting" | "verifying" | "creating-w
 const STORAGE_PREFIX = "current.circle.";
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "Wallet onboarding could not be completed.";
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const details = error as { code?: string | number; message?: unknown; error?: unknown };
+    const message = typeof details.message === "string"
+      ? details.message
+      : typeof details.error === "string"
+        ? details.error
+        : null;
+    if (message) return details.code ? `[${details.code}] ${message}` : message;
+  }
+  return "Wallet onboarding could not be completed.";
 }
 
 export function useCircleWalletAuth() {
