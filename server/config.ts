@@ -12,6 +12,7 @@ export type ServerConfig = {
   DATABASE_URL?: string;
   CIRCLE_API_KEY?: string;
   CIRCLE_APP_ID?: string;
+  GOOGLE_OAUTH_CLIENT_ID?: string;
   CURRENT_COFI_INTERNAL_SECRET?: string;
   CLAIM_SIGNING_SECRET?: string;
   ARC_RPC_URL: string;
@@ -44,6 +45,7 @@ export function getServerConfig(): ServerConfig {
       DATABASE_URL: optional("DATABASE_URL"),
       CIRCLE_API_KEY: optional("CIRCLE_API_KEY"),
       CIRCLE_APP_ID: optional("CIRCLE_APP_ID"),
+      GOOGLE_OAUTH_CLIENT_ID: optional("GOOGLE_OAUTH_CLIENT_ID"),
       CURRENT_COFI_INTERNAL_SECRET: secret("CURRENT_COFI_INTERNAL_SECRET"),
       CLAIM_SIGNING_SECRET: secret("CLAIM_SIGNING_SECRET"),
     };
@@ -62,6 +64,8 @@ export function getPublicConfig() {
       foundationApi: true,
       persistence: Boolean(config.DATABASE_URL),
       embeddedWallets: Boolean(config.CIRCLE_API_KEY && config.CIRCLE_APP_ID),
+      googleLogin: Boolean(config.CIRCLE_API_KEY && config.CIRCLE_APP_ID && config.GOOGLE_OAUTH_CLIENT_ID),
+      emailLogin: Boolean(config.CIRCLE_API_KEY && config.CIRCLE_APP_ID),
       identityClaims: Boolean(config.CLAIM_SIGNING_SECRET),
       productionMutations: false,
     },

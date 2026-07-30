@@ -13,6 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { currentApi } from "@/lib/api/client";
+import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
@@ -20,6 +21,7 @@ type View =
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "success";
+type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
 
 const campaigns = [
   { name: "Tidebreak Genesis", asset: "TIDE", status: "Live", progress: 82, claimed: "8,241 / 10,000", activation: "63.8%", value: "$84.2K" },
@@ -352,33 +354,41 @@ function Marketing({ go }: { go: (v: View) => void }) {
   );
 }
 
-function ClaimView({ go }: { go: (v: View) => void }) {
+function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
   const [step,setStep] = useState<ClaimStep>("ready");
+  const [emailMode,setEmailMode] = useState(false);
+  const [email,setEmail] = useState("");
   const claim = () => setStep("auth");
-  const authenticate = () => {
-    setStep("creating");
-    setTimeout(() => setStep("success"), 1800);
-  };
+  const visibleStep: ClaimStep = auth.account
+    ? "success"
+    : auth.state==="redirecting"||auth.state==="verifying"||auth.state==="creating-wallet"
+      ? "creating"
+      : auth.state==="error"
+        ? "auth"
+        : step;
   return (
     <main className="claim-route">
       <FluidCanvas mode="network"/>
       <header><Brand light onClick={()=>go("home")}/><span><ShieldCheck/>Secured on Arc testnet</span></header>
       <section className="claim-shell" aria-live="polite">
-        {step === "ready" && <>
+        {visibleStep === "ready" && <>
           <span className="claim-brand-avatar">T</span><small>Tidebreak sent you</small><h1>2,500 <em>TIDE</em></h1><p className="claim-usd">≈ $42.80</p>
           <blockquote>Welcome to the Tidebreak Genesis current.</blockquote>
           <div className="claim-meta"><span><Clock3/>Expires in 6 days</span><span><Zap/>Gas sponsored</span></div>
           <Button tone="blue" onClick={claim}>Claim your tokens <ArrowRight/></Button><p className="claim-note">No wallet or payment required.</p>
         </>}
-        {step === "auth" && <>
+        {visibleStep === "auth" && <>
           <button className="claim-back" onClick={()=>setStep("ready")}><ArrowLeft/>Back</button><span className="claim-brand-avatar"><Fingerprint/></span><small>CREATE YOUR CURRENT ACCOUNT</small><h2>Claim with an identity you already use.</h2>
           <p className="auth-copy">Your embedded wallet is created automatically in the background.</p>
-          <button className="auth-provider" onClick={authenticate}><b>G</b>Continue with Google</button>
-          <button className="auth-provider" onClick={authenticate}><b>@</b>Continue with email</button>
-          <button className="auth-provider" onClick={authenticate}><b>𝕏</b>Continue with X</button>
+          {!emailMode&&<><button className="auth-provider" onClick={auth.startGoogle} disabled={!auth.config?.methods.google}><b>G</b>Continue with Google</button>
+          <button className="auth-provider" onClick={()=>setEmailMode(true)} disabled={!auth.config?.methods.email}><b>@</b>Continue with email</button>
+          <button className="auth-provider" disabled><b>𝕏</b>X identity — campaign binding</button></>}
+          {emailMode&&<form className="auth-email-form" onSubmit={(event)=>{event.preventDefault();void auth.startEmail(email)}}><label>Email address<input type="email" required value={email} onChange={event=>setEmail(event.target.value)} placeholder="you@community.xyz" autoFocus/></label><Button tone="blue">Send secure code <ArrowRight/></Button><button type="button" onClick={()=>setEmailMode(false)}>Use another method</button></form>}
+          {auth.state==="unavailable"&&<p className="auth-system-note"><ShieldCheck/>The production onboarding flow is installed. Circle credentials are the final activation switch.</p>}
+          {auth.error&&<p className="auth-system-note is-error"><X/>{auth.error}</p>}
         </>}
-        {step === "creating" && <div className="creating-state"><span className="creating-orbit"><i/><i/><Wallet/></span><small>CREATING YOUR EMBEDDED WALLET</small><h2>Opening your current…</h2><div className="creating-steps"><span className="done"><Check/>Identity verified</span><span><RefreshCw/>Creating wallet</span><span>Delivering 2,500 TIDE</span></div></div>}
-        {step === "success" && <div className="success-state"><span className="success-ripple"><Check/></span><small>CLAIM COMPLETE</small><h2>You’re funded.</h2><p>2,500 TIDE has arrived in your new Current CoFi account.</p><div className="success-balance"><span>TIDE balance</span><b>2,500.00</b><small>≈ $42.80</small></div><Button tone="blue" onClick={()=>go("overview")}>Open your account <ArrowRight/></Button></div>}
+        {visibleStep === "creating" && <div className="creating-state"><span className="creating-orbit"><i/><i/><Wallet/></span><small>CREATING YOUR EMBEDDED WALLET</small><h2>Opening your current…</h2><div className="creating-steps"><span className="done"><Check/>Identity verified</span><span className={auth.state==="creating-wallet"?"done":""}><RefreshCw/>Creating Arc wallet</span><span>Securing account recovery</span></div></div>}
+        {visibleStep === "success" && <div className="success-state"><span className="success-ripple"><Check/></span><small>ACCOUNT READY</small><h2>Your wallet is open.</h2><p>Your user-controlled Arc wallet is ready. The funded claim itself activates in the next protocol milestone.</p><div className="success-balance"><span>Arc wallet</span><b>{auth.account?.wallets[0]?.address?`${auth.account.wallets[0].address.slice(0,8)}…${auth.account.wallets[0].address.slice(-5)}`:"Creating address"}</b><small>Gas sponsorship compatible · SCA</small></div><Button tone="blue" onClick={()=>go("overview")}>Open your account <ArrowRight/></Button></div>}
       </section>
       <div className="claim-trust"><span><Lock/>Identity bound</span><span><Wallet/>Embedded wallet</span><span><Zap/>No gas needed</span></div>
     </main>
@@ -522,11 +532,13 @@ function StateLab({go}:{go:(v:View)=>void}) {
   ].map(([title,copy,icon],i)=><article key={String(title)}><span className={`state-icon st-${i}`}>{icon}</span><h3>{String(title)}</h3><p>{String(copy)}</p><Button tone={i===4?"ghost":"dark"} onClick={()=>i===1?go("new-campaign"):undefined}>{i===0?"View transaction":i===1?"Create distribution":i===2?"Return funds":i===3?"Add gas budget":i===4?"Try again":"View campaign"}</Button></article>)}</div></>;
 }
 
-function Sidebar({view,go,open,setOpen}:{view:View;go:(v:View)=>void;open:boolean;setOpen:(v:boolean)=>void}) {
-  return <><aside className={`app-sidebar ${open?"open":""}`}><div className="sidebar-top"><Brand light onClick={()=>go("home")}/><button aria-label="Close navigation" onClick={()=>setOpen(false)}><X/></button></div><div className="project-switch"><span>T</span><div><b>Tidebreak</b><small>Arc testnet</small></div><ChevronDown/></div><nav>{appNav.map(section=><div key={section.label}><small>{section.label}</small>{section.items.map(([id,label,I])=>{const Icon=I;return <button className={view===id?"active":""} onClick={()=>{go(id as View);setOpen(false)}} key={id}><Icon/>{label}{id==="campaigns"&&<em>4</em>}</button>})}</div>)}</nav><div className="sidebar-bottom"><button onClick={()=>go("api-keys")}><KeyRound/>API keys</button><button onClick={()=>go("webhooks")}><Webhook/>Webhooks</button><button onClick={()=>go("settings")}><Settings/>Settings</button><button onClick={()=>go("states")}><HelpCircle/>System states</button><div className="user-card"><span>MC</span><div><b>Mara Chen</b><small>Owner</small></div><LogOut/></div></div></aside>{open&&<button className="sidebar-shade" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}</>;
+function Sidebar({view,go,open,setOpen,auth}:{view:View;go:(v:View)=>void;open:boolean;setOpen:(v:boolean)=>void;auth:CircleAuth}) {
+  const name=auth.account?.displayName??"Preview workspace";
+  const initials=name.split(" ").map(word=>word[0]).join("").slice(0,2).toUpperCase()||"CC";
+  return <><aside className={`app-sidebar ${open?"open":""}`}><div className="sidebar-top"><Brand light onClick={()=>go("home")}/><button aria-label="Close navigation" onClick={()=>setOpen(false)}><X/></button></div><div className="project-switch"><span>T</span><div><b>Tidebreak</b><small>Arc testnet</small></div><ChevronDown/></div><nav>{appNav.map(section=><div key={section.label}><small>{section.label}</small>{section.items.map(([id,label,I])=>{const Icon=I;return <button className={view===id?"active":""} onClick={()=>{go(id as View);setOpen(false)}} key={id}><Icon/>{label}{id==="campaigns"&&<em>4</em>}</button>})}</div>)}</nav><div className="sidebar-bottom"><button onClick={()=>go("api-keys")}><KeyRound/>API keys</button><button onClick={()=>go("webhooks")}><Webhook/>Webhooks</button><button onClick={()=>go("settings")}><Settings/>Settings</button><button onClick={()=>go("states")}><HelpCircle/>System states</button><div className="user-card"><span>{initials}</span><div><b>{name}</b><small>{auth.account?"Wallet active":"Demo data"}</small></div><button aria-label="Sign out" disabled={!auth.account} onClick={()=>void auth.signOut()}><LogOut/></button></div></div></aside>{open&&<button className="sidebar-shade" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}</>;
 }
 
-function AppShell({view,go}:{view:View;go:(v:View)=>void}) {
+function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) {
   const [open,setOpen]=useState(false);
   const [foundation,setFoundation]=useState<"checking"|"live"|"degraded">("checking");
   const checkFoundation=()=>currentApi.health().then(data=>setFoundation(data.status==="operational"?"live":"degraded")).catch(()=>setFoundation("degraded"));
@@ -549,12 +561,13 @@ function AppShell({view,go}:{view:View;go:(v:View)=>void}) {
     case "settings":page=<SettingsView/>;break;
     default:page=<StateLab go={go}/>;
   }
-  return <div className="app-shell"><Sidebar view={view} go={go} open={open} setOpen={setOpen}/><main className="app-main-new"><div className="testnet-strip"><TestTube2/>Arc testnet environment · Balances have no monetary value.<button className={`foundation-${foundation}`} onClick={checkFoundation} title="Refresh backend status"><span/>{foundation==="checking"?"Checking foundation":foundation==="live"?"Foundation live":"Foundation degraded"} <ArrowUpRight/></button></div><header className="app-topbar"><button className="mobile-sidebar-button" onClick={()=>setOpen(true)} aria-label="Open navigation"><Menu/></button><div><span>WORKSPACE /</span><b>{view.replace("-"," ")}</b></div><div><button aria-label="Search"><Search/></button><button aria-label="Notifications"><Bell/></button><Button tone="blue" onClick={()=>go("new-campaign")}>New current <Plus/></Button></div></header><div className="app-view" key={view}>{page}</div></main></div>;
+  return <div className="app-shell"><Sidebar view={view} go={go} open={open} setOpen={setOpen} auth={auth}/><main className="app-main-new"><div className="testnet-strip"><TestTube2/>Arc testnet environment · Balances have no monetary value.<button className={`foundation-${foundation}`} onClick={checkFoundation} title="Refresh backend status"><span/>{foundation==="checking"?"Checking foundation":foundation==="live"?"Foundation live":"Foundation degraded"} <ArrowUpRight/></button></div><header className="app-topbar"><button className="mobile-sidebar-button" onClick={()=>setOpen(true)} aria-label="Open navigation"><Menu/></button><div><span>WORKSPACE /</span><b>{view.replace("-"," ")}</b></div><div><button aria-label="Search"><Search/></button><button aria-label="Notifications"><Bell/></button><Button tone="blue" onClick={()=>go("new-campaign")}>New current <Plus/></Button></div></header><div className="app-view" key={view}>{page}</div></main></div>;
 }
 
 export default function CurrentApp() {
   const [view,setView] = useState<View>("home");
   const [transition,setTransition] = useState(false);
+  const auth=useCircleWalletAuth();
   useEffect(()=>{
     const fromHash=()=>{const value=location.hash.replace("#/","") as View;if(value)setView(value)};
     fromHash(); addEventListener("hashchange",fromHash); return()=>removeEventListener("hashchange",fromHash);
@@ -564,5 +577,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go}/>:<AppShell view={view} go={go}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

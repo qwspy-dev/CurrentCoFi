@@ -91,3 +91,16 @@
 .testnet-strip button>span{width:6px;height:6px;border-radius:50%;background:#77909a;box-shadow:0 0 0 3px rgba(119,144,154,.1)}
 .testnet-strip button.foundation-live>span{background:var(--green);box-shadow:0 0 0 3px rgba(0,190,119,.12)}
 .testnet-strip button.foundation-degraded>span{background:#f4ad54;box-shadow:0 0 0 3px rgba(244,173,84,.12)}
+.auth-provider:disabled{cursor:not-allowed;opacity:.48}
+.auth-email-form{display:grid;gap:12px;margin-top:18px}
+.auth-email-form label{display:grid;gap:8px;text-align:left;color:var(--ink3);font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.auth-email-form input{width:100%;height:52px;border:1px solid var(--line);border-radius:13px;background:#fff;padding:0 15px;color:var(--ink);font:inherit;font-size:12px;outline:none}
+.auth-email-form input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(8,104,183,.1)}
+.auth-email-form>.cofi-button{width:100%}
+.auth-email-form>button:last-child{border:0;background:none;color:var(--blue);font-size:10px}
+.auth-system-note{margin:15px 0 0!important;padding:12px 13px;border:1px solid rgba(34,228,213,.22);border-radius:12px;background:rgba(34,228,213,.06);display:flex;align-items:flex-start;gap:9px;text-align:left!important;color:var(--ink2)!important;font-size:9px!important;line-height:1.5!important}
+.auth-system-note svg{width:14px;min-width:14px;color:var(--cyan)}
+.auth-system-note.is-error{border-color:rgba(220,74,74,.2);background:rgba(220,74,74,.05)}
+.auth-system-note.is-error svg{color:#dc4a4a}
+.user-card>button{border:0;background:none;color:#68838d;padding:0;display:grid;place-items:center}
+.user-card>button:disabled{opacity:.3}

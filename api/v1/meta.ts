@@ -5,8 +5,14 @@ export default withApi((request) => ok(request, {
   ...getPublicConfig(),
   product: {
     message: "Turn offchain audiences into funded wallets and active token users.",
-    liveModules: ["foundation-api", "public-network-metadata"],
-    nextModules: ["embedded-wallet-onboarding", "walletless-claims", "project-distributions"],
+    liveModules: [
+      "foundation-api",
+      "public-network-metadata",
+      "circle-auth-orchestration",
+      "embedded-wallet-session",
+      "account-recovery",
+    ],
+    nextModules: ["walletless-claims", "project-distributions"],
     laterModules: ["campaign-attribution", "developer-platform", "agent-permissions", "current-token-economy"],
     roadmapModules: ["merchant-checkout", "escrow", "subscriptions", "crosschain-usdc-funding"],
   },
