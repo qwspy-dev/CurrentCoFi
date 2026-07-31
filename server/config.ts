@@ -161,6 +161,7 @@ export function getPublicConfig() {
         config.CURRENT_RELEASE_GOVERNOR_ADDRESS &&
         config.CURRENT_RELEASE_ID
       ),
+      productionObservability: Boolean(config.DATABASE_URL),
       crosschainFunding: Boolean(
         config.DATABASE_URL &&
         config.CIRCLE_API_KEY &&
@@ -220,6 +221,7 @@ export function getReadiness() {
       config.CURRENT_RELEASE_GOVERNOR_ADDRESS &&
       config.CURRENT_RELEASE_ID
     ),
+    productionObservability: Boolean(config.DATABASE_URL),
     crosschainFunding: Boolean(
       config.DATABASE_URL &&
       config.CIRCLE_API_KEY &&

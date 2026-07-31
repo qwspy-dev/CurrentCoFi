@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch"
+  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch" | "operations"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -51,6 +51,33 @@ type WalletActionResult = {
   pending?: boolean;
   status?: string;
   transactionHash?: string | null;
+};
+
+type ServiceStatusState = {
+  service: string;
+  environment: string;
+  network: string;
+  status: "operational" | "degraded" | "major_outage";
+  score: number;
+  generatedAt: string;
+  responseTimeMs: number;
+  components: Array<{ id: string; name: string; status: "operational" | "degraded" | "outage"; latencyMs: number | null; message: string }>;
+  activeIncidents: ServiceIncident[];
+  incidentHistory: ServiceIncident[];
+  objectives: { availability: string; apiLatencyP95Ms: number; rpcLatencyP95Ms: number; recoveryTimeMinutes: number; onchainRecoveryPoint: string };
+};
+
+type ServiceIncident = {
+  id: string;
+  key: string;
+  title: string;
+  summary: string;
+  severity: "minor" | "major" | "critical";
+  status: "investigating" | "identified" | "monitoring" | "resolved";
+  affectedComponents: string[];
+  startedAt: string;
+  latestUpdateAt: string;
+  updates?: Array<{ id: string; status: string; message: string; createdAt: string }>;
 };
 
 type CampaignRecord = {
@@ -698,7 +725,7 @@ function formatAtomic(value:string) {
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch",
+  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch", "operations",
   "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -719,7 +746,7 @@ const appNav = [
     ["evidence", "Grant evidence", FileCheck2],
   ]},
   { label: "Protocol", items: [
-    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["developers", "Developers", Code2],
+    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["operations", "Operations", Activity], ["developers", "Developers", Code2],
     ["agents", "AI agents", Bot],
   ]},
 ] as const;
@@ -1894,6 +1921,59 @@ function LaunchReadinessDashboard({go}:{go:(v:View)=>void}) {
     <p className="economy-disclaimer"><TestTube2/>{snapshot?.proofMode??"Arc testnet deployment rehearsal pending."}</p></>;
 }
 
+function OperationsDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [snapshot,setSnapshot]=useState<ServiceStatusState|null>(null);
+  const [incidents,setIncidents]=useState<ServiceIncident[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const [creating,setCreating]=useState(false);
+  const [title,setTitle]=useState("");
+  const [summary,setSummary]=useState("");
+  const [severity,setSeverity]=useState<ServiceIncident["severity"]>("minor");
+  const [component,setComponent]=useState("claim-settlement");
+  const refresh=useCallback(async()=>{
+    setLoading(true);
+    try {
+      const status=await currentApi.get<ServiceStatusState>("/status");
+      setSnapshot(status);
+      if(auth.account){const ledger=await currentApi.get<{incidents:ServiceIncident[]}>("/incidents");setIncidents(ledger.incidents)}
+      else setIncidents([...status.activeIncidents,...status.incidentHistory]);
+      setError(null);
+    } catch(reason) { setError(reason instanceof Error?reason.message:"Operational status could not be read.") }
+    finally { setLoading(false) }
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const create=async()=>{
+    if(!auth.account){go("claim");return}
+    setBusy(true);
+    try { await currentApi.post("/incidents",{action:"create",title,summary,severity,affectedComponents:[component]});setTitle("");setSummary("");setCreating(false);await refresh() }
+    catch(reason){setError(reason instanceof Error?reason.message:"The incident could not be created.")}
+    finally{setBusy(false)}
+  };
+  const advance=async(incident:ServiceIncident,status:ServiceIncident["status"])=>{
+    if(!auth.account)return;
+    setBusy(true);
+    try { await currentApi.post("/incidents",{action:"update",incidentId:incident.id,status,message:status==="resolved"?"Recovery verified across the affected service path.":`Incident moved to ${status}.`});await refresh() }
+    catch(reason){setError(reason instanceof Error?reason.message:"The incident could not be updated.")}
+    finally{setBusy(false)}
+  };
+  const tone=snapshot?.status==="operational"?"green":snapshot?.status==="degraded"?"cyan":"red";
+  const active=incidents.filter(incident=>incident.status!=="resolved");
+  const history=incidents.filter(incident=>incident.status==="resolved").slice(0,8);
+  return <><PageHero eyebrow="PRODUCTION OPERATIONS" title="Every critical current stays visible." copy="Current CoFi watches the complete financial delivery path—from wallet creation and persistent data to Arc settlement, protocol bytecode, crosschain funding, and developer events." mode="network"><Button tone="blue" onClick={()=>void refresh()}>{loading?"Checking…":"Run live check"} <RefreshCw/></Button></PageHero>
+    {error?<p className="auth-system-note is-error"><X/>{error}</p>:null}
+    <div className="token-metrics-new operations-metrics"><div><small>Service state</small><strong>{loading?"—":snapshot?.status.replace("_"," ")??"Unknown"}</strong><span>Complete production path</span></div><div><small>Health score</small><strong>{loading?"—":`${snapshot?.score??0}%`}</strong><span>{snapshot?.components.length??0} monitored components</span></div><div><small>Active incidents</small><strong>{loading?"—":snapshot?.activeIncidents.length??0}</strong><span>Persistent public ledger</span></div><div><small>Live check</small><strong>{loading?"—":`${snapshot?.responseTimeMs??0}ms`}</strong><span>{snapshot?.generatedAt?new Date(snapshot.generatedAt).toLocaleTimeString():"Awaiting signal"}</span></div></div>
+    <section className="operations-current"><div className="operations-status-orb"><span className={`operations-orb orb-${tone}`}><Activity/></span><small>CURRENT COFI STATUS</small><h2>{snapshot?.status==="operational"?"All systems operational.":snapshot?.status==="degraded"?"Some currents are degraded.":"Major service interruption."}</h2><p>Live dependency checks are combined with the public incident ledger. No private recipient, authorization, or wallet information is exposed.</p><Status tone={tone}>{snapshot?.status??"checking"}</Status></div><div className="operations-component-grid">{snapshot?.components.map(item=><article key={item.id}><span className={`component-pulse component-${item.status}`}/><div><b>{item.name}</b><small>{item.message}</small></div><em>{item.latencyMs===null?"CONFIG":`${item.latencyMs}ms`}</em></article>)}</div></section>
+    <div className="operations-grid"><section className="data-panel"><div className="panel-head"><div><h3>Service objectives</h3><p>Explicit recovery and performance targets</p></div><Target/></div><div className="operations-objectives"><span><small>AVAILABILITY</small><strong>{snapshot?.objectives.availability??"99.9%"}</strong><p>Rolling production target</p></span><span><small>API P95</small><strong>&lt; {snapshot?.objectives.apiLatencyP95Ms??800}ms</strong><p>User-facing endpoint target</p></span><span><small>RECOVERY TIME</small><strong>{snapshot?.objectives.recoveryTimeMinutes??30} min</strong><p>Major incident target</p></span><span><small>ONCHAIN RPO</small><strong>Zero</strong><p>Confirmed transactions lost</p></span></div></section><section className="data-panel"><div className="panel-head"><div><h3>Response controls</h3><p>One disciplined lifecycle for every event</p></div><ShieldAlert/></div><div className="incident-lifecycle">{["Investigating","Identified","Monitoring","Resolved"].map((step,index)=><div key={step}><span>{index+1}</span><b>{step}</b><small>{index===0?"Acknowledge and scope":index===1?"Publish verified cause":index===2?"Validate the recovery":"Freeze the final record"}</small></div>)}</div></section></div>
+    <section className="data-panel incident-ledger"><div className="panel-head"><div><h3>Incident response ledger</h3><p>Append-only updates keep operators, builders, and reviewers aligned</p></div><Button tone="dark" onClick={()=>auth.account?setCreating(value=>!value):go("claim")}><Plus/>{creating?"Close":"Declare incident"}</Button></div>
+      {creating?<div className="incident-create"><label>Incident title<input value={title} onChange={event=>setTitle(event.target.value)} placeholder="Claim confirmations delayed"/></label><label>Severity<select value={severity} onChange={event=>setSeverity(event.target.value as ServiceIncident["severity"])}><option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option></select></label><label>Affected component<select value={component} onChange={event=>setComponent(event.target.value)}>{snapshot?.components.map(item=><option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label className="wide">Public update<textarea value={summary} onChange={event=>setSummary(event.target.value)} placeholder="We are investigating delayed confirmations. Funds remain secured in campaign vaults."/></label><div className="wide incident-create-action"><span>This message becomes part of the public incident history.</span><Button tone="blue" disabled={busy||!title.trim()||!summary.trim()} onClick={()=>void create()}>{busy?"Publishing…":"Publish incident"}<Radio/></Button></div></div>:null}
+      <div className="incident-list">{active.length?active.map(incident=><article key={incident.id}><header><Status tone={incident.severity==="critical"?"red":incident.severity==="major"?"cyan":"grey"}>{incident.severity}</Status><small>{incident.key} · {new Date(incident.startedAt).toLocaleString()}</small></header><h4>{incident.title}</h4><p>{incident.summary}</p><div className="incident-components">{incident.affectedComponents.map(item=><span key={item}>{item}</span>)}</div><footer><Status tone="blue">{incident.status}</Status>{auth.account&&incident.status!=="resolved"?<div>{incident.status==="investigating"?<button disabled={busy} onClick={()=>void advance(incident,"identified")}>Cause identified</button>:null}{incident.status==="identified"?<button disabled={busy} onClick={()=>void advance(incident,"monitoring")}>Begin monitoring</button>:null}{incident.status==="monitoring"?<button disabled={busy} onClick={()=>void advance(incident,"resolved")}>Resolve incident</button>:null}</div>:null}</footer></article>):<div className="incident-empty"><CheckCircle2/><h4>No active incidents</h4><p>The complete monitored service path is currently clear.</p></div>}</div>
+      {history.length?<div className="incident-history"><small>RESOLVED HISTORY</small>{history.map(incident=><div key={incident.id}><Check/><b>{incident.title}</b><span>{new Date(incident.latestUpdateAt).toLocaleDateString()}</span></div>)}</div>:null}
+    </section>
+    <p className="economy-disclaimer"><Activity/>Request logs, Web Analytics, Core Web Vitals, scheduled checks, and the incident ledger form one operational evidence layer.</p></>;
+}
+
 function PartnerVaultDashboard({go}:{go:(v:View)=>void}) {
   const [snapshot,setSnapshot]=useState<PartnerVaultState|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
   useEffect(()=>{currentApi.get<PartnerVaultState>("/partners").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Partner reserves could not be read.")).finally(()=>setLoading(false))},[]);
@@ -2212,6 +2292,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "partners":page=<PartnerVaultDashboard go={go}/>;break;
     case "venues":page=<VenueRegistryDashboard go={go}/>;break;
     case "launch":page=<LaunchReadinessDashboard go={go}/>;break;
+    case "operations":page=<OperationsDashboard auth={auth} go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;

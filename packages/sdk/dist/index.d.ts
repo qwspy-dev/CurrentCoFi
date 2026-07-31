@@ -249,6 +249,52 @@ export type LaunchReadinessSnapshot = {
     checks?: Record<string, boolean>;
     proofMode?: string;
 };
+export type ServiceStatusSnapshot = {
+    projectId?: string;
+    service: string;
+    environment: string;
+    network: string;
+    status: "operational" | "degraded" | "major_outage";
+    score: number;
+    generatedAt: string;
+    responseTimeMs: number;
+    components: Array<{
+        id: string;
+        name: string;
+        status: "operational" | "degraded" | "outage";
+        latencyMs: number | null;
+        message: string;
+    }>;
+    activeIncidents: Array<{
+        id: string;
+        key: string;
+        title: string;
+        summary: string;
+        severity: string;
+        status: string;
+        affectedComponents: string[];
+        startedAt: string;
+        latestUpdateAt: string;
+    }>;
+    incidentHistory: Array<{
+        id: string;
+        key: string;
+        title: string;
+        summary: string;
+        severity: string;
+        status: string;
+        affectedComponents: string[];
+        startedAt: string;
+        latestUpdateAt: string;
+    }>;
+    objectives: {
+        availability: string;
+        apiLatencyP95Ms: number;
+        rpcLatencyP95Ms: number;
+        recoveryTimeMinutes: number;
+        onchainRecoveryPoint: string;
+    };
+};
 export type EvidenceReport = {
     id: string;
     publicSlug: string;
@@ -489,6 +535,9 @@ export declare class Current {
     };
     readonly releases: {
         get: () => Promise<LaunchReadinessSnapshot>;
+    };
+    readonly observability: {
+        get: () => Promise<ServiceStatusSnapshot>;
     };
     readonly evidence: {
         list: () => Promise<{

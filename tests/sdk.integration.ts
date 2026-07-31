@@ -140,6 +140,15 @@ const mockFetch: typeof fetch = async (input, init) => {
       components: [], checks: { exactRelease: true },
     } });
   }
+  if (String(input).endsWith("/developer/observability")) {
+    return Response.json({ ok: true, data: {
+      projectId: "project_sdk", service: "Current CoFi", environment: "test", network: "ARC-TESTNET",
+      status: "operational", score: 100, generatedAt: "2026-08-14T00:00:00.000Z", responseTimeMs: 92,
+      components: [{ id: "arc-rpc", name: "Arc testnet RPC", status: "operational", latencyMs: 92, message: "Connected." }],
+      activeIncidents: [], incidentHistory: [],
+      objectives: { availability: "99.9%", apiLatencyP95Ms: 800, rpcLatencyP95Ms: 1500, recoveryTimeMinutes: 30, onchainRecoveryPoint: "zero confirmed transactions" },
+    } });
+  }
   if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
     return Response.json({
       ok: true,
@@ -304,6 +313,11 @@ assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), `
 const release = await current.releases.get();
 assert.equal(release.readinessScore, 100);
 assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/launch-readiness");
+
+const operational = await current.observability.get();
+assert.equal(operational.status, "operational");
+assert.equal(operational.score, 100);
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/observability");
 
 const evidence = await current.evidence.create({ distributionId: distribution.id });
 assert.equal(evidence.publicSlug, "proof_sdk");

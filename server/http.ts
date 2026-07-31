@@ -15,9 +15,13 @@ export class ApiError extends Error {
   }
 }
 
+function requestId(request: Request) {
+  return request.headers.get("x-request-id") ?? request.headers.get("x-vercel-id") ?? crypto.randomUUID();
+}
+
 function meta(request: Request): ApiMeta {
   return {
-    requestId: request.headers.get("x-request-id") ?? crypto.randomUUID(),
+    requestId: requestId(request),
     timestamp: new Date().toISOString(),
     version: "v1",
   };
@@ -61,15 +65,45 @@ export function withApi(
 ) {
   return {
     async fetch(request: Request) {
+      const startedAt = Date.now();
+      const id = requestId(request);
+      const route = new URL(request.url).pathname;
+      structuredLog("info", "api.request.started", {
+        requestId: id,
+        route,
+        method: request.method,
+        vercelRequestId: request.headers.get("x-vercel-id"),
+      });
       if (!methods.includes(request.method)) {
-        return fail(request, new ApiError(405, "METHOD_NOT_ALLOWED", "This method is not supported."));
+        const result = fail(request, new ApiError(405, "METHOD_NOT_ALLOWED", "This method is not supported."));
+        structuredLog("warn", "api.request.rejected", { requestId: id, route, method: request.method, status: 405, durationMs: Date.now() - startedAt });
+        return result;
       }
       try {
-        return await handler(request);
+        const result = await handler(request);
+        structuredLog(result.status >= 400 ? "warn" : "info", "api.request.completed", {
+          requestId: id,
+          route,
+          method: request.method,
+          status: result.status,
+          durationMs: Date.now() - startedAt,
+        });
+        result.headers.set("x-request-id", id);
+        return result;
       } catch (error) {
-        if (error instanceof ApiError) return fail(request, error);
-        console.error("Unhandled Current CoFi API error", error);
-        return fail(request, new ApiError(500, "INTERNAL_ERROR", "The request could not be completed."));
+        const apiError = error instanceof ApiError ? error : new ApiError(500, "INTERNAL_ERROR", "The request could not be completed.");
+        structuredLog(apiError.status >= 500 ? "error" : "warn", "api.request.failed", {
+          requestId: id,
+          route,
+          method: request.method,
+          status: apiError.status,
+          code: apiError.code,
+          durationMs: Date.now() - startedAt,
+          error: safeError(error),
+        });
+        const result = fail(request, apiError);
+        result.headers.set("x-request-id", id);
+        return result;
       }
     },
   };
@@ -95,3 +129,4 @@ export function requiredString(body: Record<string, unknown>, field: string, max
   }
   return value.trim();
 }
+import { safeError, structuredLog } from "./observability/logger.js";

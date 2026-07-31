@@ -24,7 +24,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v10";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v11";
 
 type Criterion = {
   id: string;
@@ -543,6 +543,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       weight: 10,
       passed: Boolean(config.CURRENT_RELEASE_REGISTRY_ADDRESS && config.CURRENT_RELEASE_GOVERNOR_ADDRESS && config.CURRENT_RELEASE_ID),
       evidence: "One governed release manifest binds the ten critical protocol addresses to exact runtime bytecode with public delay, guardian cancellation, and rollback payloads.",
+    },
+    {
+      id: "production-observability",
+      label: "Operational resilience",
+      weight: 10,
+      passed: Boolean(config.DATABASE_URL && config.CURRENT_RELEASE_REGISTRY_ADDRESS),
+      evidence: "Structured request logs, public component health, SLO targets, scheduled monitoring, and a persistent incident-response ledger are active.",
     },
   ];
   const generatedAt = new Date().toISOString();

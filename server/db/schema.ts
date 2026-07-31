@@ -495,3 +495,31 @@ export const tokenEconomyActions = pgTable("token_economy_actions", {
   index("token_economy_project_kind_idx").on(table.projectId, table.kind),
   index("token_economy_status_idx").on(table.status),
 ]);
+
+export const serviceIncidents = pgTable("service_incidents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  incidentKey: text("incident_key").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  severity: text("severity").default("minor").notNull(),
+  status: text("status").default("investigating").notNull(),
+  affectedComponents: jsonb("affected_components").$type<string[]>().default([]).notNull(),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  latestUpdateAt: timestamp("latest_update_at", { withTimezone: true }).defaultNow().notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("service_incidents_key_unique").on(table.incidentKey),
+  index("service_incidents_status_started_idx").on(table.status, table.startedAt),
+]);
+
+export const incidentUpdates = pgTable("incident_updates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  incidentId: uuid("incident_id").references(() => serviceIncidents.id, { onDelete: "cascade" }).notNull(),
+  status: text("status").notNull(),
+  message: text("message").notNull(),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("incident_updates_incident_created_idx").on(table.incidentId, table.createdAt)]);
