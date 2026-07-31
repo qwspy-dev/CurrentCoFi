@@ -133,6 +133,23 @@
 @media(max-width:1100px){.economy-action-grid{grid-template-columns:1fr 1fr}.economy-activity-card{grid-column:1/-1}}
 @media(max-width:760px){.economy-governance-grid{grid-template-columns:1fr}}
 @media(max-width:620px){.economy-action-grid{grid-template-columns:1fr}.economy-activity-card{grid-column:auto}.economy-contract-row{grid-template-columns:34px 1fr 16px}.access-tier-list>div{grid-template-columns:32px 1fr}.access-tier-list>div>em{grid-column:2}.governance-status-grid{grid-template-columns:1fr 1fr}.governance-status-grid span:nth-child(2){border-right:0}.governance-status-grid span:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+
+/* Agent settlement gateway */
+.agent-runtime-metrics{grid-template-columns:repeat(5,1fr)}
+.agent-settlement-track{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+.agent-settlement-track>span{display:flex;align-items:center;gap:5px;color:var(--ink5);font-size:7px;font-weight:650}
+.agent-settlement-track>span:not(:last-child):after{content:"";width:13px;height:1px;margin-left:2px;background:#dce9e9}
+.agent-settlement-track i{width:14px;height:14px;border:1px solid #c9d9da;border-radius:50%;display:grid;place-items:center;background:#fff}
+.agent-settlement-track i>span{width:4px;height:4px;border-radius:50%;background:#b7cacc}
+.agent-settlement-track svg{width:9px}
+.agent-settlement-track .complete{color:#087947}
+.agent-settlement-track .complete i{border-color:var(--green);background:#dbfaeb}
+.agent-action-review.settlement{align-items:flex-end;flex-direction:column}
+.agent-action-review.settlement>small{font-size:7px;color:var(--ink5);white-space:nowrap}
+.agent-settlement-receipt{display:flex;align-items:center;gap:5px;color:#087947;font-size:8px;font-weight:750;text-decoration:none;white-space:nowrap}
+.agent-settlement-receipt svg{width:12px}
+@media(max-width:900px){.agent-runtime-metrics{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:620px){.agent-runtime-metrics{grid-template-columns:1fr 1fr}.agent-action-review.settlement{align-items:flex-start}.agent-settlement-receipt{grid-column:2}}
 .claim-identity-binding{width:100%;margin:-13px 0 20px;padding:12px 14px;border:1px solid rgba(8,104,183,.16);border-radius:12px;background:linear-gradient(135deg,rgba(34,228,213,.08),rgba(8,104,183,.05));display:flex;gap:10px;text-align:left}.claim-identity-binding>svg{width:18px;min-width:18px;color:var(--blue)}.claim-identity-binding b,.claim-identity-binding small{display:block}.claim-identity-binding b{font-size:9px}.claim-identity-binding small{margin-top:3px;color:var(--ink5);font-size:8px;line-height:1.45}
 .identity-mode-proof{margin:10px 0 4px;padding:13px;border:1px solid var(--line);border-radius:11px;display:flex;align-items:flex-start;gap:10px;background:var(--o025)}.identity-mode-proof.active{border-color:rgba(8,104,183,.25);background:linear-gradient(135deg,rgba(34,228,213,.08),rgba(8,104,183,.05))}.identity-mode-proof>svg{width:18px;min-width:18px;color:var(--blue)}.identity-mode-proof b,.identity-mode-proof small{display:block}.identity-mode-proof b{font-size:9px}.identity-mode-proof small{margin-top:4px;color:var(--ink5);font-size:8px;line-height:1.5}
 .developer-grid{grid-template-columns:repeat(3,1fr)}.verifier-story{min-height:410px;margin-top:14px;padding:55px;border:1px solid var(--line);border-radius:17px;background:radial-gradient(circle at 82% 32%,rgba(34,228,213,.16),transparent 31%),linear-gradient(135deg,#f9fdfd,#edf8f7);display:grid;grid-template-columns:.75fr 1.25fr;gap:55px;align-items:center}.verifier-story h2{max-width:520px;margin:22px 0 16px;font:500 39px/1.02 var(--display);letter-spacing:-.045em}.verifier-story p{max-width:530px;color:var(--ink5);font-size:10px;line-height:1.75}.verifier-flow{display:grid;grid-template-columns:1fr 22px 1fr 22px 1fr;align-items:center}.verifier-flow>span{min-height:185px;padding:22px;border:1px solid rgba(8,104,183,.14);border-radius:15px;background:rgba(255,255,255,.82);display:flex;flex-direction:column;justify-content:flex-end}.verifier-flow>span>b{margin-bottom:auto;color:var(--blue);font:600 27px var(--display)}.verifier-flow>span{font-size:10px;font-weight:750;line-height:1.4}.verifier-flow>span small{margin-top:8px;color:var(--ink5);font-size:7px;font-weight:500}.verifier-flow>i{height:1px;background:linear-gradient(90deg,var(--blue),var(--cyan));position:relative}.verifier-flow>i:after{content:"";position:absolute;right:-2px;top:-3px;width:7px;height:7px;border-radius:50%;background:var(--cyan)}

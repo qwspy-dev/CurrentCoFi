@@ -55,8 +55,9 @@ const action = await current.agentActions.proposeDistribution({
   activationEvent: "game.first_match",
 });
 
-// completed means the agent stayed inside policy and created an awaiting-funding
-// campaign. approval_required means a workspace owner must approve it first.
+// awaiting_settlement means policy passed and the campaign now needs the
+// authorized project wallet to approve its token and fund the Arc vault.
+// completed is returned only after that funding transaction is confirmed.
 console.log(action.status, action.policyDecision);
 ```
 

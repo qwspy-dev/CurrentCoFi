@@ -157,14 +157,28 @@ export type AgentAction = {
   id: string;
   agentName: string;
   kind: string;
-  status: "auto_approved" | "approval_required" | "blocked" | "approved" | "rejected" | "executing" | "completed" | "failed";
+  status: "auto_approved" | "approval_required" | "blocked" | "approved" | "rejected" | "executing" | "awaiting_settlement" | "completed" | "failed";
   riskLevel: "low" | "medium" | "high";
   amountAtomic: string;
   assetAddress: string | null;
   recipientCount: number;
   campaignName: string;
   policyDecision: { outcome?: string; reasons?: string[] };
-  result: { distributionId?: string; name?: string; status?: string };
+  result: {
+    distributionId?: string;
+    name?: string;
+    status?: string;
+    settlementStatus?: string;
+    fundingTransactionHash?: string | null;
+  };
+  settlement: {
+    id: string;
+    status: string;
+    transactionHash: string | null;
+    failureCode: string | null;
+    settledAt: string | null;
+    stages: Array<{ id: string; label: string; complete: boolean }>;
+  } | null;
   failureCode: string | null;
   reviewedAt: string | null;
   executedAt: string | null;
@@ -330,7 +344,7 @@ export class Current {
 
   readonly agentActions = {
     list: () => this.get<{
-      totals: { actions: number; approvalRequired: number; completed: number; blocked: number };
+      totals: { actions: number; approvalRequired: number; awaitingSettlement: number; completed: number; blocked: number };
       actions: AgentAction[];
     }>("/api/v1/developer/agent-actions"),
     proposeDistribution: (input: ProposeAgentDistributionInput) => this.signedPost<AgentAction>(

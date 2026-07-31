@@ -3,7 +3,7 @@
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
   Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
-  Copy, Download, Eye, FileCheck2, Fingerprint, Gauge, Gift,
+  Copy, Download, Eye, ExternalLink, FileCheck2, Fingerprint, Gauge, Gift,
   Globe2, Handshake, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
   MoreHorizontal, Network, Pause, Play, Plus, Radar, Radio, RefreshCw, Search,
   Rocket, Settings, Share2, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target,
@@ -344,7 +344,21 @@ type AgentActionRecord = {
   recipientCount: number;
   campaignName: string;
   policyDecision: { outcome?: string; reasons?: string[] };
-  result: { distributionId?: string; name?: string; status?: string };
+  result: {
+    distributionId?: string;
+    name?: string;
+    status?: string;
+    settlementStatus?: string;
+    fundingTransactionHash?: string | null;
+  };
+  settlement: {
+    id: string;
+    status: string;
+    transactionHash: string | null;
+    failureCode: string | null;
+    settledAt: string | null;
+    stages: Array<{ id: string; label: string; complete: boolean }>;
+  } | null;
   failureCode: string | null;
   reviewedAt: string | null;
   executedAt: string | null;
@@ -353,7 +367,7 @@ type AgentActionRecord = {
 };
 
 type AgentRuntimeState = {
-  totals: { actions: number; approvalRequired: number; completed: number; blocked: number };
+  totals: { actions: number; approvalRequired: number; awaitingSettlement: number; completed: number; blocked: number };
   actions: AgentActionRecord[];
 };
 
@@ -1805,7 +1819,7 @@ function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","crosschain.funding.created","crosschain.funding.source-confirmed","crosschain.funding.arc-arrived","crosschain.funding.campaign-funded","identity.verified","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
+    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","crosschain.funding.created","crosschain.funding.source-confirmed","crosschain.funding.arc-arrived","crosschain.funding.campaign-funded","agent.settlement-ready","agent.settlement-approved","agent.settled","identity.verified","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Webhook creation failed.")}
     finally{setBusy(false)}
   };
@@ -1833,7 +1847,7 @@ function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
 
 function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const [keys,setKeys]=useState<DeveloperKeyRecord[]>([]);
-  const [runtime,setRuntime]=useState<AgentRuntimeState>({totals:{actions:0,approvalRequired:0,completed:0,blocked:0},actions:[]});
+  const [runtime,setRuntime]=useState<AgentRuntimeState>({totals:{actions:0,approvalRequired:0,awaitingSettlement:0,completed:0,blocked:0},actions:[]});
   const [created,setCreated]=useState<CreatedDeveloperKey|null>(null);
   const [name,setName]=useState("Reward Router");
   const [eventTypes,setEventTypes]=useState("game.completed,purchase.completed");
@@ -1856,11 +1870,24 @@ function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   };
   const revoke=async(keyId:string)=>{setBusy(true);try{await currentApi.post("/developer/keys",{action:"revoke",keyId});await refresh()}finally{setBusy(false)}};
   const review=async(actionId:string,decision:"approve"|"reject")=>{setBusy(true);setError(null);try{await currentApi.post("/agent-actions",{actionId,decision});await refresh()}catch(reviewError){setError(reviewError instanceof Error?reviewError.message:"The action could not be reviewed.")}finally{setBusy(false)}};
+  const settle=async(actionId:string,action:"approve"|"deposit")=>{
+    setBusy(true);setError(null);
+    try{
+      const started=await currentApi.post<WalletActionResult>("/agent-actions/settle",{actionId,action});
+      if(!started.complete){
+        if(!started.challengeId)throw new Error("Circle did not return a wallet challenge.");
+        await auth.executeChallenge(started.challengeId);
+        await confirmWalletAction("/agent-actions/settle",{actionId,action},started.challengeId);
+      }
+      await refresh();
+    }catch(settlementError){setError(settlementError instanceof Error?settlementError.message:"The Arc settlement could not be completed.")}
+    finally{setBusy(false)}
+  };
   return <><PageHero eyebrow="POLICY-BOUND AGENT RUNTIME" title="Let agents activate users. Keep humans in control." copy="Agents can propose walletless USDC and project-token campaigns inside explicit identity, volume, and reward boundaries. High-value actions pause for human approval, and every decision becomes auditable evidence." mode="orbit"/>
     {!auth.account&&<div className="campaign-empty"><Lock/><h3>Agent controls require an account</h3><p>Sign in to issue scoped machine credentials.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
-    {auth.account&&<><div className="agent-runtime-metrics">{[["Agent actions",runtime.totals.actions,Activity],["Needs approval",runtime.totals.approvalRequired,Clock3],["Completed",runtime.totals.completed,CheckCircle2],["Blocked",runtime.totals.blocked,ShieldAlert]].map(([label,value,Icon])=>{const MetricIcon=Icon as typeof Activity;return <article key={String(label)}><span><MetricIcon/></span><strong>{String(value)}</strong><small>{String(label)}</small></article>})}</div>
+    {auth.account&&<><div className="agent-runtime-metrics">{[["Agent actions",runtime.totals.actions,Activity],["Needs approval",runtime.totals.approvalRequired,Clock3],["Needs funding",runtime.totals.awaitingSettlement,Wallet],["Settled",runtime.totals.completed,CheckCircle2],["Blocked",runtime.totals.blocked,ShieldAlert]].map(([label,value,Icon])=>{const MetricIcon=Icon as typeof Activity;return <article key={String(label)}><span><MetricIcon/></span><strong>{String(value)}</strong><small>{String(label)}</small></article>})}</div>
     <section className="agent-action-center"><div className="panel-head"><div><Eyebrow>HUMAN APPROVAL QUEUE</Eyebrow><h3>Every proposed movement has a decision trail.</h3><p>Approved actions create fully allocated campaigns. Project funds still move only when an authorized wallet funds the campaign on Arc.</p></div><Status tone={runtime.totals.approvalRequired?"cyan":"green"}>{runtime.totals.approvalRequired?`${runtime.totals.approvalRequired} waiting`:"All clear"}</Status></div>
-    <div className="agent-action-list">{runtime.actions.map(action=><article key={action.id}><div className={`agent-action-icon ${action.status}`}><Bot/></div><div className="agent-action-copy"><div><b>{action.campaignName}</b><Status tone={action.status==="completed"?"green":action.status==="approval_required"?"cyan":"grey"}>{action.status.replaceAll("_"," ")}</Status></div><p>{action.agentName} · {action.recipientCount} recipient{action.recipientCount===1?"":"s"} · {(Number(action.amountAtomic)/1_000_000).toLocaleString(undefined,{maximumFractionDigits:2})} token units</p><small>{action.policyDecision.reasons?.[0]??"Policy decision recorded."}</small></div><div className="agent-action-meta"><span><small>RISK</small>{action.riskLevel}</span><span><small>PROPOSED</small>{new Date(action.createdAt).toLocaleDateString()}</span>{action.result.distributionId&&<button onClick={()=>go("campaigns")}>Open campaign <ArrowRight/></button>}</div>{action.status==="approval_required"&&<div className="agent-action-review"><button disabled={busy} onClick={()=>void review(action.id,"reject")}>Reject</button><Button tone="blue" disabled={busy} onClick={()=>void review(action.id,"approve")}>Approve & create <Check/></Button></div>}</article>)}{!runtime.actions.length&&<div className="agent-action-empty"><Radar/><div><b>No agent actions yet</b><p>The first signed proposal will appear here with its complete policy decision.</p></div></div>}</div></section>
+    <div className="agent-action-list">{runtime.actions.map(action=><article key={action.id}><div className={`agent-action-icon ${action.status}`}><Bot/></div><div className="agent-action-copy"><div><b>{action.campaignName}</b><Status tone={action.status==="completed"?"green":["approval_required","awaiting_settlement"].includes(action.status)?"cyan":"grey"}>{action.status.replaceAll("_"," ")}</Status></div><p>{action.agentName} · {action.recipientCount} recipient{action.recipientCount===1?"":"s"} · {(Number(action.amountAtomic)/1_000_000).toLocaleString(undefined,{maximumFractionDigits:2})} token units</p><small>{action.policyDecision.reasons?.[0]??"Policy decision recorded."}</small>{action.settlement&&<div className="agent-settlement-track">{action.settlement.stages.map(stage=><span className={stage.complete?"complete":""} key={stage.id}><i>{stage.complete?<Check/>:<span/>}</i>{stage.label}</span>)}</div>}</div><div className="agent-action-meta"><span><small>RISK</small>{action.riskLevel}</span><span><small>PROPOSED</small>{new Date(action.createdAt).toLocaleDateString()}</span>{action.result.distributionId&&<button onClick={()=>go("campaigns")}>Open campaign <ArrowRight/></button>}</div>{action.status==="approval_required"&&<div className="agent-action-review"><button disabled={busy} onClick={()=>void review(action.id,"reject")}>Reject</button><Button tone="blue" disabled={busy} onClick={()=>void review(action.id,"approve")}>Approve intent <Check/></Button></div>}{action.status==="awaiting_settlement"&&action.settlement&&<div className="agent-action-review settlement"><small>Authorized project wallet required</small>{["awaiting_settlement","approving"].includes(action.settlement.status)?<Button tone="blue" disabled={busy} onClick={()=>void settle(action.id,"approve")}>{busy?"Opening wallet…":"1. Approve token"} <ShieldCheck/></Button>:<Button tone="blue" disabled={busy} onClick={()=>void settle(action.id,"deposit")}>{busy?"Confirming Arc…":"2. Fund Arc vault"} <ArrowRight/></Button>}</div>}{action.status==="completed"&&action.settlement?.transactionHash&&<a className="agent-settlement-receipt" href={`https://testnet.arcscan.app/tx/${action.settlement.transactionHash}`} target="_blank" rel="noreferrer">Verified Arc receipt <ExternalLink/></a>}</article>)}{!runtime.actions.length&&<div className="agent-action-empty"><Radar/><div><b>No agent actions yet</b><p>The first signed proposal will appear here with its complete policy decision.</p></div></div>}</div></section>
     <div className="integration-create agent-create"><div><Eyebrow>NEW AGENT POLICY</Eyebrow><h3>Issue a key with enforceable limits.</h3><p>Amounts use six-decimal atomic units. The approval threshold pauses larger campaigns for a human.</p></div><label>Name<input value={name} onChange={event=>setName(event.target.value)}/></label><label>Allowed events<input value={eventTypes} onChange={event=>setEventTypes(event.target.value)}/></label><label>Daily action limit<input inputMode="numeric" value={dailyLimit} onChange={event=>setDailyLimit(event.target.value)}/></label><label>Maximum reward<input inputMode="numeric" value={maxReward} onChange={event=>setMaxReward(event.target.value)}/></label><label>Human approval at<input inputMode="numeric" value={approvalReward} onChange={event=>setApprovalReward(event.target.value)}/></label><Button tone="blue" disabled={busy||!name.trim()} onClick={()=>void create()}>{busy?"Issuing…":"Create agent"} <Plus/></Button></div>
     {created&&<div className="credential-reveal"><Bot/><div><b>{created.name} is ready</b><label>Agent key<code>{created.token}</code></label><label>Signing secret<code>{created.signingSecret}</code></label><small>Store these now; they are not recoverable.</small></div><button onClick={()=>void navigator.clipboard.writeText(`CURRENT_AGENT_KEY=${created.token}\nCURRENT_SIGNING_SECRET=${created.signingSecret}`)}><Copy/></button></div>}
     {error&&<p className="auth-system-note is-error"><X/>{error}</p>}

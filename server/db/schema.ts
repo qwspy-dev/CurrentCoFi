@@ -246,6 +246,26 @@ export const agentActions = pgTable("agent_actions", {
   index("agent_actions_key_created_idx").on(table.apiKeyId, table.createdAt),
 ]);
 
+export const agentSettlementHandoffs = pgTable("agent_settlement_handoffs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  actionId: uuid("action_id").references(() => agentActions.id, { onDelete: "cascade" }).notNull(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  reviewerUserId: uuid("reviewer_user_id").references(() => users.id, { onDelete: "set null" }),
+  status: text("status").default("awaiting_settlement").notNull(),
+  approvalChallengeId: text("approval_challenge_id"),
+  fundingChallengeId: text("funding_challenge_id"),
+  transactionHash: text("transaction_hash"),
+  failureCode: text("failure_code"),
+  evidence: jsonb("evidence").$type<Record<string, unknown>>().default({}).notNull(),
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("agent_settlement_action_unique").on(table.actionId),
+  uniqueIndex("agent_settlement_distribution_unique").on(table.distributionId),
+  index("agent_settlement_project_status_idx").on(table.projectId, table.status, table.createdAt),
+]);
+
 export const crosschainFundingIntents = pgTable("crosschain_funding_intents", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

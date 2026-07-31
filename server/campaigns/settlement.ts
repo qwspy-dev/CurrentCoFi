@@ -15,7 +15,7 @@ import {
 } from "../circle/client.js";
 import { ARC_TESTNET, getServerConfig } from "../config.js";
 import { getDb } from "../db/client.js";
-import { allocations, claims, distributions, tokens, wallets } from "../db/schema.js";
+import { allocations, claims, distributions, projectMembers, tokens, wallets } from "../db/schema.js";
 import { ApiError } from "../http.js";
 import { parseClaimToken } from "../security/crypto.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
@@ -99,9 +99,12 @@ async function ownedCampaign(distributionId: string, userId: string) {
     tokenAddress: tokens.contractAddress,
   }).from(distributions)
     .innerJoin(tokens, eq(tokens.id, distributions.tokenId))
+    .innerJoin(projectMembers, and(
+      eq(projectMembers.projectId, distributions.projectId),
+      eq(projectMembers.userId, userId),
+    ))
     .where(and(
       eq(distributions.id, distributionId),
-      eq(distributions.creatorUserId, userId),
       eq(distributions.kind, "merkle-campaign"),
     ))
     .limit(1);

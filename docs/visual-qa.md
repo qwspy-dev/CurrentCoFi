@@ -42,3 +42,10 @@ The browser reported no horizontal document overflow at any required viewport. N
 
 The marketing experience now has a dark cinematic opening, a generated current-network hero film, high-contrast editorial typography, large proof surfaces, a scroll-controlled network story, water-current motion, and restrained light product sections. The application uses the same visual language at a denser operational scale without turning claim or payment actions into an over-animated experience.
 
+## Agent Settlement Gateway pass
+
+- Inspected the Agents route at 1440 × 900 and 390 × 844 after the settlement-ledger update.
+- The page rendered meaningful content with no framework overlay or browser console errors.
+- Mobile document width matched the 390px viewport with no horizontal overflow.
+- The signed-out boundary remains deliberate and clear; authenticated action cards now reserve responsive space for campaign creation, token approval, vault funding, and the verified Arc receipt.
+- The five-metric operator summary collapses from five columns to three and then two columns without changing action priority.

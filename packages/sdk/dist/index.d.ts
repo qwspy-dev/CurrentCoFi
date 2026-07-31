@@ -172,7 +172,7 @@ export type AgentAction = {
     id: string;
     agentName: string;
     kind: string;
-    status: "auto_approved" | "approval_required" | "blocked" | "approved" | "rejected" | "executing" | "completed" | "failed";
+    status: "auto_approved" | "approval_required" | "blocked" | "approved" | "rejected" | "executing" | "awaiting_settlement" | "completed" | "failed";
     riskLevel: "low" | "medium" | "high";
     amountAtomic: string;
     assetAddress: string | null;
@@ -186,7 +186,21 @@ export type AgentAction = {
         distributionId?: string;
         name?: string;
         status?: string;
+        settlementStatus?: string;
+        fundingTransactionHash?: string | null;
     };
+    settlement: {
+        id: string;
+        status: string;
+        transactionHash: string | null;
+        failureCode: string | null;
+        settledAt: string | null;
+        stages: Array<{
+            id: string;
+            label: string;
+            complete: boolean;
+        }>;
+    } | null;
     failureCode: string | null;
     reviewedAt: string | null;
     executedAt: string | null;
@@ -288,6 +302,7 @@ export declare class Current {
             totals: {
                 actions: number;
                 approvalRequired: number;
+                awaitingSettlement: number;
                 completed: number;
                 blocked: number;
             };

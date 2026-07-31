@@ -2,7 +2,7 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.4.0",
+  version: "1.5.0",
   network: "ARC-TESTNET",
   authentication: {
     type: "scoped-api-key",
@@ -27,9 +27,21 @@ export default withApi((request) => ok(request, {
         referralReward: "optional project-defined reward label",
       },
       outcomes: {
-        completed: "Policy approved and an awaiting-funding campaign was created.",
+        awaiting_settlement: "Policy approved, the campaign was created, and an authorized project wallet must approve the token and fund the Arc vault.",
+        completed: "The campaign vault funding transaction was confirmed on Arc.",
         approval_required: "Paused in the workspace approval queue.",
         blocked: "Rejected by the agent's configured boundaries.",
+      },
+    },
+    {
+      name: "read_agent_settlement",
+      description: "Read policy, human-review, token-approval, Arc-vault funding, and transaction-proof state for agent proposals.",
+      method: "GET",
+      path: "/api/v1/developer/agent-actions",
+      permission: "agent-actions:read",
+      outcomes: {
+        awaiting_settlement: "Campaign exists but funds have not moved into the Arc vault.",
+        completed: "Arc vault funding is confirmed and includes a transaction receipt.",
       },
     },
     {

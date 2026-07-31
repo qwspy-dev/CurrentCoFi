@@ -1,9 +1,11 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
-import { agentActions, apiKeys } from "../db/schema.js";
+import { agentActions, agentSettlementHandoffs, apiKeys } from "../db/schema.js";
 import { ApiError } from "../http.js";
 import type { AuthenticatedDeveloperKey } from "../developer/keys.js";
 import { createDeveloperDistribution } from "../developer/distributions.js";
+import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
+import { createAgentSettlementHandoff, publicAgentSettlement } from "./settlement.js";
 
 type AgentDistributionInput = {
   idempotencyKey?: unknown;
@@ -104,7 +106,11 @@ export function evaluateAgentActionPolicy(
   };
 }
 
-function publicAction(row: typeof agentActions.$inferSelect, agentName?: string | null) {
+function publicAction(
+  row: typeof agentActions.$inferSelect,
+  agentName?: string | null,
+  settlement?: typeof agentSettlementHandoffs.$inferSelect | null,
+) {
   const request = row.requestPayload;
   const recipients = Array.isArray(request.recipients) ? request.recipients : [];
   return {
@@ -119,6 +125,7 @@ function publicAction(row: typeof agentActions.$inferSelect, agentName?: string 
     campaignName: typeof request.name === "string" ? request.name : "Agent reward distribution",
     policyDecision: row.policyDecision,
     result: row.result,
+    settlement: publicAgentSettlement(settlement),
     failureCode: row.failureCode,
     reviewedAt: row.reviewedAt?.toISOString() ?? null,
     executedAt: row.executedAt?.toISOString() ?? null,
@@ -131,13 +138,35 @@ async function executeAction(action: typeof agentActions.$inferSelect, origin: s
   await getDb().update(agentActions).set({ status: "executing", updatedAt: new Date() }).where(eq(agentActions.id, action.id));
   try {
     const campaign = await createDeveloperDistribution(action.projectId, origin, action.requestPayload);
+    const handoff = await createAgentSettlementHandoff({
+      actionId: action.id,
+      projectId: action.projectId,
+      distributionId: campaign.id,
+    });
     const [completed] = await getDb().update(agentActions).set({
-      status: "completed",
-      result: { distributionId: campaign.id, name: campaign.name, status: campaign.status, recipientCount: campaign.recipientCount },
+      status: "awaiting_settlement",
+      result: {
+        distributionId: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        recipientCount: campaign.recipientCount,
+        settlementStatus: "awaiting_settlement",
+      },
       executedAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(agentActions.id, action.id)).returning();
-    return publicAction(completed);
+    try {
+      await queueWebhookEvent(action.projectId, "agent.settlement-ready", {
+        actionId: action.id,
+        distributionId: campaign.id,
+        amountAtomic: action.amountAtomic,
+        assetAddress: action.assetAddress,
+      });
+      await deliverQueuedWebhooks(10);
+    } catch {
+      // Settlement state is authoritative; webhook delivery retries independently.
+    }
+    return publicAction(completed, null, handoff);
   } catch (error) {
     const failureCode = error instanceof ApiError ? error.code : "AGENT_EXECUTION_FAILED";
     await getDb().update(agentActions).set({ status: "failed", failureCode, updatedAt: new Date() }).where(eq(agentActions.id, action.id));
@@ -160,7 +189,12 @@ export async function proposeAgentDistribution(
   const existing = await getDb().query.agentActions.findFirst({
     where: and(eq(agentActions.apiKeyId, key.id), eq(agentActions.idempotencyKey, idempotencyKey)),
   });
-  if (existing) return publicAction(existing);
+  if (existing) {
+    const handoff = await getDb().query.agentSettlementHandoffs.findFirst({
+      where: eq(agentSettlementHandoffs.actionId, existing.id),
+    });
+    return publicAction(existing, null, handoff);
+  }
 
   const [created] = await getDb().insert(agentActions).values({
     projectId: key.projectId,
@@ -179,14 +213,20 @@ export async function proposeAgentDistribution(
 }
 
 export async function listProjectAgentActions(projectId: string) {
-  const rows = await getDb().select({ action: agentActions, agentName: apiKeys.name })
+  const rows = await getDb().select({
+    action: agentActions,
+    agentName: apiKeys.name,
+    settlement: agentSettlementHandoffs,
+  })
     .from(agentActions).leftJoin(apiKeys, eq(agentActions.apiKeyId, apiKeys.id))
+    .leftJoin(agentSettlementHandoffs, eq(agentSettlementHandoffs.actionId, agentActions.id))
     .where(eq(agentActions.projectId, projectId)).orderBy(desc(agentActions.createdAt)).limit(100);
-  const actions = rows.map((row) => publicAction(row.action, row.agentName));
+  const actions = rows.map((row) => publicAction(row.action, row.agentName, row.settlement));
   return {
     totals: {
       actions: actions.length,
       approvalRequired: actions.filter((action) => action.status === "approval_required").length,
+      awaitingSettlement: actions.filter((action) => action.status === "awaiting_settlement").length,
       completed: actions.filter((action) => action.status === "completed").length,
       blocked: actions.filter((action) => action.status === "blocked").length,
     },

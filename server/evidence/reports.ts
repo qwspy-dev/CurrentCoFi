@@ -4,6 +4,7 @@ import { getDb } from "../db/client.js";
 import {
   activationEvents,
   agentActions,
+  agentSettlementHandoffs,
   allocations,
   apiKeys,
   auditEvents,
@@ -22,7 +23,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v4";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v5";
 
 type Criterion = {
   id: string;
@@ -128,6 +129,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     recentAuditRows,
     pilotRows,
     agentActionRows,
+    agentSettlementRows,
     crosschainFundingRows,
   ] = await Promise.all([
     campaignIds.length
@@ -224,6 +226,19 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     }).from(agentActions)
       .where(eq(agentActions.projectId, projectId))
       .orderBy(desc(agentActions.createdAt))
+      .limit(100),
+    db.select({
+      id: agentSettlementHandoffs.id,
+      actionId: agentSettlementHandoffs.actionId,
+      distributionId: agentSettlementHandoffs.distributionId,
+      status: agentSettlementHandoffs.status,
+      transactionHash: agentSettlementHandoffs.transactionHash,
+      evidence: agentSettlementHandoffs.evidence,
+      settledAt: agentSettlementHandoffs.settledAt,
+      updatedAt: agentSettlementHandoffs.updatedAt,
+    }).from(agentSettlementHandoffs)
+      .where(eq(agentSettlementHandoffs.projectId, projectId))
+      .orderBy(desc(agentSettlementHandoffs.createdAt))
       .limit(100),
     campaignIds.length
       ? db.select({
@@ -375,6 +390,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const completedPilots = pilotRows.filter((pilot) => pilot.status === "complete").length;
   const completedAgentActions = agentActionRows.filter((action) => action.status === "completed").length;
   const reviewedAgentActions = agentActionRows.filter((action) => Boolean(action.reviewedAt)).length;
+  const settledAgentActions = agentSettlementRows.filter((settlement) => settlement.status === "settled").length;
   const criteria: Criterion[] = [
     {
       id: "working-product",
@@ -445,8 +461,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       id: "agent-runtime",
       label: "Policy-bound agent activity",
       weight: 10,
-      passed: completedAgentActions > 0,
-      evidence: `${completedAgentActions} completed agent action${completedAgentActions === 1 ? "" : "s"} and ${reviewedAgentActions} human-reviewed action${reviewedAgentActions === 1 ? "" : "s"}.`,
+      passed: settledAgentActions > 0,
+      evidence: `${settledAgentActions} agent-funded Arc settlement${settledAgentActions === 1 ? "" : "s"}, ${completedAgentActions} completed action${completedAgentActions === 1 ? "" : "s"}, and ${reviewedAgentActions} human-reviewed action${reviewedAgentActions === 1 ? "" : "s"}.`,
     },
   ];
   const generatedAt = new Date().toISOString();
@@ -487,6 +503,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       agentActions: agentActionRows.length,
       completedAgentActions,
       reviewedAgentActions,
+      settledAgentActions,
     },
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({
@@ -516,6 +533,16 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       reviewedAt: action.reviewedAt?.toISOString() ?? null,
       executedAt: action.executedAt?.toISOString() ?? null,
     })),
+    agentSettlements: agentSettlementRows.map((settlement) => ({
+      id: settlement.id,
+      actionId: settlement.actionId,
+      distributionId: settlement.distributionId,
+      status: settlement.status,
+      transactionHash: settlement.transactionHash,
+      evidence: settlement.evidence,
+      settledAt: settlement.settledAt?.toISOString() ?? null,
+      updatedAt: settlement.updatedAt.toISOString(),
+    })),
     auditTrail: recentAuditRows.map((event) => ({
       action: event.action,
       resourceType: event.resourceType,
@@ -532,6 +559,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         "Project-signed activation and identity events",
         "Partner-signed pilot attestations",
         "Policy-bound agent actions and human approval decisions",
+        "Human-authorized agent campaign vault settlements",
       ],
     },
   };

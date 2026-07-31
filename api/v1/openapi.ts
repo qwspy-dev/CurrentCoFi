@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "2.3.0-crosschain-funding",
+    version: "2.4.0-agent-settlement",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -82,6 +82,9 @@ export default withApi((request) => ok(request, {
       get: { summary: "List the workspace agent action and approval ledger" },
       post: { summary: "Approve or reject a high-value agent action" },
     },
+    "/agent-actions/settle": {
+      post: { summary: "Approve the campaign token and fund an agent-created campaign vault through an authorized Circle wallet" },
+    },
     "/developer/analytics": {
       get: { summary: "Read project analytics with a scoped API key" },
     },
@@ -117,6 +120,7 @@ export default withApi((request) => ok(request, {
       "pilot-operations", "partner-attestations", "pilot-readiness",
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
       "crosschain-funding-intents", "cctp-v2-forwarding", "crosschain-settlement-proof",
+      "agent-settlement-handoffs", "agent-wallet-approval", "agent-vault-funding-proof",
     ],
     plannedResourceGroups: [],
   },

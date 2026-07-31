@@ -141,12 +141,13 @@ const mockFetch: typeof fetch = async (input, init) => {
       status: "approval_required", riskLevel: "medium", amountAtomic: "25000000",
       assetAddress: null, recipientCount: 1, campaignName: body.name,
       policyDecision: { outcome: "approval_required", reasons: ["Human approval threshold reached."] },
+      settlement: null,
       result: {}, failureCode: null, reviewedAt: null, executedAt: null,
       createdAt: "2026-08-14T00:00:00.000Z", updatedAt: "2026-08-14T00:00:00.000Z",
     } }, { status: 201 });
   }
   if (String(input).endsWith("/developer/agent-actions")) {
-    return Response.json({ ok: true, data: { totals: { actions: 1, approvalRequired: 1, completed: 0, blocked: 0 }, actions: [] } });
+    return Response.json({ ok: true, data: { totals: { actions: 1, approvalRequired: 1, awaitingSettlement: 0, completed: 0, blocked: 0 }, actions: [] } });
   }
   return Response.json({
     ok: false,
