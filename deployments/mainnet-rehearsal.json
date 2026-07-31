@@ -1,0 +1,33 @@
+{
+  "environment": "ARC-MAINNET-PENDING",
+  "status": "testnet-rehearsal-proven-mainnet-pending",
+  "releaseTemplate": "current-cofi:arc-mainnet:release:v1",
+  "criticalComponents": [
+    "claim-vault",
+    "campaign-vault",
+    "current-token",
+    "current-lock-vault",
+    "fee-router",
+    "access-manager",
+    "buyback-governor",
+    "liquidity-vault",
+    "partner-vault",
+    "venue-registry"
+  ],
+  "requiredGates": [
+    "official Arc mainnet chain configuration",
+    "audited release artifacts",
+    "multisignature release owner and guardian",
+    "production Circle wallet and gas sponsorship configuration",
+    "qualified production liquidity venue",
+    "full release payload reviewed before public delay",
+    "rollback payload verified before activation"
+  ],
+  "testnetProof": {
+    "registry": "0x1d5de9e5c9a1af2d04cab2a083a08ad444235aca",
+    "governor": "0xe9eb91803df1b460f9df036b011bb1fd027d2c79",
+    "releaseId": "0x00404b5caf8fab798e7b87ec8756b90f7226e4fb3495cfaedede4f0188ce45a4",
+    "manifestHash": "0xa096d974f57b99d8ca1fd76c08541917d40d0f69d5b0fa797c1159147b1209aa",
+    "componentCount": 10
+  }
+}

@@ -95,5 +95,18 @@
   "currentQualifiedAdapterCodeHash": "0x495d04b0e1aed27ae4b26d8e4d0c41559dfd5584aca7319baf46455a39c9dd01",
   "currentVenueMaxSlippageBps": 300,
   "currentVenueMaxAllocationBps": 2000,
-  "currentVenueRegistryStatus": "deployed-and-proven"
+  "currentVenueRegistryStatus": "deployed-and-proven",
+  "currentReleaseRegistryAddress": "0x1d5de9e5c9a1af2d04cab2a083a08ad444235aca",
+  "currentReleaseRegistryDeploymentTransactionHash": "0x06b322915714c7f8f8e51f642e48599d95bc6206996885614f58ee7ae8fc4af5",
+  "currentReleaseGovernorAddress": "0xe9eb91803df1b460f9df036b011bb1fd027d2c79",
+  "currentReleaseGovernorDeploymentTransactionHash": "0x065717e96595f5b8e0aa5423f19fdb2d2d8d0c376c942f2ba78f60edf8879208",
+  "currentReleaseRegistryOwnershipTransactionHash": "0x605f42ce41c70b535d3d22360e0fdf8ede74cd48b149f2eb086d7db142d99757",
+  "currentReleaseQueueTransactionHash": "0x0843d3ed56743d592838d4e0734738f53455c1d03c84a7c18340211eabfce31d",
+  "currentReleaseExecutionTransactionHash": "0xaeb78c06bb5431c8f851a3cf828e9735a3f5b449d765f9a2dcff499fa255fda6",
+  "currentReleaseOperationId": "0xa0ba0a401cd6b3e929b3e19feb8fbc522c6490e4d0aeb9e6253267ad73deafbd",
+  "currentReleaseId": "0x00404b5caf8fab798e7b87ec8756b90f7226e4fb3495cfaedede4f0188ce45a4",
+  "currentReleaseManifestHash": "0xa096d974f57b99d8ca1fd76c08541917d40d0f69d5b0fa797c1159147b1209aa",
+  "currentReleaseComponentCount": 10,
+  "currentReleaseMinimumDelaySeconds": 30,
+  "currentReleaseStatus": "deployed-and-proven"
 }

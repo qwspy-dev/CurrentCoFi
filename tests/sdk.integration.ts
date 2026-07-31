@@ -131,6 +131,15 @@ const mockFetch: typeof fetch = async (input, init) => {
       totals: { approvedVenues: 1, approvals: 1, revocations: 0 }, readiness: { custodyAdapterBoundary: true, exactBytecodeBinding: true, exactPairBinding: true, riskCaps: true, testnetQualificationOnly: true },
     } });
   }
+  if (String(input).endsWith("/developer/launch-readiness")) {
+    return Response.json({ ok: true, data: {
+      configured: true, network: "ARC-TESTNET", explorerUrl: "https://testnet.arcscan.app", readinessScore: 100,
+      addresses: { registry: "0xregistry", governor: "0xgovernor" },
+      release: { id: "0xrelease", expectedId: "0xrelease", manifestHash: "0xmanifest", totalReleases: 1, appliedAt: 1, componentCount: 10, active: true },
+      governance: { guardian: "0xguardian", minimumDelaySeconds: 30, paused: false, totalQueued: 1, totalExecuted: 1, totalCancelled: 0 },
+      components: [], checks: { exactRelease: true },
+    } });
+  }
   if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
     return Response.json({
       ok: true,
@@ -291,6 +300,10 @@ assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), `
 await current.venues.get();
 assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/venues");
 assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), `Bearer ${apiKey}`);
+
+const release = await current.releases.get();
+assert.equal(release.readinessScore, 100);
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/launch-readiness");
 
 const evidence = await current.evidence.create({ distributionId: distribution.id });
 assert.equal(evidence.publicSlug, "proof_sdk");

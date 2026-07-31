@@ -207,6 +207,48 @@ export type VenueRegistrySnapshot = {
     };
     proofMode?: string;
 };
+export type LaunchReadinessSnapshot = {
+    configured: boolean;
+    network: string;
+    explorerUrl?: string;
+    readinessScore: number;
+    addresses?: {
+        registry: string;
+        governor: string;
+    };
+    release: null | {
+        id: string;
+        expectedId: string;
+        manifestHash: string;
+        totalReleases: number;
+        appliedAt: number;
+        componentCount: number;
+        active: boolean;
+    };
+    governance: null | {
+        guardian: string;
+        minimumDelaySeconds: number;
+        paused: boolean;
+        totalQueued: number;
+        totalExecuted: number;
+        totalCancelled: number;
+    };
+    components: Array<{
+        id: string;
+        key: string;
+        label: string;
+        address: string;
+        expectedAddress: string | null;
+        codeHash: string;
+        versionHash: string;
+        verifiedAt: number;
+        active: boolean;
+        valid: boolean;
+        addressMatches: boolean;
+    }>;
+    checks?: Record<string, boolean>;
+    proofMode?: string;
+};
 export type EvidenceReport = {
     id: string;
     publicSlug: string;
@@ -444,6 +486,9 @@ export declare class Current {
     };
     readonly venues: {
         get: () => Promise<VenueRegistrySnapshot>;
+    };
+    readonly releases: {
+        get: () => Promise<LaunchReadinessSnapshot>;
     };
     readonly evidence: {
         list: () => Promise<{

@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues"
+  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -542,6 +542,15 @@ type VenueRegistryState = {
   proofMode?: string;
 };
 
+type LaunchReadinessState = {
+  configured: boolean; network: string; explorerUrl?: string; readinessScore: number;
+  addresses?: { registry: string; governor: string };
+  release: null | { id: string; manifestHash: string; totalReleases: number; appliedAt: number; componentCount: number; active: boolean };
+  governance: null | { guardian: string; minimumDelaySeconds: number; paused: boolean; totalQueued: number; totalExecuted: number; totalCancelled: number };
+  components: Array<{ id: string; key: string; label: string; address: string; codeHash: string; versionHash: string; active: boolean; valid: boolean; addressMatches: boolean }>;
+  checks?: Record<string, boolean>; proofMode?: string;
+};
+
 const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function parseRecipientCsv(value: string, defaultAmount: string): CampaignRecipientDraft[] {
@@ -689,7 +698,7 @@ function formatAtomic(value:string) {
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues",
+  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch",
   "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -710,7 +719,7 @@ const appNav = [
     ["evidence", "Grant evidence", FileCheck2],
   ]},
   { label: "Protocol", items: [
-    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["developers", "Developers", Code2],
+    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["developers", "Developers", Code2],
     ["agents", "AI agents", Bot],
   ]},
 ] as const;
@@ -1871,6 +1880,20 @@ function VenueRegistryDashboard({go}:{go:(v:View)=>void}) {
     <p className="economy-disclaimer"><TestTube2/>{snapshot?.proofMode??"This venue proof is configured for Arc testnet only."}</p></>;
 }
 
+function LaunchReadinessDashboard({go}:{go:(v:View)=>void}) {
+  const [snapshot,setSnapshot]=useState<LaunchReadinessState|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
+  useEffect(()=>{currentApi.get<LaunchReadinessState>("/launch-readiness").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Release proof could not be read.")).finally(()=>setLoading(false))},[]);
+  const open=(address?:string)=>{if(address&&snapshot?.explorerUrl)window.open(`${snapshot.explorerUrl}/address/${address}`,"_blank","noopener,noreferrer")};
+  const checks=snapshot?.checks??{}; const release=snapshot?.release; const governance=snapshot?.governance;
+  return <><PageHero eyebrow="MAINNET DEPLOYMENT REHEARSAL" title="Every contract. One verifiable release." copy="Current CoFi binds every critical protocol address to its exact runtime bytecode, then moves the complete release through delayed governance with independent cancellation and a rehearsed rollback path." mode="branches"><Button tone="blue" onClick={()=>go("evidence")}>Open grant evidence <ArrowRight/></Button></PageHero>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    <div className="token-metrics-new"><div><small>Launch readiness</small><strong>{loading?"—":`${snapshot?.readinessScore??0}%`}</strong><span>Eight independent checks</span></div><div><small>Release manifest</small><strong>{loading?"—":release?.active?"Active":"Pending"}</strong><span>Exact address and bytecode set</span></div><div><small>Verified components</small><strong>{loading?"—":`${snapshot?.components.filter(item=>item.valid&&item.addressMatches).length??0}/${release?.componentCount??10}`}</strong><span>Runtime code checked on Arc</span></div><div><small>Public review delay</small><strong>{loading?"—":`${governance?.minimumDelaySeconds??0}s`}</strong><span>Guardian cancellation enabled</span></div></div>
+    <section className="data-panel release-flow-panel"><div className="panel-head"><div><h3>Release control plane</h3><p>A repeatable path from reviewed artifacts to the live protocol</p></div><Status tone={release?.active&&snapshot?.readinessScore===100?"green":"grey"}>{release?.active?"Release proven":"Awaiting release"}</Status></div><div className="release-current-map"><div><Fingerprint/><small>REVIEWED BUILD</small><strong>{release?.componentCount??0} exact artifacts</strong><span>Addresses + runtime bytecode</span></div><ArrowRight/><div><Clock3/><small>{governance?.minimumDelaySeconds??0}s PUBLIC DELAY</small><strong>Release governor</strong><span>Payload cannot change after queueing</span></div><ArrowRight/><div><Rocket/><small>ACTIVE MANIFEST</small><strong>{release?.active?"Arc release v1":"Not active"}</strong><span>{release?.manifestHash?`${release.manifestHash.slice(0,12)}…${release.manifestHash.slice(-8)}`:"Manifest pending"}</span></div></div></section>
+    <div className="release-proof-grid"><section className="data-panel"><div className="panel-head"><div><h3>Critical component matrix</h3><p>Every active address must keep the registered code</p></div><Fingerprint/></div><div className="release-component-list">{snapshot?.components.map(item=><button key={item.id} onClick={()=>open(item.address)}><span className={item.valid&&item.addressMatches?"pass":""}><ShieldCheck/></span><b>{item.label}<small>{item.address.slice(0,10)}…{item.address.slice(-6)}</small></b><code>{item.codeHash.slice(0,10)}…{item.codeHash.slice(-6)}</code><Status tone={item.valid&&item.addressMatches?"green":"grey"}>{item.valid&&item.addressMatches?"Verified":"Mismatch"}</Status></button>)}</div></section>
+      <section className="data-panel"><div className="panel-head"><div><h3>Pause and rollback drill</h3><p>Operations remain recoverable under pressure</p></div><ShieldAlert/></div><div className="release-check-list">{[["Exact manifest",checks.exactRelease,"Active release ID and manifest agree"],["Runtime bytecode",checks.allBytecodeValid,"Every component validates onchain"],["Address set",checks.allAddressesMatch,"No deployment substitution"],["Governed owner",checks.governorOwnsRegistry,"No direct deployer overwrite"],["Independent guardian",checks.guardianConfigured,"Queued releases can be cancelled"],["Rollback payload",checks.rollbackPayloadReady,"Prior exact release can be re-queued"],["Emergency pause",checks.emergencyPauseReady,"New execution can be stopped"]].map(([label,pass,copy])=><div className={pass?"pass":""} key={String(label)}><span><Check/></span><b>{String(label)}<small>{String(copy)}</small></b></div>)}</div><div className="release-public-links"><button onClick={()=>open(snapshot?.addresses?.registry)}>Release registry <ArrowUpRight/></button><button onClick={()=>open(snapshot?.addresses?.governor)}>Delayed governor <ArrowUpRight/></button></div></section></div>
+    <p className="economy-disclaimer"><TestTube2/>{snapshot?.proofMode??"Arc testnet deployment rehearsal pending."}</p></>;
+}
+
 function PartnerVaultDashboard({go}:{go:(v:View)=>void}) {
   const [snapshot,setSnapshot]=useState<PartnerVaultState|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
   useEffect(()=>{currentApi.get<PartnerVaultState>("/partners").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Partner reserves could not be read.")).finally(()=>setLoading(false))},[]);
@@ -2188,6 +2211,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "token":page=<TokenDashboard auth={auth} go={go}/>;break;
     case "partners":page=<PartnerVaultDashboard go={go}/>;break;
     case "venues":page=<VenueRegistryDashboard go={go}/>;break;
+    case "launch":page=<LaunchReadinessDashboard go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;

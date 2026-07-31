@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "2.8.0-venue-qualification",
+    version: "2.9.0-release-rehearsal",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -105,6 +105,8 @@ export default withApi((request) => ok(request, {
     "/developer/partners": { get: { summary: "Read partner reserve, governance, and campaign proof with a scoped API key" } },
     "/venues": { get: { summary: "Read qualified liquidity venues, bytecode attestations, pair binding, and risk ceilings" } },
     "/developer/venues": { get: { summary: "Read venue qualification proof with a scoped API key" } },
+    "/launch-readiness": { get: { summary: "Verify the active protocol release, exact bytecode, governance, and rollback readiness" } },
+    "/developer/launch-readiness": { get: { summary: "Read deployment rehearsal proof with a scoped API key" } },
     "/developer/evidence": {
       get: { summary: "List project evidence reports with a scoped API key" },
       post: { summary: "Generate an HMAC-signed grant-evidence snapshot" },
@@ -135,6 +137,7 @@ export default withApi((request) => ok(request, {
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
       "crosschain-funding-intents", "cctp-v2-forwarding", "crosschain-settlement-proof",
       "agent-settlement-handoffs", "agent-wallet-approval", "agent-vault-funding-proof",
+      "release-manifest-registry", "runtime-bytecode-verification", "delayed-release-governance", "rollback-payloads",
     ],
     plannedResourceGroups: [],
   },

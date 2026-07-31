@@ -24,7 +24,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v9";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v10";
 
 type Criterion = {
   id: string;
@@ -537,6 +537,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       passed: Boolean(config.CURRENT_VENUE_REGISTRY_ADDRESS && config.CURRENT_VENUE_REGISTRY_GOVERNOR_ADDRESS),
       evidence: "Liquidity venue adapters are qualified through exact bytecode, pair, slippage, allocation, delayed governance, and guardian cancellation constraints.",
     },
+    {
+      id: "mainnet-release-rehearsal",
+      label: "Verifiable deployment rehearsal",
+      weight: 10,
+      passed: Boolean(config.CURRENT_RELEASE_REGISTRY_ADDRESS && config.CURRENT_RELEASE_GOVERNOR_ADDRESS && config.CURRENT_RELEASE_ID),
+      evidence: "One governed release manifest binds the ten critical protocol addresses to exact runtime bytecode with public delay, guardian cancellation, and rollback payloads.",
+    },
   ];
   const generatedAt = new Date().toISOString();
   return {
@@ -567,6 +574,9 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       partnerProofCampaignId: config.CURRENT_PARTNER_PROOF_CAMPAIGN_ID ?? null,
       venueRegistryAddress: config.CURRENT_VENUE_REGISTRY_ADDRESS ?? null,
       venueRegistryGovernorAddress: config.CURRENT_VENUE_REGISTRY_GOVERNOR_ADDRESS ?? null,
+      releaseRegistryAddress: config.CURRENT_RELEASE_REGISTRY_ADDRESS ?? null,
+      releaseGovernorAddress: config.CURRENT_RELEASE_GOVERNOR_ADDRESS ?? null,
+      releaseId: config.CURRENT_RELEASE_ID ?? null,
     },
     readiness: evidenceReadiness(criteria),
     totals: {
@@ -645,6 +655,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         "Policy-bound agent actions and human approval decisions",
         "Human-authorized agent campaign vault settlements",
         "Circle Gateway deposits, EOA burn intents, attestations, and Arc mint hashes",
+        "Current release registry manifest, runtime bytecode validations, delayed governance, and rollback controls",
       ],
     },
   };
