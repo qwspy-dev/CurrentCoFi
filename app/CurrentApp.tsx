@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token"
+  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -69,6 +69,35 @@ type CampaignRecord = {
   fundingTxHash: string | null;
   activationEvent: unknown;
   claimMode: "allowlist" | "identity-bound";
+};
+
+type FundingIntent = {
+  id: string;
+  distributionId: string;
+  sourceChain: string;
+  destinationChain: string;
+  destinationAddress: string;
+  amountAtomic: string;
+  protocolFeeAtomic: string;
+  forwardFeeAtomic: string;
+  totalBurnAtomic: string;
+  status: string;
+  sourceTransactionHash: string | null;
+  destinationTransactionHash: string | null;
+  campaignFundingTransactionHash: string | null;
+  createdAt: string;
+  source: { label: string; explorer: string; transactionUrl: string | null };
+  destination: { explorer: string; transactionUrl: string | null };
+  stages: Array<{ id: string; label: string; complete: boolean }>;
+};
+
+type FundingState = {
+  catalog: {
+    sourceChains: Array<{ code: string; label: string; domain: number; usdcAddress: string }>;
+    destination: { code: string; domain: number };
+    transport: string;
+  };
+  intents: FundingIntent[];
 };
 
 type CampaignRecipient = {
@@ -558,9 +587,14 @@ async function confirmWalletAction(
   throw new Error("Arc is still confirming this action. You can safely try again in a moment.");
 }
 
+function formatAtomic(value:string) {
+  const numeric=Number(value)/1_000_000;
+  return numeric.toLocaleString(undefined,{maximumFractionDigits:6});
+}
+
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "recipients", "referrals", "analytics", "pilots", "evidence", "token",
+  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token",
   "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -575,7 +609,7 @@ const appNav = [
   { label: "Workspace", items: [
     ["overview", "Overview", Gauge], ["onboarding", "Project setup", Globe2],
     ["create", "Create link", Link2],
-    ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
+    ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
     ["referrals", "Referrals", Network], ["analytics", "Analytics", BarChart3],
     ["pilots", "Pilot operations", Handshake],
     ["evidence", "Grant evidence", FileCheck2],
@@ -1198,6 +1232,116 @@ function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
     </div></>;
 }
 
+function CrosschainFunding({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
+  const network=useCampaignNetwork(Boolean(auth.account));
+  const [state,setState]=useState<FundingState|null>(null);
+  const [distributionId,setDistributionId]=useState("");
+  const [sourceChain,setSourceChain]=useState("BASE-SEPOLIA");
+  const [selectedId,setSelectedId]=useState("");
+  const [working,setWorking]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(async()=>{
+    if(!auth.account)return;
+    try{
+      const next=await currentApi.get<FundingState>("/funding");
+      setState(next);
+      setSelectedId(current=>current||next.intents[0]?.id||"");
+      setError(null);
+    }catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"Funding routes are unavailable.")}
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const fundable=network.campaigns.filter(campaign=>campaign.status==="awaiting_funding"&&campaign.asset==="USDC");
+  const selected=state?.intents.find(intent=>intent.id===selectedId)??state?.intents[0]??null;
+  const execute=async(action:"wallet"|"approve"|"burn")=>{
+    if(!selected)return;
+    setWorking(true);setError(null);
+    try{
+      const first=await currentApi.post<WalletActionResult>("/funding",{action,intentId:selected.id});
+      if(!first.complete){
+        if(!first.challengeId)throw new Error("Circle did not return a wallet approval.");
+        await auth.executeChallenge(first.challengeId);
+        await confirmWalletAction("/funding",{action,intentId:selected.id},first.challengeId);
+      }
+      await refresh();
+    }catch(actionError){setError(actionError instanceof Error?actionError.message:"The funding action could not be completed.")}
+    finally{setWorking(false)}
+  };
+  const create=async()=>{
+    const campaignId=distributionId||fundable[0]?.id;
+    if(!campaignId){setError("Create a USDC campaign awaiting funding first.");return}
+    setWorking(true);setError(null);
+    try{
+      const intent=await currentApi.post<FundingIntent>("/funding",{
+        action:"create",distributionId:campaignId,sourceChain,
+        idempotencyKey:`web-${campaignId}-${sourceChain}-${crypto.randomUUID()}`,
+      });
+      setSelectedId(intent.id);await refresh();
+    }catch(createError){setError(createError instanceof Error?createError.message:"The route could not be created.")}
+    finally{setWorking(false)}
+  };
+  const sync=async()=>{
+    if(!selected)return;
+    setWorking(true);setError(null);
+    try{await currentApi.post("/funding",{action:"sync",intentId:selected.id});await refresh()}
+    catch(syncError){setError(syncError instanceof Error?syncError.message:"Circle route status is unavailable.")}
+    finally{setWorking(false)}
+  };
+  const fundVault=async()=>{
+    if(!selected)return;
+    setWorking(true);setError(null);
+    try{
+      for(const action of ["approve","deposit"] as const){
+        const first=await currentApi.post<WalletActionResult>("/campaigns/fund",{distributionId:selected.distributionId,action});
+        if(!first.complete){
+          if(!first.challengeId)throw new Error("Circle did not return the Arc campaign approval.");
+          await auth.executeChallenge(first.challengeId);
+          await confirmWalletAction("/campaigns/fund",{distributionId:selected.distributionId,action},first.challengeId);
+        }
+      }
+      await currentApi.post("/funding",{action:"sync",intentId:selected.id});await refresh();
+    }catch(fundError){setError(fundError instanceof Error?fundError.message:"The campaign vault could not be funded.")}
+    finally{setWorking(false)}
+  };
+  const action=selected?.status==="created"||selected?.status==="wallet_authorizing"
+    ? {label:"Create source wallet",run:()=>execute("wallet"),icon:Wallet}
+    : selected?.status==="wallet_ready"||selected?.status==="approving"
+      ? {label:"Approve source USDC",run:()=>execute("approve"),icon:ShieldCheck}
+      : selected?.status==="approved"||selected?.status==="source_authorizing"
+        ? {label:"Bridge USDC to Arc",run:()=>execute("burn"),icon:ArrowRight}
+        : selected?.status==="source_confirmed"
+          ? {label:"Check Arc arrival",run:sync,icon:RefreshCw}
+          : selected?.status==="arc_arrived"
+            ? {label:"Fund campaign vault",run:fundVault,icon:Lock}
+            : null;
+  const ActionIcon=action?.icon??CheckCircle2;
+  return <><PageHero eyebrow="CROSSCHAIN CAMPAIGN FUNDING" title="Bring USDC into the current." copy="Route testnet USDC into Arc with Circle CCTP, verify both chains, then lock the arrived balance into a fully funded campaign vault." mode="network"><Status tone="green">CCTP V2 verified</Status></PageHero>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Sign in to create a funding route</h3><p>Current uses your Circle-controlled wallets for every source and Arc approval.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {auth.account&&<div className="funding-workspace">
+      <section className="funding-compose data-panel">
+        <div className="panel-head"><div><h3>New funding route</h3><p>USDC campaigns only · Arc Testnet destination</p></div><Globe2/></div>
+        <div className="field-grid">
+          <label className="full">Campaign<select value={distributionId} onChange={event=>setDistributionId(event.target.value)}><option value="">Select an awaiting USDC campaign</option>{fundable.map(campaign=><option value={campaign.id} key={campaign.id}>{campaign.name} · {campaign.totalAmount} USDC</option>)}</select></label>
+          <label className="full">Source network<select value={sourceChain} onChange={event=>setSourceChain(event.target.value)}>{state?.catalog.sourceChains.map(chain=><option value={chain.code} key={chain.code}>{chain.label}</option>)}</select></label>
+        </div>
+        <div className="funding-route-preview"><span><i>1</i><b>Source wallet</b></span><ArrowRight/><span><i>2</i><b>CCTP V2</b></span><ArrowRight/><span><i>3</i><b>Arc wallet</b></span><ArrowRight/><span><i>4</i><b>Campaign vault</b></span></div>
+        <Button tone="blue" onClick={()=>void create()} disabled={working||!fundable.length}>Create verified route <ArrowRight/></Button>
+        {!fundable.length&&<p className="builder-note"><HelpCircle/>Create a USDC campaign first and leave it awaiting funding.</p>}
+      </section>
+      <section className="funding-routes data-panel">
+        <div className="panel-head"><div><h3>Route control</h3><p>{state?.intents.length??0} persistent funding intents</p></div>{working?<RefreshCw className="spin"/>:<Radio/>}</div>
+        {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+        {!selected&&<div className="campaign-empty compact"><Globe2/><b>No funding route yet</b><p>Create one to produce a crosschain settlement record.</p></div>}
+        {selected&&<div className="funding-detail">
+          <div className="funding-title"><div><Status tone={selected.status==="complete"?"green":"cyan"}>{selected.status.replaceAll("_"," ")}</Status><h3>{selected.source.label} <ArrowRight/> Arc Testnet</h3><p>{formatAtomic(selected.amountAtomic)} USDC campaign allocation · {formatAtomic(selected.forwardFeeAtomic)} USDC forward fee</p></div><small>{selected.id.slice(0,8)}</small></div>
+          <div className="funding-stage-list">{selected.stages.map((stage,index)=><div className={stage.complete?"complete":""} key={stage.id}><i>{stage.complete?<Check/>:index+1}</i><span><b>{stage.label}</b><small>{["Quote and destination locked","Source transaction recorded","Circle forward transaction recorded","Distribution settlement recorded"][index]}</small></span></div>)}</div>
+          <div className="funding-proof-links">{selected.source.transactionUrl&&<a href={selected.source.transactionUrl} target="_blank" rel="noreferrer">Source proof <ArrowUpRight/></a>}{selected.destination.transactionUrl&&<a href={selected.destination.transactionUrl} target="_blank" rel="noreferrer">Arc proof <ArrowUpRight/></a>}</div>
+          <div className="form-actions"><Button tone="ghost" onClick={()=>void sync()} disabled={working}>Refresh proof <RefreshCw/></Button>{action&&<Button tone="blue" onClick={()=>void action.run()} disabled={working}>{action.label} <ActionIcon/></Button>}</div>
+        </div>}
+        {!!state?.intents.length&&<div className="funding-intent-tabs">{state.intents.map(intent=><button className={intent.id===selected?.id?"active":""} onClick={()=>setSelectedId(intent.id)} key={intent.id}><span>{intent.source.label}</span><Status tone={intent.status==="complete"?"green":"grey"}>{intent.status.replaceAll("_"," ")}</Status></button>)}</div>}
+      </section>
+    </div>}</>;
+}
+
 function Recipients({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const [rows,setRows]=useState<CampaignRecipient[]>([]);const [loading,setLoading]=useState(Boolean(auth.account));const [query,setQuery]=useState("");const [error,setError]=useState<string|null>(null);
   useEffect(()=>{
@@ -1661,7 +1805,7 @@ function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","identity.verified","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
+    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","crosschain.funding.created","crosschain.funding.source-confirmed","crosschain.funding.arc-arrived","crosschain.funding.campaign-funded","identity.verified","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Webhook creation failed.")}
     finally{setBusy(false)}
   };
@@ -1758,6 +1902,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "onboarding":page=<ProjectOnboarding go={go}/>;break;
     case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
     case "new-campaign":page=<CampaignBuilder go={go} auth={auth}/>;break;
+    case "funding":page=<CrosschainFunding go={go} auth={auth}/>;break;
     case "recipients":page=<Recipients auth={auth} go={go}/>;break;
     case "referrals":page=<Referrals auth={auth} go={go}/>;break;
     case "analytics":page=<Analytics auth={auth} go={go}/>;break;

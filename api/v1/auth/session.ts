@@ -1,4 +1,4 @@
-import { getCircleUser, listArcWallets } from "../../../server/circle/client.js";
+import { getCircleUser, listUserWallets } from "../../../server/circle/client.js";
 import { persistSessionAccount } from "../../../server/accounts/repository.js";
 import {
   clearSessionCookie,
@@ -20,7 +20,7 @@ async function create(request: Request) {
     throw new ApiError(400, "INVALID_PROVIDER", "Unsupported identity provider.");
   }
   const circleUser = await getCircleUser(request, userToken);
-  const wallets = await listArcWallets(request, userToken);
+  const wallets = await listUserWallets(request, userToken);
   const profile = body.profile && typeof body.profile === "object"
     ? body.profile as Record<string, unknown>
     : {};

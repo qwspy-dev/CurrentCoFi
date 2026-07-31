@@ -48,6 +48,32 @@ const mockFetch: typeof fetch = async (input, init) => {
       data: { totals: { campaigns: 1, recipients: 1, claims: 0, activations: 0 }, campaigns: [] },
     });
   }
+  if (String(input).endsWith("/developer/funding")) {
+    return Response.json({
+      ok: true,
+      data: {
+        catalog: {
+          sourceChains: [{ code: "BASE-SEPOLIA", label: "Base Sepolia", domain: 6, usdcAddress: "0xsource" }],
+          destination: { code: "ARC-TESTNET", domain: 26, usdcAddress: "0xarc" },
+          transport: "CCTP V2 Standard + Forwarding Service",
+        },
+        intents: [{
+          id: "funding_sdk",
+          distributionId: "dist_sdk",
+          sourceChain: "BASE-SEPOLIA",
+          destinationChain: "ARC-TESTNET",
+          amountAtomic: "25000000",
+          status: "arc_arrived",
+          sourceTransactionHash: "0xburn",
+          destinationTransactionHash: "0xmint",
+          campaignFundingTransactionHash: null,
+          stages: [],
+          createdAt: "2026-08-14T00:00:00.000Z",
+          updatedAt: "2026-08-14T00:05:00.000Z",
+        }],
+      },
+    });
+  }
   if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
     return Response.json({
       ok: true,
@@ -183,6 +209,10 @@ assert.equal(JSON.parse(String(attestationRequest?.init?.body)).identityType, "x
 
 const analytics = await current.analytics.get();
 assert.equal(analytics.totals.campaigns, 1);
+const funding = await current.funding.list();
+assert.equal(funding.catalog.destination.code, "ARC-TESTNET");
+assert.equal(funding.intents[0]?.destinationTransactionHash, "0xmint");
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/funding");
 assert.equal(
   new Headers(requests.at(-1)?.init?.headers).get("authorization"),
   `Bearer ${apiKey}`,

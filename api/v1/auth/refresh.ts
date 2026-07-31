@@ -1,4 +1,4 @@
-import { refreshCircleToken, listArcWallets } from "../../../server/circle/client.js";
+import { refreshCircleToken, listUserWallets } from "../../../server/circle/client.js";
 import { publicSession, sealSession, sessionCookie, sessionFromRequest } from "../../../server/auth/session.js";
 import { ok, withApi } from "../../../server/http.js";
 
@@ -12,7 +12,7 @@ export default withApi(async (request) => {
   );
   session.userToken = refreshed.userToken;
   session.refreshToken = refreshed.refreshToken;
-  session.wallets = await listArcWallets(request, refreshed.userToken);
+  session.wallets = await listUserWallets(request, refreshed.userToken);
   session.issuedAt = Date.now();
   return ok(
     request,

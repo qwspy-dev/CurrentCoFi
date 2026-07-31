@@ -8,6 +8,7 @@ import {
   apiKeys,
   auditEvents,
   claims,
+  crosschainFundingIntents,
   distributions,
   evidenceReports,
   identityAttestations,
@@ -21,7 +22,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v3";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v4";
 
 type Criterion = {
   id: string;
@@ -127,6 +128,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     recentAuditRows,
     pilotRows,
     agentActionRows,
+    crosschainFundingRows,
   ] = await Promise.all([
     campaignIds.length
       ? db.select({
@@ -223,6 +225,23 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       .where(eq(agentActions.projectId, projectId))
       .orderBy(desc(agentActions.createdAt))
       .limit(100),
+    campaignIds.length
+      ? db.select({
+        distributionId: crosschainFundingIntents.distributionId,
+        sourceChain: crosschainFundingIntents.sourceChain,
+        destinationChain: crosschainFundingIntents.destinationChain,
+        status: crosschainFundingIntents.status,
+        amountAtomic: crosschainFundingIntents.amountAtomic,
+        sourceTransactionHash: crosschainFundingIntents.sourceTransactionHash,
+        destinationTransactionHash: crosschainFundingIntents.destinationTransactionHash,
+        campaignFundingTransactionHash: crosschainFundingIntents.campaignFundingTransactionHash,
+        messageHash: crosschainFundingIntents.messageHash,
+        createdAt: crosschainFundingIntents.createdAt,
+        updatedAt: crosschainFundingIntents.updatedAt,
+      }).from(crosschainFundingIntents)
+        .where(inArray(crosschainFundingIntents.distributionId, campaignIds))
+        .orderBy(desc(crosschainFundingIntents.createdAt))
+      : [],
   ]);
 
   const allocationsByCampaign = new Map(allocationRows.map((row) => [row.distributionId, row]));
@@ -245,6 +264,12 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       confirmedAt: row.confirmedAt?.toISOString() ?? null,
     });
     transactionsByCampaign.set(row.distributionId, current);
+  }
+  const crosschainByCampaign = new Map<string, typeof crosschainFundingRows>();
+  for (const row of crosschainFundingRows) {
+    const current = crosschainByCampaign.get(row.distributionId) ?? [];
+    current.push(row);
+    crosschainByCampaign.set(row.distributionId, current);
   }
 
   const campaignEvidence = campaigns.map((campaign) => {
@@ -296,6 +321,18 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
           ? metadata.refundTransactionHash
           : null,
         claimTransactions: transactionsByCampaign.get(campaign.id) ?? [],
+        crosschainFunding: (crosschainByCampaign.get(campaign.id) ?? []).map((route) => ({
+          sourceChain: route.sourceChain,
+          destinationChain: route.destinationChain,
+          status: route.status,
+          amountAtomic: route.amountAtomic,
+          sourceTransactionHash: route.sourceTransactionHash,
+          destinationTransactionHash: route.destinationTransactionHash,
+          campaignFundingTransactionHash: route.campaignFundingTransactionHash,
+          messageHash: route.messageHash,
+          createdAt: route.createdAt.toISOString(),
+          verifiedAt: route.updatedAt.toISOString(),
+        })),
       },
       timeline: {
         createdAt: campaign.createdAt.toISOString(),

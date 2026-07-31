@@ -53,6 +53,9 @@ export class Current {
     analytics = {
         get: () => this.get("/api/v1/developer/analytics"),
     };
+    funding = {
+        list: () => this.get("/api/v1/developer/funding"),
+    };
     evidence = {
         list: () => this.get("/api/v1/developer/evidence"),
         create: (input = {}) => this.signedPost("/api/v1/developer/evidence", input),
@@ -61,6 +64,10 @@ export class Current {
         list: () => this.get("/api/v1/developer/pilots"),
         create: (input) => this.signedPost("/api/v1/developer/pilots", input),
         update: (pilotId, input) => this.signedPost("/api/v1/developer/pilots", { action: "update", pilotId, ...input }),
+    };
+    agentActions = {
+        list: () => this.get("/api/v1/developer/agent-actions"),
+        proposeDistribution: (input) => this.signedPost("/api/v1/developer/agent-actions", input),
     };
     constructor(options) {
         if (!options.apiKey || !options.signingSecret) {

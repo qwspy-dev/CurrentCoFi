@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "2.2.0-agent-runtime",
+    version: "2.3.0-crosschain-funding",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -34,6 +34,10 @@ export default withApi((request) => ok(request, {
     "/campaigns/manage": { post: { summary: "Cancel a campaign or refund an expired campaign" } },
     "/campaigns/recipients": { get: { summary: "List masked recipient allocations and settlement states" } },
     "/campaigns/analytics": { get: { summary: "Read live campaign targeting, claims, and activation totals" } },
+    "/funding": {
+      get: { summary: "List CCTP V2 funding routes and their source, Arc, and vault proofs" },
+      post: { summary: "Create, authorize, bridge, synchronize, or settle a crosschain USDC funding route" },
+    },
     "/evidence": {
       get: { summary: "List immutable grant-evidence reports for the signed-in workspace" },
       post: { summary: "Generate an immutable, shareable grant-evidence snapshot" },
@@ -81,6 +85,9 @@ export default withApi((request) => ok(request, {
     "/developer/analytics": {
       get: { summary: "Read project analytics with a scoped API key" },
     },
+    "/developer/funding": {
+      get: { summary: "Read project CCTP routes and their source, Arc, and campaign-vault proofs" },
+    },
     "/developer/evidence": {
       get: { summary: "List project evidence reports with a scoped API key" },
       post: { summary: "Generate an HMAC-signed grant-evidence snapshot" },
@@ -109,6 +116,7 @@ export default withApi((request) => ok(request, {
       "grant-evidence-reports", "public-evidence-verification", "evidence-digests",
       "pilot-operations", "partner-attestations", "pilot-readiness",
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
+      "crosschain-funding-intents", "cctp-v2-forwarding", "crosschain-settlement-proof",
     ],
     plannedResourceGroups: [],
   },

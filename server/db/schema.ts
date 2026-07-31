@@ -246,6 +246,39 @@ export const agentActions = pgTable("agent_actions", {
   index("agent_actions_key_created_idx").on(table.apiKeyId, table.createdAt),
 ]);
 
+export const crosschainFundingIntents = pgTable("crosschain_funding_intents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  sourceChain: text("source_chain").notNull(),
+  sourceDomain: integer("source_domain").notNull(),
+  sourceUsdcAddress: text("source_usdc_address").notNull(),
+  destinationChain: text("destination_chain").default("ARC-TESTNET").notNull(),
+  destinationDomain: integer("destination_domain").default(26).notNull(),
+  destinationAddress: text("destination_address").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  protocolFeeAtomic: numeric("protocol_fee_atomic", { precision: 78, scale: 0 }).default("0").notNull(),
+  forwardFeeAtomic: numeric("forward_fee_atomic", { precision: 78, scale: 0 }).default("0").notNull(),
+  totalBurnAtomic: numeric("total_burn_atomic", { precision: 78, scale: 0 }).notNull(),
+  transport: text("transport").default("cctp-v2-forward").notNull(),
+  status: text("status").default("created").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  sourceWalletId: text("source_wallet_id"),
+  sourceChallengeId: text("source_challenge_id"),
+  sourceTransactionHash: text("source_transaction_hash"),
+  destinationTransactionHash: text("destination_transaction_hash"),
+  campaignFundingTransactionHash: text("campaign_funding_transaction_hash"),
+  messageHash: text("message_hash"),
+  evidence: jsonb("evidence").$type<Record<string, unknown>>().default({}).notNull(),
+  failureCode: text("failure_code"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("crosschain_funding_project_key_unique").on(table.projectId, table.idempotencyKey),
+  index("crosschain_funding_distribution_idx").on(table.distributionId, table.createdAt),
+  index("crosschain_funding_status_idx").on(table.status, table.updatedAt),
+]);
+
 export const identityAttestations = pgTable("identity_attestations", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

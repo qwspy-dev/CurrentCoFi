@@ -117,6 +117,12 @@ export function getPublicConfig() {
         config.CURRENT_BUYBACK_GOVERNOR_ADDRESS &&
         config.CURRENT_TESTNET_EXCHANGE_ADAPTER_ADDRESS
       ),
+      crosschainFunding: Boolean(
+        config.DATABASE_URL &&
+        config.CIRCLE_API_KEY &&
+        config.CIRCLE_APP_ID &&
+        config.CURRENT_CAMPAIGN_VAULT_ADDRESS
+      ),
     },
   };
 }
@@ -143,6 +149,12 @@ export function getReadiness() {
       config.CURRENT_ACCESS_MANAGER_ADDRESS &&
       config.CURRENT_BUYBACK_GOVERNOR_ADDRESS &&
       config.CURRENT_TESTNET_EXCHANGE_ADAPTER_ADDRESS
+    ),
+    crosschainFunding: Boolean(
+      config.DATABASE_URL &&
+      config.CIRCLE_API_KEY &&
+      config.CIRCLE_APP_ID &&
+      config.CURRENT_CAMPAIGN_VAULT_ADDRESS
     ),
   };
 }

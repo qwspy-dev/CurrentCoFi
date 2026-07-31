@@ -112,12 +112,36 @@ export function getCircleUser(request: Request, userToken: string) {
 }
 
 export async function listArcWallets(request: Request, userToken: string) {
+  const wallets = await listUserWallets(request, userToken);
+  return wallets.filter((wallet) => wallet.blockchain === "ARC-TESTNET");
+}
+
+export async function listUserWallets(request: Request, userToken: string) {
   const data = await circleRequest<{ wallets: CircleWallet[] }>(
     request,
-    "/v1/w3s/wallets?blockchain=ARC-TESTNET&pageSize=10",
+    "/v1/w3s/wallets?pageSize=100",
     { userToken },
   );
   return data.wallets;
+}
+
+export function createUserWalletChallenge(
+  request: Request,
+  userToken: string,
+  blockchain: string,
+) {
+  return circleRequest<{ challengeId: string }>(
+    request,
+    "/v1/w3s/user/wallets",
+    {
+      userToken,
+      body: {
+        idempotencyKey: crypto.randomUUID(),
+        blockchains: [blockchain],
+        metadata: [{ name: `Current CoFi ${blockchain}`, refId: `current-${blockchain.toLowerCase()}` }],
+      },
+    },
+  );
 }
 
 export function refreshCircleToken(

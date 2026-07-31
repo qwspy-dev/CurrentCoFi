@@ -168,6 +168,52 @@ export type PilotRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type AgentAction = {
+    id: string;
+    agentName: string;
+    kind: string;
+    status: "auto_approved" | "approval_required" | "blocked" | "approved" | "rejected" | "executing" | "completed" | "failed";
+    riskLevel: "low" | "medium" | "high";
+    amountAtomic: string;
+    assetAddress: string | null;
+    recipientCount: number;
+    campaignName: string;
+    policyDecision: {
+        outcome?: string;
+        reasons?: string[];
+    };
+    result: {
+        distributionId?: string;
+        name?: string;
+        status?: string;
+    };
+    failureCode: string | null;
+    reviewedAt: string | null;
+    executedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
+export type ProposeAgentDistributionInput = CreateDistributionInput & {
+    idempotencyKey: string;
+};
+export type CrosschainFundingIntent = {
+    id: string;
+    distributionId: string;
+    sourceChain: string;
+    destinationChain: string;
+    amountAtomic: string;
+    status: string;
+    sourceTransactionHash: string | null;
+    destinationTransactionHash: string | null;
+    campaignFundingTransactionHash: string | null;
+    stages: Array<{
+        id: string;
+        label: string;
+        complete: boolean;
+    }>;
+    createdAt: string;
+    updatedAt: string;
+};
 export declare class CurrentError extends Error {
     readonly code: string;
     readonly status: number;
@@ -198,6 +244,25 @@ export declare class Current {
     readonly analytics: {
         get: () => Promise<DeveloperAnalytics>;
     };
+    readonly funding: {
+        list: () => Promise<{
+            catalog: {
+                sourceChains: Array<{
+                    code: string;
+                    label: string;
+                    domain: number;
+                    usdcAddress: string;
+                }>;
+                destination: {
+                    code: string;
+                    domain: number;
+                    usdcAddress: string;
+                };
+                transport: string;
+            };
+            intents: CrosschainFundingIntent[];
+        }>;
+    };
     readonly evidence: {
         list: () => Promise<{
             reports: EvidenceReportSummary[];
@@ -217,6 +282,18 @@ export declare class Current {
             dueAt?: string | null;
             requestedIntegrations?: string[];
         }) => Promise<PilotRecord>;
+    };
+    readonly agentActions: {
+        list: () => Promise<{
+            totals: {
+                actions: number;
+                approvalRequired: number;
+                completed: number;
+                blocked: number;
+            };
+            actions: AgentAction[];
+        }>;
+        proposeDistribution: (input: ProposeAgentDistributionInput) => Promise<AgentAction>;
     };
     constructor(options: CurrentOptions);
     private get;

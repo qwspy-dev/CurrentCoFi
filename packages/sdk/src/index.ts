@@ -176,6 +176,21 @@ export type ProposeAgentDistributionInput = CreateDistributionInput & {
   idempotencyKey: string;
 };
 
+export type CrosschainFundingIntent = {
+  id: string;
+  distributionId: string;
+  sourceChain: string;
+  destinationChain: string;
+  amountAtomic: string;
+  status: string;
+  sourceTransactionHash: string | null;
+  destinationTransactionHash: string | null;
+  campaignFundingTransactionHash: string | null;
+  stages: Array<{ id: string; label: string; complete: boolean }>;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type CurrentEnvelope<T> = {
   ok: boolean;
   data?: T;
@@ -275,6 +290,17 @@ export class Current {
 
   readonly analytics = {
     get: () => this.get<DeveloperAnalytics>("/api/v1/developer/analytics"),
+  };
+
+  readonly funding = {
+    list: () => this.get<{
+      catalog: {
+        sourceChains: Array<{ code: string; label: string; domain: number; usdcAddress: string }>;
+        destination: { code: string; domain: number; usdcAddress: string };
+        transport: string;
+      };
+      intents: CrosschainFundingIntent[];
+    }>("/api/v1/developer/funding"),
   };
 
   readonly evidence = {

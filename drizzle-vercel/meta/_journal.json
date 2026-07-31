@@ -64,6 +64,13 @@
       "when": 1785470372034,
       "tag": "0008_condemned_zuras",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785472461165,
+      "tag": "0009_easy_vulture",
+      "breakpoints": true
     }
   ]
 }
