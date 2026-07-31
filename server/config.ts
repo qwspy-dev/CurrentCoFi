@@ -29,6 +29,10 @@ export type ServerConfig = {
   CURRENT_LIQUIDITY_VAULT_ADDRESS?: `0x${string}`;
   CURRENT_LIQUIDITY_GOVERNOR_ADDRESS?: `0x${string}`;
   CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS?: `0x${string}`;
+  CURRENT_PARTNER_VAULT_ADDRESS?: `0x${string}`;
+  CURRENT_PARTNER_GOVERNOR_ADDRESS?: `0x${string}`;
+  CURRENT_TESTNET_PARTNER_TOKEN_ADDRESS?: `0x${string}`;
+  CURRENT_PARTNER_PROOF_CAMPAIGN_ID?: `0x${string}`;
   CURRENT_GOVERNANCE_GUARDIAN_ADDRESS?: `0x${string}`;
   CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY?: `0x${string}`;
   ARC_RPC_URL: string;
@@ -82,6 +86,10 @@ export function getServerConfig(): ServerConfig {
       CURRENT_LIQUIDITY_VAULT_ADDRESS: optional("CURRENT_LIQUIDITY_VAULT_ADDRESS") as `0x${string}` | undefined,
       CURRENT_LIQUIDITY_GOVERNOR_ADDRESS: optional("CURRENT_LIQUIDITY_GOVERNOR_ADDRESS") as `0x${string}` | undefined,
       CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS: optional("CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS") as `0x${string}` | undefined,
+      CURRENT_PARTNER_VAULT_ADDRESS: optional("CURRENT_PARTNER_VAULT_ADDRESS") as `0x${string}` | undefined,
+      CURRENT_PARTNER_GOVERNOR_ADDRESS: optional("CURRENT_PARTNER_GOVERNOR_ADDRESS") as `0x${string}` | undefined,
+      CURRENT_TESTNET_PARTNER_TOKEN_ADDRESS: optional("CURRENT_TESTNET_PARTNER_TOKEN_ADDRESS") as `0x${string}` | undefined,
+      CURRENT_PARTNER_PROOF_CAMPAIGN_ID: optional("CURRENT_PARTNER_PROOF_CAMPAIGN_ID") as `0x${string}` | undefined,
       CURRENT_GOVERNANCE_GUARDIAN_ADDRESS: optional("CURRENT_GOVERNANCE_GUARDIAN_ADDRESS") as `0x${string}` | undefined,
       CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY: optional("CURRENT_PROTOCOL_DEPLOYER_PRIVATE_KEY") as `0x${string}` | undefined,
     };
@@ -128,6 +136,11 @@ export function getPublicConfig() {
         config.CURRENT_LIQUIDITY_GOVERNOR_ADDRESS &&
         config.CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS
       ),
+      partnerTokenVault: Boolean(
+        config.CURRENT_PARTNER_VAULT_ADDRESS &&
+        config.CURRENT_PARTNER_GOVERNOR_ADDRESS &&
+        config.CURRENT_TESTNET_PARTNER_TOKEN_ADDRESS
+      ),
       crosschainFunding: Boolean(
         config.DATABASE_URL &&
         config.CIRCLE_API_KEY &&
@@ -171,6 +184,11 @@ export function getReadiness() {
       config.CURRENT_LIQUIDITY_VAULT_ADDRESS &&
       config.CURRENT_LIQUIDITY_GOVERNOR_ADDRESS &&
       config.CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS
+    ),
+    partnerTokenVault: Boolean(
+      config.CURRENT_PARTNER_VAULT_ADDRESS &&
+      config.CURRENT_PARTNER_GOVERNOR_ADDRESS &&
+      config.CURRENT_TESTNET_PARTNER_TOKEN_ADDRESS
     ),
     crosschainFunding: Boolean(
       config.DATABASE_URL &&

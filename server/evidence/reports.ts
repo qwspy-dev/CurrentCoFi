@@ -24,7 +24,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v7";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v8";
 
 type Criterion = {
   id: string;
@@ -523,6 +523,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       ),
       evidence: "A paired $CURRENT/USDC reserve is held by an onchain vault with delayed governance and guardian cancellation.",
     },
+    {
+      id: "partner-token-vault",
+      label: "Partner ecosystem reserves",
+      weight: 10,
+      passed: Boolean(config.CURRENT_PARTNER_VAULT_ADDRESS && config.CURRENT_PARTNER_GOVERNOR_ADDRESS),
+      evidence: "Partner project tokens can enter a transparent reserve and fund fully allocated Arc campaigns only after a public governance delay.",
+    },
   ];
   const generatedAt = new Date().toISOString();
   return {
@@ -547,6 +554,10 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       liquidityVaultAddress: config.CURRENT_LIQUIDITY_VAULT_ADDRESS ?? null,
       liquidityGovernorAddress: config.CURRENT_LIQUIDITY_GOVERNOR_ADDRESS ?? null,
       liquidityAdapterAddress: config.CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS ?? null,
+      partnerVaultAddress: config.CURRENT_PARTNER_VAULT_ADDRESS ?? null,
+      partnerGovernorAddress: config.CURRENT_PARTNER_GOVERNOR_ADDRESS ?? null,
+      testnetPartnerTokenAddress: config.CURRENT_TESTNET_PARTNER_TOKEN_ADDRESS ?? null,
+      partnerProofCampaignId: config.CURRENT_PARTNER_PROOF_CAMPAIGN_ID ?? null,
     },
     readiness: evidenceReadiness(criteria),
     totals: {

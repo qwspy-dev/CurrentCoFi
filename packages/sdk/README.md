@@ -66,6 +66,9 @@ console.log(gateway.catalog.transport, gateway.intents[0]?.mintTransactionHash);
 
 const liquidity = await current.liquidity.get();
 console.log(liquidity.liquidity.currentDeployed, liquidity.liquidity.usdcDeployed);
+
+const partners = await current.partners.get();
+console.log(partners.asset?.reserveBalance, partners.proofCampaign?.id);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.

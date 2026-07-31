@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token"
+  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -522,6 +522,16 @@ type TokenEconomyState = {
   }>;
 };
 
+type PartnerVaultState = {
+  configured: boolean; network: string; explorerUrl?: string;
+  addresses: null | { vault: string; governor: string; testnetPartnerToken: string; campaignVault: string };
+  asset: null | { approved: boolean; treasury: string; metadataHash: string; symbol: string; reserveBalance: string; totalDeposited: string; totalCampaignFunded: string };
+  governance: null | { governorOwnsVault: boolean; guardian: string; minimumDelaySeconds: number; totalQueued: number; totalExecuted: number; totalCancelled: number };
+  totals?: { approvedAssets: number; deposits: number; campaignsFunded: number };
+  proofCampaign: null | { id: string; totalAmount: string; remainingAmount: string; expiresAt: number; recipientCount: number; merkleRoot: string; state: number };
+  proofMode?: string;
+};
+
 const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function parseRecipientCsv(value: string, defaultAmount: string): CampaignRecipientDraft[] {
@@ -669,7 +679,7 @@ function formatAtomic(value:string) {
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token",
+  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners",
   "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -690,7 +700,7 @@ const appNav = [
     ["evidence", "Grant evidence", FileCheck2],
   ]},
   { label: "Protocol", items: [
-    ["token", "$CURRENT", CircleDollarSign], ["developers", "Developers", Code2],
+    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["developers", "Developers", Code2],
     ["agents", "AI agents", Bot],
   ]},
 ] as const;
@@ -1834,6 +1844,23 @@ function Evidence({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   </>;
 }
 
+function PartnerVaultDashboard({go}:{go:(v:View)=>void}) {
+  const [snapshot,setSnapshot]=useState<PartnerVaultState|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
+  useEffect(()=>{currentApi.get<PartnerVaultState>("/partners").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Partner reserves could not be read.")).finally(()=>setLoading(false))},[]);
+  const open=(address?:string)=>{if(address&&snapshot?.explorerUrl)window.open(`${snapshot.explorerUrl}/address/${address}`,"_blank","noopener,noreferrer")};
+  const asset=snapshot?.asset; const governance=snapshot?.governance; const proof=snapshot?.proofCampaign;
+  return <><PageHero eyebrow="ARC ECOSYSTEM RESERVES" title="Partner tokens become funded campaigns." copy="Arc projects can contribute their own tokens to a transparent Current CoFi reserve. Delayed governance moves those assets only into fully allocated, walletless campaigns." mode="branches"><Button tone="blue" onClick={()=>go("new-campaign")}>Create a campaign <ArrowRight/></Button></PageHero>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    <div className="token-metrics-new"><div><small>Approved partner assets</small><strong>{loading?"—":snapshot?.totals?.approvedAssets??0}</strong><span>Governed allowlist</span></div><div><small>Partner contributions</small><strong>{loading?"—":snapshot?.totals?.deposits??0}</strong><span>Public deposit receipts</span></div><div><small>Total deposited</small><strong>{loading?"—":`${asset?.totalDeposited??"0"} ${asset?.symbol??"tokens"}`}</strong><span>Arc testnet proof asset</span></div><div><small>Campaigns funded</small><strong>{loading?"—":snapshot?.totals?.campaignsFunded??0}</strong><span>{asset?.totalCampaignFunded??"0"} {asset?.symbol??"tokens"} committed</span></div></div>
+    <section className="data-panel partner-vault-panel"><div className="panel-head"><div><h3>Partner reserve current</h3><p>One auditable path from project treasury to claimable community rewards</p></div><Status tone={snapshot?.configured&&governance?.governorOwnsVault&&asset?.approved?"green":"grey"}>{snapshot?.configured?"Onchain proof active":"Awaiting deployment"}</Status></div>
+      <div className="liquidity-current-map partner-current-map"><div className="liquidity-reserve"><small>PARTNER RESERVE</small><strong>{asset?.reserveBalance??"0"} {asset?.symbol??"TOKEN"}</strong><span>{asset?.totalDeposited??"0"} deposited</span></div><ArrowRight/><div className="liquidity-governance"><ShieldCheck/><small>{governance?.minimumDelaySeconds??0}s PUBLIC DELAY</small><strong>Partner governor</strong><span>Guardian may cancel. It cannot redirect funds.</span></div><ArrowRight/><div className="liquidity-position"><small>FUNDED CAMPAIGN</small><strong>{proof?.totalAmount??asset?.totalCampaignFunded??"0"} {asset?.symbol??"TOKEN"}</strong><span>{proof?.recipientCount??0} walletless recipients</span></div></div>
+      <div className="liquidity-proof-grid"><span className={governance?.governorOwnsVault?"pass":""}><ShieldCheck/><b>Governor owns reserve</b><small>No direct operator funding path</small></span><span className={asset?.approved?"pass":""}><BadgeCheck/><b>Partner asset approved</b><small>Metadata and treasury anchored onchain</small></span><span className={proof?.state===1?"pass":""}><Gift/><b>Campaign fully funded</b><small>{proof?.remainingAmount??"0"} {asset?.symbol??"tokens"} claimable</small></span><span><TestTube2/><b>Testnet proof asset</b><small>No monetary value or partner endorsement implied</small></span></div>
+    </section>
+    <div className="partner-proof-grid"><section className="data-panel"><div className="panel-head"><div><h3>Governance proof</h3><p>Every reserve action is publicly delayed</p></div><ShieldCheck/></div><div className="governance-status-grid"><span><small>QUEUED</small><strong>{governance?.totalQueued??0}</strong></span><span><small>EXECUTED</small><strong>{governance?.totalExecuted??0}</strong></span><span><small>CANCELLED</small><strong>{governance?.totalCancelled??0}</strong></span><span><small>DELAY</small><strong>{governance?.minimumDelaySeconds??0}s</strong></span></div><div className="governance-checks"><span className={governance?.governorOwnsVault?"pass":""}><ShieldCheck/>Delayed governor owns partner reserve</span><span className={governance?.guardian?"pass":""}><ShieldCheck/>Independent cancellation guardian</span><span className={asset?.approved?"pass":""}><ShieldCheck/>Partner token metadata anchored</span></div></section>
+      <section className="data-panel economy-contracts"><div className="panel-head"><div><h3>Public proof stack</h3><p>Inspect every contract and asset</p></div><Network/></div>{[["Partner reserve vault",snapshot?.addresses?.vault],["Delayed partner governor",snapshot?.addresses?.governor],["Testnet partner token",snapshot?.addresses?.testnetPartnerToken],["Walletless campaign vault",snapshot?.addresses?.campaignVault]].map(([label,address])=><button className="economy-contract-row" key={label} disabled={!address} onClick={()=>open(address)}><span><Network/></span><b>{label}<small>{address?`${address.slice(0,8)}…${address.slice(-6)}`:"Awaiting deployment"}</small></b><ArrowUpRight/></button>)}</section></div>
+    <p className="economy-disclaimer"><TestTube2/>{snapshot?.proofMode??"This module is configured for Arc testnet evidence only."}</p></>;
+}
+
 function TokenDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const [economy,setEconomy]=useState<TokenEconomyState|null>(null);
   const [loading,setLoading]=useState(true);
@@ -2132,6 +2159,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "pilots":page=<PilotOperations auth={auth} go={go}/>;break;
     case "evidence":page=<Evidence auth={auth} go={go}/>;break;
     case "token":page=<TokenDashboard auth={auth} go={go}/>;break;
+    case "partners":page=<PartnerVaultDashboard go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;

@@ -62,6 +62,9 @@ export class Current {
     liquidity = {
         get: () => this.get("/api/v1/developer/liquidity"),
     };
+    partners = {
+        get: () => this.get("/api/v1/developer/partners"),
+    };
     evidence = {
         list: () => this.get("/api/v1/developer/evidence"),
         create: (input = {}) => this.signedPost("/api/v1/developer/evidence", input),

@@ -115,6 +115,18 @@ export type ProtocolLiquidity = {
   };
 };
 
+export type PartnerVaultSnapshot = {
+  configured: boolean;
+  network: string;
+  explorerUrl?: string;
+  addresses: null | { vault: string; governor: string; testnetPartnerToken: string; campaignVault: string };
+  asset: null | { approved: boolean; treasury: string; metadataHash: string; symbol: string; decimals: number; reserveBalance: string; totalDeposited: string; totalCampaignFunded: string };
+  governance: null | { governorOwnsVault: boolean; guardian: string; minimumDelaySeconds: number; totalQueued: number; totalExecuted: number; totalCancelled: number };
+  totals?: { approvedAssets: number; deposits: number; campaignsFunded: number };
+  proofCampaign: null | { id: string; sender: string; token: string; totalAmount: string; remainingAmount: string; expiresAt: number; recipientCount: number; merkleRoot: string; state: number };
+  proofMode?: string;
+};
+
 export type EvidenceReport = {
   id: string;
   publicSlug: string;
@@ -377,6 +389,10 @@ export class Current {
 
   readonly liquidity = {
     get: () => this.get<ProtocolLiquidity>("/api/v1/developer/liquidity"),
+  };
+
+  readonly partners = {
+    get: () => this.get<PartnerVaultSnapshot>("/api/v1/developer/partners"),
   };
 
   readonly evidence = {
