@@ -5,8 +5,8 @@ import {
   Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
   Copy, Download, Eye, FileCheck2, Fingerprint, Gauge, Gift,
   Globe2, Handshake, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
-  MoreHorizontal, Network, Pause, Play, Plus, Radio, RefreshCw, Search,
-  Rocket, Settings, Share2, ShieldCheck, SlidersHorizontal, Sparkles, Target,
+  MoreHorizontal, Network, Pause, Play, Plus, Radar, Radio, RefreshCw, Search,
+  Rocket, Settings, Share2, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -302,6 +302,30 @@ type CreatedDeveloperKey = DeveloperKeyRecord & {
   token: string;
   signingSecret: string;
   warning: string;
+};
+
+type AgentActionRecord = {
+  id: string;
+  agentName: string;
+  kind: string;
+  status: string;
+  riskLevel: string;
+  amountAtomic: string;
+  assetAddress: string | null;
+  recipientCount: number;
+  campaignName: string;
+  policyDecision: { outcome?: string; reasons?: string[] };
+  result: { distributionId?: string; name?: string; status?: string };
+  failureCode: string | null;
+  reviewedAt: string | null;
+  executedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AgentRuntimeState = {
+  totals: { actions: number; approvalRequired: number; completed: number; blocked: number };
+  actions: AgentActionRecord[];
 };
 
 type WebhookState = {
@@ -1665,32 +1689,39 @@ function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
 
 function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const [keys,setKeys]=useState<DeveloperKeyRecord[]>([]);
+  const [runtime,setRuntime]=useState<AgentRuntimeState>({totals:{actions:0,approvalRequired:0,completed:0,blocked:0},actions:[]});
   const [created,setCreated]=useState<CreatedDeveloperKey|null>(null);
   const [name,setName]=useState("Reward Router");
   const [eventTypes,setEventTypes]=useState("game.completed,purchase.completed");
   const [dailyLimit,setDailyLimit]=useState("1000");
+  const [maxReward,setMaxReward]=useState("1000000000");
+  const [approvalReward,setApprovalReward]=useState("250000000");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const refresh=useCallback(async()=>{
     if(!auth.account)return;
-    try{const result=await currentApi.get<{keys:DeveloperKeyRecord[]}>("/developer/keys");setKeys(result.keys.filter(key=>key.kind==="agent"));setError(null)}
+    try{const [result,actions]=await Promise.all([currentApi.get<{keys:DeveloperKeyRecord[]}>("/developer/keys"),currentApi.get<AgentRuntimeState>("/agent-actions")]);setKeys(result.keys.filter(key=>key.kind==="agent"));setRuntime(actions);setError(null)}
     catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"Agent policies are unavailable.")}
   },[auth.account]);
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{setCreated(await currentApi.post<CreatedDeveloperKey>("/developer/keys",{name,kind:"agent",permissions:["campaigns:read","claims:write","activations:write","analytics:read","evidence:write","pilots:write"],policies:{dailyEventLimit:Number(dailyLimit),allowedEventTypes:eventTypes.split(",").map(value=>value.trim()).filter(Boolean)}}));await refresh()}
+    try{setCreated(await currentApi.post<CreatedDeveloperKey>("/developer/keys",{name,kind:"agent",permissions:["campaigns:read","claims:write","activations:write","analytics:read","evidence:write","pilots:write","agent-actions:read","agent-actions:write"],policies:{dailyEventLimit:Number(dailyLimit),allowedEventTypes:eventTypes.split(",").map(value=>value.trim()).filter(Boolean),allowedIdentityTypes:["email","wallet","x","game","custom"],maxRewardAtomic:maxReward,humanApprovalAtomic:approvalReward}}));await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Agent creation failed.")}
     finally{setBusy(false)}
   };
   const revoke=async(keyId:string)=>{setBusy(true);try{await currentApi.post("/developer/keys",{action:"revoke",keyId});await refresh()}finally{setBusy(false)}};
-  return <><PageHero eyebrow="POLICY-BOUND AGENT NETWORK" title="Let software verify growth without losing control." copy="Agent keys submit signed activation events and read campaign intelligence inside explicit event and daily-volume boundaries." mode="orbit"/>
+  const review=async(actionId:string,decision:"approve"|"reject")=>{setBusy(true);setError(null);try{await currentApi.post("/agent-actions",{actionId,decision});await refresh()}catch(reviewError){setError(reviewError instanceof Error?reviewError.message:"The action could not be reviewed.")}finally{setBusy(false)}};
+  return <><PageHero eyebrow="POLICY-BOUND AGENT RUNTIME" title="Let agents activate users. Keep humans in control." copy="Agents can propose walletless USDC and project-token campaigns inside explicit identity, volume, and reward boundaries. High-value actions pause for human approval, and every decision becomes auditable evidence." mode="orbit"/>
     {!auth.account&&<div className="campaign-empty"><Lock/><h3>Agent controls require an account</h3><p>Sign in to issue scoped machine credentials.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
-    {auth.account&&<><div className="integration-create agent-create"><div><Eyebrow>NEW AGENT POLICY</Eyebrow><h3>Issue a key with enforceable limits.</h3><p>Agents cannot expand their own permissions or submit event types outside this policy.</p></div><label>Name<input value={name} onChange={event=>setName(event.target.value)}/></label><label>Allowed events<input value={eventTypes} onChange={event=>setEventTypes(event.target.value)}/></label><label>Daily event limit<input inputMode="numeric" value={dailyLimit} onChange={event=>setDailyLimit(event.target.value)}/></label><Button tone="blue" disabled={busy||!name.trim()} onClick={()=>void create()}>{busy?"Issuing…":"Create agent"} <Plus/></Button></div>
+    {auth.account&&<><div className="agent-runtime-metrics">{[["Agent actions",runtime.totals.actions,Activity],["Needs approval",runtime.totals.approvalRequired,Clock3],["Completed",runtime.totals.completed,CheckCircle2],["Blocked",runtime.totals.blocked,ShieldAlert]].map(([label,value,Icon])=>{const MetricIcon=Icon as typeof Activity;return <article key={String(label)}><span><MetricIcon/></span><strong>{String(value)}</strong><small>{String(label)}</small></article>})}</div>
+    <section className="agent-action-center"><div className="panel-head"><div><Eyebrow>HUMAN APPROVAL QUEUE</Eyebrow><h3>Every proposed movement has a decision trail.</h3><p>Approved actions create fully allocated campaigns. Project funds still move only when an authorized wallet funds the campaign on Arc.</p></div><Status tone={runtime.totals.approvalRequired?"cyan":"green"}>{runtime.totals.approvalRequired?`${runtime.totals.approvalRequired} waiting`:"All clear"}</Status></div>
+    <div className="agent-action-list">{runtime.actions.map(action=><article key={action.id}><div className={`agent-action-icon ${action.status}`}><Bot/></div><div className="agent-action-copy"><div><b>{action.campaignName}</b><Status tone={action.status==="completed"?"green":action.status==="approval_required"?"cyan":"grey"}>{action.status.replaceAll("_"," ")}</Status></div><p>{action.agentName} · {action.recipientCount} recipient{action.recipientCount===1?"":"s"} · {(Number(action.amountAtomic)/1_000_000).toLocaleString(undefined,{maximumFractionDigits:2})} token units</p><small>{action.policyDecision.reasons?.[0]??"Policy decision recorded."}</small></div><div className="agent-action-meta"><span><small>RISK</small>{action.riskLevel}</span><span><small>PROPOSED</small>{new Date(action.createdAt).toLocaleDateString()}</span>{action.result.distributionId&&<button onClick={()=>go("campaigns")}>Open campaign <ArrowRight/></button>}</div>{action.status==="approval_required"&&<div className="agent-action-review"><button disabled={busy} onClick={()=>void review(action.id,"reject")}>Reject</button><Button tone="blue" disabled={busy} onClick={()=>void review(action.id,"approve")}>Approve & create <Check/></Button></div>}</article>)}{!runtime.actions.length&&<div className="agent-action-empty"><Radar/><div><b>No agent actions yet</b><p>The first signed proposal will appear here with its complete policy decision.</p></div></div>}</div></section>
+    <div className="integration-create agent-create"><div><Eyebrow>NEW AGENT POLICY</Eyebrow><h3>Issue a key with enforceable limits.</h3><p>Amounts use six-decimal atomic units. The approval threshold pauses larger campaigns for a human.</p></div><label>Name<input value={name} onChange={event=>setName(event.target.value)}/></label><label>Allowed events<input value={eventTypes} onChange={event=>setEventTypes(event.target.value)}/></label><label>Daily action limit<input inputMode="numeric" value={dailyLimit} onChange={event=>setDailyLimit(event.target.value)}/></label><label>Maximum reward<input inputMode="numeric" value={maxReward} onChange={event=>setMaxReward(event.target.value)}/></label><label>Human approval at<input inputMode="numeric" value={approvalReward} onChange={event=>setApprovalReward(event.target.value)}/></label><Button tone="blue" disabled={busy||!name.trim()} onClick={()=>void create()}>{busy?"Issuing…":"Create agent"} <Plus/></Button></div>
     {created&&<div className="credential-reveal"><Bot/><div><b>{created.name} is ready</b><label>Agent key<code>{created.token}</code></label><label>Signing secret<code>{created.signingSecret}</code></label><small>Store these now; they are not recoverable.</small></div><button onClick={()=>void navigator.clipboard.writeText(`CURRENT_AGENT_KEY=${created.token}\nCURRENT_SIGNING_SECRET=${created.signingSecret}`)}><Copy/></button></div>}
     {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
     <div className="agent-grid-new">{keys.map(key=><article key={key.id}><div className="agent-head"><span><Bot/></span><Status tone={key.status==="active"?"green":"grey"}>{key.status}</Status><button disabled={busy||key.status!=="active"} onClick={()=>void revoke(key.id)}><X/></button></div><h3>{key.name}</h3><p>Signed Current CoFi agent</p><strong>{String(key.policies.dailyEventLimit??1000)}</strong><small>Daily activation limit</small><div className="agent-boundaries"><span><Check/>HMAC signed events</span><span><Check/>{Array.isArray(key.policies.allowedEventTypes)&&key.policies.allowedEventTypes.length?`${key.policies.allowedEventTypes.length} allowed event types`:"Any event type"}</span><span><Check/>{key.permissions.length} API permissions</span></div></article>)}{!keys.length&&<article className="agent-empty"><Bot/><h3>No agents issued</h3><p>Create a policy-bound key above.</p></article>}</div>
-    <div className="data-panel guardrail-panel"><div className="panel-head"><div><h3>Network guardrails</h3><p>Applied before any activation reaches attribution or a webhook.</p></div><Status tone="green">Enforced</Status></div><div className="guardrail-grid">{[["Signature window","5 minutes",Clock3],["Payload limit","64 KB",ShieldCheck],["Idempotency","Project scoped",Fingerprint],["Agent tools","2 live",Braces]].map(([x,v,I])=>{const Icon=I as typeof Gauge;return <div key={String(x)}><span><Icon/></span><b>{String(v)}</b><small>{String(x)}</small></div>})}</div></div></>}</>;
+    <div className="data-panel guardrail-panel"><div className="panel-head"><div><h3>Network guardrails</h3><p>Evaluated before an agent can create any reward campaign.</p></div><Status tone="green">Enforced</Status></div><div className="guardrail-grid">{[["Signature window","5 minutes",Clock3],["Policy ledger","Immutable decisions",ShieldCheck],["Idempotency","Agent scoped",Fingerprint],["Approval route","Human controlled",Braces]].map(([x,v,I])=>{const Icon=I as typeof Gauge;return <div key={String(x)}><span><Icon/></span><b>{String(v)}</b><small>{String(x)}</small></div>})}</div></div></>}</>;
 }
 
 function SettingsView() {

@@ -20,6 +20,8 @@ export const developerPermissions = [
   "analytics:read",
   "evidence:write",
   "pilots:write",
+  "agent-actions:read",
+  "agent-actions:write",
   "webhooks:write",
 ] as const;
 
@@ -43,18 +45,29 @@ function safePermissions(value: string[]) {
 }
 
 function safePolicies(value: KeyPolicy = {}) {
+  const atomicPolicy = (input: string | undefined, field: string) => {
+    if (input === undefined || input === "") return undefined;
+    if (!/^\d{1,78}$/.test(input) || BigInt(input) <= BigInt(0)) {
+      throw new ApiError(400, "INVALID_AGENT_POLICY", `${field} must be a positive atomic-unit integer.`);
+    }
+    return input;
+  };
   const dailyEventLimit = Math.min(Math.max(Math.round(Number(value.dailyEventLimit ?? 1_000)), 1), 100_000);
   const allowedEventTypes = [...new Set((value.allowedEventTypes ?? []).map((item) => item.trim()).filter(Boolean))]
     .slice(0, 50);
   const allowedIdentityTypes = [...new Set(
     (value.allowedIdentityTypes ?? []).map((item) => item.trim().toLowerCase()).filter(Boolean),
-  )].filter((item) => ["x", "game", "custom"].includes(item)).slice(0, 3);
+  )].filter((item) => ["email", "wallet", "x", "game", "custom"].includes(item)).slice(0, 5);
   return {
     dailyEventLimit,
     allowedEventTypes,
     allowedIdentityTypes,
-    ...(value.maxRewardAtomic ? { maxRewardAtomic: value.maxRewardAtomic } : {}),
-    ...(value.humanApprovalAtomic ? { humanApprovalAtomic: value.humanApprovalAtomic } : {}),
+    ...(atomicPolicy(value.maxRewardAtomic, "maxRewardAtomic")
+      ? { maxRewardAtomic: atomicPolicy(value.maxRewardAtomic, "maxRewardAtomic") }
+      : {}),
+    ...(atomicPolicy(value.humanApprovalAtomic, "humanApprovalAtomic")
+      ? { humanApprovalAtomic: atomicPolicy(value.humanApprovalAtomic, "humanApprovalAtomic") }
+      : {}),
   };
 }
 
@@ -95,7 +108,7 @@ export async function createDeveloperKey(input: {
   const permissions = safePermissions(input.permissions?.length
     ? input.permissions
     : kind === "agent"
-      ? ["campaigns:read", "claims:write", "activations:write", "analytics:read", "evidence:write", "pilots:write"]
+      ? ["campaigns:read", "claims:write", "activations:write", "analytics:read", "evidence:write", "pilots:write", "agent-actions:read", "agent-actions:write"]
       : [...developerPermissions]);
   const prefix = `cofi_test_${randomSecret(6)}`;
   const token = `${prefix}.${randomSecret(32)}`;

@@ -57,6 +57,13 @@
       "when": 1785469402113,
       "tag": "0007_thin_nextwave",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785470372034,
+      "tag": "0008_condemned_zuras",
+      "breakpoints": true
     }
   ]
 }

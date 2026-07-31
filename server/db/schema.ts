@@ -222,6 +222,30 @@ export const apiKeys = pgTable("api_keys", {
   index("api_keys_project_idx").on(table.projectId),
 ]);
 
+export const agentActions = pgTable("agent_actions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  apiKeyId: uuid("api_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+  reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  kind: text("kind").default("reward_distribution").notNull(),
+  status: text("status").default("proposed").notNull(),
+  riskLevel: text("risk_level").default("low").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).default("0").notNull(),
+  assetAddress: text("asset_address"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestPayload: jsonb("request_payload").$type<Record<string, unknown>>().notNull(),
+  policyDecision: jsonb("policy_decision").$type<Record<string, unknown>>().notNull(),
+  result: jsonb("result").$type<Record<string, unknown>>().default({}).notNull(),
+  failureCode: text("failure_code"),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  executedAt: timestamp("executed_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("agent_actions_key_idempotency_unique").on(table.apiKeyId, table.idempotencyKey),
+  index("agent_actions_project_status_idx").on(table.projectId, table.status, table.createdAt),
+  index("agent_actions_key_created_idx").on(table.apiKeyId, table.createdAt),
+]);
+
 export const identityAttestations = pgTable("identity_attestations", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

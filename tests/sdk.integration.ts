@@ -108,6 +108,20 @@ const mockFetch: typeof fetch = async (input, init) => {
   if (String(input).endsWith("/developer/pilots")) {
     return Response.json({ ok: true, data: { pilots: [] } });
   }
+  if (String(input).endsWith("/developer/agent-actions") && init?.method === "POST") {
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    return Response.json({ ok: true, data: {
+      id: "agent_action_sdk", agentName: "Reward Router", kind: "reward_distribution",
+      status: "approval_required", riskLevel: "medium", amountAtomic: "25000000",
+      assetAddress: null, recipientCount: 1, campaignName: body.name,
+      policyDecision: { outcome: "approval_required", reasons: ["Human approval threshold reached."] },
+      result: {}, failureCode: null, reviewedAt: null, executedAt: null,
+      createdAt: "2026-08-14T00:00:00.000Z", updatedAt: "2026-08-14T00:00:00.000Z",
+    } }, { status: 201 });
+  }
+  if (String(input).endsWith("/developer/agent-actions")) {
+    return Response.json({ ok: true, data: { totals: { actions: 1, approvalRequired: 1, completed: 0, blocked: 0 }, actions: [] } });
+  }
   return Response.json({
     ok: false,
     error: { code: "NOT_FOUND", message: "Missing test route." },
@@ -197,6 +211,17 @@ assert.ok(pilotRequest?.url.endsWith("/api/v1/developer/pilots"));
 assert.equal(JSON.parse(String(pilotRequest?.init?.body)).partnerName, "SDK partner");
 const pilotList = await current.pilots.list();
 assert.deepEqual(pilotList.pilots, []);
+
+const agentAction = await current.agentActions.proposeDistribution({
+  idempotencyKey: "reward-sdk-1",
+  name: "SDK agent reward",
+  recipients: [{ identityType: "game", identity: "player-42", amount: "25" }],
+});
+assert.equal(agentAction.status, "approval_required");
+assert.ok(requests.at(-1)?.url.endsWith("/api/v1/developer/agent-actions"));
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).idempotencyKey, "reward-sdk-1");
+const agentActionList = await current.agentActions.list();
+assert.equal(agentActionList.totals.approvalRequired, 1);
 
 const webhookBody = JSON.stringify({ type: "claim.completed", data: { id: "claim_1" } });
 const webhookTimestamp = Date.now().toString();

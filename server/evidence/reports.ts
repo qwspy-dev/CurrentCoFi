@@ -3,6 +3,7 @@ import { ARC_TESTNET, getServerConfig } from "../config.js";
 import { getDb } from "../db/client.js";
 import {
   activationEvents,
+  agentActions,
   allocations,
   apiKeys,
   auditEvents,
@@ -20,7 +21,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v2";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v3";
 
 type Criterion = {
   id: string;
@@ -125,6 +126,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     integrationRows,
     recentAuditRows,
     pilotRows,
+    agentActionRows,
   ] = await Promise.all([
     campaignIds.length
       ? db.select({
@@ -206,6 +208,21 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       .orderBy(desc(auditEvents.createdAt))
       .limit(30),
     listProjectPilots(projectId),
+    db.select({
+      id: agentActions.id,
+      kind: agentActions.kind,
+      status: agentActions.status,
+      riskLevel: agentActions.riskLevel,
+      amountAtomic: agentActions.amountAtomic,
+      policyDecision: agentActions.policyDecision,
+      result: agentActions.result,
+      createdAt: agentActions.createdAt,
+      reviewedAt: agentActions.reviewedAt,
+      executedAt: agentActions.executedAt,
+    }).from(agentActions)
+      .where(eq(agentActions.projectId, projectId))
+      .orderBy(desc(agentActions.createdAt))
+      .limit(100),
   ]);
 
   const allocationsByCampaign = new Map(allocationRows.map((row) => [row.distributionId, row]));
@@ -319,6 +336,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   ).length;
   const attestedPilots = pilotRows.filter((pilot) => pilot.attestation).length;
   const completedPilots = pilotRows.filter((pilot) => pilot.status === "complete").length;
+  const completedAgentActions = agentActionRows.filter((action) => action.status === "completed").length;
+  const reviewedAgentActions = agentActionRows.filter((action) => Boolean(action.reviewedAt)).length;
   const criteria: Criterion[] = [
     {
       id: "working-product",
@@ -337,7 +356,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     {
       id: "funding",
       label: "Onchain funding",
-      weight: 15,
+      weight: 10,
       passed: totals.fundedCampaigns > 0,
       evidence: `${totals.fundedCampaigns} campaign funding transaction${totals.fundedCampaigns === 1 ? "" : "s"} recorded.`,
     },
@@ -381,9 +400,16 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     {
       id: "external-pilot",
       label: "External pilot validation",
-      weight: 15,
+      weight: 10,
       passed: attestedPilots > 0,
       evidence: `${attestedPilots} partner-attested pilot${attestedPilots === 1 ? "" : "s"} and ${completedPilots} completed pilot${completedPilots === 1 ? "" : "s"}.`,
+    },
+    {
+      id: "agent-runtime",
+      label: "Policy-bound agent activity",
+      weight: 10,
+      passed: completedAgentActions > 0,
+      evidence: `${completedAgentActions} completed agent action${completedAgentActions === 1 ? "" : "s"} and ${reviewedAgentActions} human-reviewed action${reviewedAgentActions === 1 ? "" : "s"}.`,
     },
   ];
   const generatedAt = new Date().toISOString();
@@ -421,6 +447,9 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       pilots: pilotRows.length,
       attestedPilots,
       completedPilots,
+      agentActions: agentActionRows.length,
+      completedAgentActions,
+      reviewedAgentActions,
     },
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({
@@ -438,6 +467,18 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         attestedAt: pilot.attestation.attestedAt,
       } : null,
     })),
+    agentActions: agentActionRows.map((action) => ({
+      id: action.id,
+      kind: action.kind,
+      status: action.status,
+      riskLevel: action.riskLevel,
+      amountAtomic: action.amountAtomic,
+      policyDecision: action.policyDecision,
+      result: action.result,
+      createdAt: action.createdAt.toISOString(),
+      reviewedAt: action.reviewedAt?.toISOString() ?? null,
+      executedAt: action.executedAt?.toISOString() ?? null,
+    })),
     auditTrail: recentAuditRows.map((event) => ({
       action: event.action,
       resourceType: event.resourceType,
@@ -453,6 +494,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         "Circle user-controlled wallet records",
         "Project-signed activation and identity events",
         "Partner-signed pilot attestations",
+        "Policy-bound agent actions and human approval decisions",
       ],
     },
   };

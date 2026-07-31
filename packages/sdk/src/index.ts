@@ -153,6 +153,29 @@ export type PilotRecord = {
   updatedAt: string;
 };
 
+export type AgentAction = {
+  id: string;
+  agentName: string;
+  kind: string;
+  status: "auto_approved" | "approval_required" | "blocked" | "approved" | "rejected" | "executing" | "completed" | "failed";
+  riskLevel: "low" | "medium" | "high";
+  amountAtomic: string;
+  assetAddress: string | null;
+  recipientCount: number;
+  campaignName: string;
+  policyDecision: { outcome?: string; reasons?: string[] };
+  result: { distributionId?: string; name?: string; status?: string };
+  failureCode: string | null;
+  reviewedAt: string | null;
+  executedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProposeAgentDistributionInput = CreateDistributionInput & {
+  idempotencyKey: string;
+};
+
 type CurrentEnvelope<T> = {
   ok: boolean;
   data?: T;
@@ -276,6 +299,17 @@ export class Current {
     }) => this.signedPost<PilotRecord>(
       "/api/v1/developer/pilots",
       { action: "update", pilotId, ...input },
+    ),
+  };
+
+  readonly agentActions = {
+    list: () => this.get<{
+      totals: { actions: number; approvalRequired: number; completed: number; blocked: number };
+      actions: AgentAction[];
+    }>("/api/v1/developer/agent-actions"),
+    proposeDistribution: (input: ProposeAgentDistributionInput) => this.signedPost<AgentAction>(
+      "/api/v1/developer/agent-actions",
+      input,
     ),
   };
 

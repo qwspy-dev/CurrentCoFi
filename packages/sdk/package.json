@@ -1,7 +1,7 @@
 {
   "name": "@currentcofi/sdk",
-  "version": "0.4.0",
-  "description": "Server SDK for Current CoFi identity-bound Arc distributions, verifier attestations, and activation attribution.",
+  "version": "0.5.0",
+  "description": "Server SDK for Current CoFi identity-bound Arc distributions, policy-bound agent actions, and activation attribution.",
   "type": "module",
   "sideEffects": false,
   "exports": {

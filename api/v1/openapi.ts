@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "2.1.0-pilot-operations",
+    version: "2.2.0-agent-runtime",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -70,6 +70,14 @@ export default withApi((request) => ok(request, {
     "/developer/distributions": {
       post: { summary: "Create a signed walletless USDC or project-token distribution" },
     },
+    "/developer/agent-actions": {
+      get: { summary: "List auditable policy decisions made for a scoped agent" },
+      post: { summary: "Propose a policy-bound walletless reward distribution" },
+    },
+    "/agent-actions": {
+      get: { summary: "List the workspace agent action and approval ledger" },
+      post: { summary: "Approve or reject a high-value agent action" },
+    },
     "/developer/analytics": {
       get: { summary: "Read project analytics with a scoped API key" },
     },
@@ -100,6 +108,7 @@ export default withApi((request) => ok(request, {
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
       "grant-evidence-reports", "public-evidence-verification", "evidence-digests",
       "pilot-operations", "partner-attestations", "pilot-readiness",
+      "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
     ],
     plannedResourceGroups: [],
   },

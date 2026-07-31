@@ -1,6 +1,6 @@
 # @currentcofi/sdk
 
-Server SDK for creating identity-bound walletless Arc distributions, attesting project identities, submitting signed activation events, freezing grant-evidence reports, reading campaign analytics, and verifying Current CoFi webhooks.
+Server SDK for creating identity-bound walletless Arc distributions, proposing policy-bound agent actions, attesting project identities, submitting signed activation events, freezing grant-evidence reports, reading campaign analytics, and verifying Current CoFi webhooks.
 
 ```ts
 import { Current } from "@currentcofi/sdk";
@@ -45,6 +45,19 @@ const pilot = await current.pilots.create({
 });
 
 console.log(pilot.publicSlug, pilot.readinessScore);
+
+const action = await current.agentActions.proposeDistribution({
+  idempotencyKey: "daily-player-rewards-2026-08-14",
+  name: "Daily player rewards",
+  recipients: [
+    { identityType: "game", identity: "player-42", amount: "25" },
+  ],
+  activationEvent: "game.first_match",
+});
+
+// completed means the agent stayed inside policy and created an awaiting-funding
+// campaign. approval_required means a workspace owner must approve it first.
+console.log(action.status, action.policyDecision);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.
