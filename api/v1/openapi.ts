@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "2.7.0-partner-token-vaults",
+    version: "2.8.0-venue-qualification",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -103,6 +103,8 @@ export default withApi((request) => ok(request, {
     },
     "/partners": { get: { summary: "Read governed partner reserves and their funded Arc campaign proof" } },
     "/developer/partners": { get: { summary: "Read partner reserve, governance, and campaign proof with a scoped API key" } },
+    "/venues": { get: { summary: "Read qualified liquidity venues, bytecode attestations, pair binding, and risk ceilings" } },
+    "/developer/venues": { get: { summary: "Read venue qualification proof with a scoped API key" } },
     "/developer/evidence": {
       get: { summary: "List project evidence reports with a scoped API key" },
       post: { summary: "Generate an HMAC-signed grant-evidence snapshot" },
@@ -128,7 +130,7 @@ export default withApi((request) => ok(request, {
       "project-access-tiers", "buyback-governance",
       "identity-bound-email-claims", "identity-bound-wallet-claims",
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
-      "grant-evidence-reports", "public-evidence-verification", "evidence-digests", "protocol-owned-liquidity", "partner-token-vaults", "partner-funded-campaigns",
+      "grant-evidence-reports", "public-evidence-verification", "evidence-digests", "protocol-owned-liquidity", "partner-token-vaults", "partner-funded-campaigns", "liquidity-venue-registry", "adapter-bytecode-attestation", "venue-risk-policy",
       "pilot-operations", "partner-attestations", "pilot-readiness",
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
       "crosschain-funding-intents", "cctp-v2-forwarding", "crosschain-settlement-proof",

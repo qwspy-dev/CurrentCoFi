@@ -1,0 +1,385 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "initialOwner",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "currentToken",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "usdcToken",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "AdapterCodeMismatch",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidMetadata",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidRiskPolicy",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableInvalidOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        }
+      ],
+      "name": "OwnableUnauthorizedAccount",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PairMismatch",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "RiskLimitExceeded",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "VenueNotApproved",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "previousOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "adapter",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "venueId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "venueNameHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "adapterCodeHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint16",
+          "name": "maxSlippageBps",
+          "type": "uint16"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint16",
+          "name": "maxAllocationBps",
+          "type": "uint16"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "approved",
+          "type": "bool"
+        }
+      ],
+      "name": "VenueUpdated",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "approvedVenueCount",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "current",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "renounceOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "adapter",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "venueId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "venueNameHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "adapterCodeHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint16",
+          "name": "maxSlippageBps",
+          "type": "uint16"
+        },
+        {
+          "internalType": "uint16",
+          "name": "maxAllocationBps",
+          "type": "uint16"
+        },
+        {
+          "internalType": "bool",
+          "name": "approved",
+          "type": "bool"
+        }
+      ],
+      "name": "setVenue",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalVenueApprovals",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "totalVenueRevocations",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "usdc",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "adapter",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "currentToken",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "usdcToken",
+          "type": "address"
+        },
+        {
+          "internalType": "uint16",
+          "name": "requestedSlippageBps",
+          "type": "uint16"
+        },
+        {
+          "internalType": "uint16",
+          "name": "requestedAllocationBps",
+          "type": "uint16"
+        }
+      ],
+      "name": "validateExecution",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "venueId",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "adapter",
+          "type": "address"
+        }
+      ],
+      "name": "venues",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "approved",
+          "type": "bool"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "venueId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "venueNameHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "adapterCodeHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint16",
+          "name": "maxSlippageBps",
+          "type": "uint16"
+        },
+        {
+          "internalType": "uint16",
+          "name": "maxAllocationBps",
+          "type": "uint16"
+        },
+        {
+          "internalType": "uint64",
+          "name": "activatedAt",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "updatedAt",
+          "type": "uint64"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60c060405234801561000f575f5ffd5b50604051610d82380380610d8283398101604081905261002e9161013f565b826001600160a01b03811661005c57604051631e4fbdf760e01b81525f600482015260240160405180910390fd5b610065816100d5565b506001600160a01b038216158061008357506001600160a01b038116155b8061009f5750806001600160a01b0316826001600160a01b0316145b156100bd5760405163e6c4247b60e01b815260040160405180910390fd5b6001600160a01b039182166080521660a0525061017f565b5f80546001600160a01b038381166001600160a01b0319831681178455604051919092169283917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09190a35050565b80516001600160a01b038116811461013a575f5ffd5b919050565b5f5f5f60608486031215610151575f5ffd5b61015a84610124565b925061016860208501610124565b915061017660408501610124565b90509250925092565b60805160a051610bd56101ad5f395f818160e9015261037001525f8181610178015261031a0152610bd55ff3fe608060405234801561000f575f5ffd5b50600436106100c4575f3560e01c806394ed6e4f1161007d578063bb2acff811610058578063bb2acff814610262578063e81e87b41461026b578063f2fde38b1461027e575f5ffd5b806394ed6e4f1461016a5780639fa6a6e314610173578063b15ff6441461019a575f5ffd5b806365b0f13b116100ad57806365b0f13b14610130578063715018a6146101435780638da5cb5b1461014d575f5ffd5b806306a3f7e0146100c85780633e413bee146100e4575b5f5ffd5b6100d160035481565b6040519081526020015b60405180910390f35b61010b7f000000000000000000000000000000000000000000000000000000000000000081565b60405173ffffffffffffffffffffffffffffffffffffffff90911681526020016100db565b6100d161013e366004610a12565b610291565b61014b610466565b005b5f5473ffffffffffffffffffffffffffffffffffffffff1661010b565b6100d160025481565b61010b7f000000000000000000000000000000000000000000000000000000000000000081565b6102116101a8366004610a73565b600160208190525f91825260409091208054918101546002820154600383015460049093015460ff909416939192909161ffff808216916201000081049091169067ffffffffffffffff64010000000082048116916c0100000000000000000000000090041688565b604080519815158952602089019790975295870194909452606086019290925261ffff90811660808601521660a084015267ffffffffffffffff90811660c08401521660e0820152610100016100db565b6100d160045481565b61014b610279366004610a93565b610479565b61014b61028c366004610a73565b6108ab565b73ffffffffffffffffffffffffffffffffffffffff85165f908152600160205260408120805460ff1615806102e1575080600301548773ffffffffffffffffffffffffffffffffffffffff163f14155b15610318576040517f0a65388c00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff168673ffffffffffffffffffffffffffffffffffffffff161415806103bf57507f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff168573ffffffffffffffffffffffffffffffffffffffff1614155b156103f6576040517f1af5057300000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b600481015461ffff90811690851611806104215750600481015461ffff620100009091048116908416115b15610458576040517f5f70685f00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b600101549695505050505050565b61046e610913565b6104775f610965565b565b610481610913565b73ffffffffffffffffffffffffffffffffffffffff87166104ce576040517fe6c4247b00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b8515806104d9575084155b806104e2575083155b15610519576040517fbcecb64a00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b61ffff8316158061052f57506103e88361ffff16115b8061053c575061ffff8216155b8061054c57506113888261ffff16115b15610582576040517ef0e6df00000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b8080156105a65750838773ffffffffffffffffffffffffffffffffffffffff163f14155b156105dd576040517fbbced09200000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b73ffffffffffffffffffffffffffffffffffffffff87165f9081526001602052604090208180156106105750805460ff16155b1561063e5760028054905f61062483610b34565b909155505060038054905f61063883610b34565b91905055505b8115801561064d5750805460ff165b1561067b5760028054905f61066183610b6b565b909155505060048054905f61067583610b34565b91905055505b6004810154640100000000900467ffffffffffffffff168280156106a7575067ffffffffffffffff8116155b156106af5750425b60405180610100016040528084151581526020018981526020018881526020018781526020018661ffff1681526020018561ffff1681526020018267ffffffffffffffff1681526020014267ffffffffffffffff1681525060015f8b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020015f205f820151815f015f6101000a81548160ff0219169083151502179055506020820151816001015560408201518160020155606082015181600301556080820151816004015f6101000a81548161ffff021916908361ffff16021790555060a08201518160040160026101000a81548161ffff021916908361ffff16021790555060c08201518160040160046101000a81548167ffffffffffffffff021916908367ffffffffffffffff16021790555060e082015181600401600c6101000a81548167ffffffffffffffff021916908367ffffffffffffffff160217905550905050878973ffffffffffffffffffffffffffffffffffffffff167f5b0b0541db3f95dc493632376b28b394cfe4b58a4daf59bf5bdf4fa44a1107438989898989604051610898959493929190948552602085019390935261ffff91821660408501521660608301521515608082015260a00190565b60405180910390a3505050505050505050565b6108b3610913565b73ffffffffffffffffffffffffffffffffffffffff8116610907576040517f1e4fbdf70000000000000000000000000000000000000000000000000000000081525f60048201526024015b60405180910390fd5b61091081610965565b50565b5f5473ffffffffffffffffffffffffffffffffffffffff163314610477576040517f118cdaa70000000000000000000000000000000000000000000000000000000081523360048201526024016108fe565b5f805473ffffffffffffffffffffffffffffffffffffffff8381167fffffffffffffffffffffffff0000000000000000000000000000000000000000831681178455604051919092169283917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e09190a35050565b803573ffffffffffffffffffffffffffffffffffffffff811681146109fc575f5ffd5b919050565b803561ffff811681146109fc575f5ffd5b5f5f5f5f5f60a08688031215610a26575f5ffd5b610a2f866109d9565b9450610a3d602087016109d9565b9350610a4b604087016109d9565b9250610a5960608701610a01565b9150610a6760808701610a01565b90509295509295909350565b5f60208284031215610a83575f5ffd5b610a8c826109d9565b9392505050565b5f5f5f5f5f5f5f60e0888a031215610aa9575f5ffd5b610ab2886109d9565b9650602088013595506040880135945060608801359350610ad560808901610a01565b9250610ae360a08901610a01565b915060c08801358015158114610af7575f5ffd5b8091505092959891949750929550565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b5f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8203610b6457610b64610b07565b5060010190565b5f81610b7957610b79610b07565b507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff019056fea26469706673582212209b8231dd121c37b3f6926600f9a598cebc6e6fd12ec070413b4d764cd3b1310b64736f6c63430008240033"
+}

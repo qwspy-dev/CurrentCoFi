@@ -122,6 +122,15 @@ const mockFetch: typeof fetch = async (input, init) => {
       totals: { approvedAssets: 1, deposits: 1, campaignsFunded: 1 }, proofCampaign: null,
     } });
   }
+  if (String(input).endsWith("/developer/venues")) {
+    return Response.json({ ok: true, data: {
+      configured: true, network: "ARC-TESTNET", explorerUrl: "https://testnet.arcscan.app",
+      addresses: { registry: "0xregistry", governor: "0xgovernor", adapter: "0xadapter", current: "0xcurrent", usdc: "0xusdc" },
+      venue: { approved: true, venueId: "0xvenue", venueNameHash: "0xname", registeredCodeHash: "0xcode", liveCodeHash: "0xcode", codeHashMatches: true, maxSlippageBps: 300, maxAllocationBps: 2000, activatedAt: 1, updatedAt: 1 },
+      governance: { governorOwnsRegistry: true, guardian: "0xguardian", minimumDelaySeconds: 30, totalQueued: 1, totalExecuted: 1, totalCancelled: 0 },
+      totals: { approvedVenues: 1, approvals: 1, revocations: 0 }, readiness: { custodyAdapterBoundary: true, exactBytecodeBinding: true, exactPairBinding: true, riskCaps: true, testnetQualificationOnly: true },
+    } });
+  }
   if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
     return Response.json({
       ok: true,
@@ -277,6 +286,10 @@ assert.equal(
 
 await current.partners.get();
 assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/partners");
+assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), `Bearer ${apiKey}`);
+
+await current.venues.get();
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/venues");
 assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), `Bearer ${apiKey}`);
 
 const evidence = await current.evidence.create({ distributionId: distribution.id });

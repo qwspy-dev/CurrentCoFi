@@ -162,6 +162,51 @@ export type PartnerVaultSnapshot = {
     };
     proofMode?: string;
 };
+export type VenueRegistrySnapshot = {
+    configured: boolean;
+    network: string;
+    explorerUrl?: string;
+    addresses: null | {
+        registry: string;
+        governor: string;
+        adapter: string;
+        current: string;
+        usdc: string;
+    };
+    venue: null | {
+        approved: boolean;
+        venueId: string;
+        venueNameHash: string;
+        registeredCodeHash: string;
+        liveCodeHash: string | null;
+        codeHashMatches: boolean;
+        maxSlippageBps: number;
+        maxAllocationBps: number;
+        activatedAt: number;
+        updatedAt: number;
+    };
+    governance: null | {
+        governorOwnsRegistry: boolean;
+        guardian: string;
+        minimumDelaySeconds: number;
+        totalQueued: number;
+        totalExecuted: number;
+        totalCancelled: number;
+    };
+    totals?: {
+        approvedVenues: number;
+        approvals: number;
+        revocations: number;
+    };
+    readiness?: {
+        custodyAdapterBoundary: boolean;
+        exactBytecodeBinding: boolean;
+        exactPairBinding: boolean;
+        riskCaps: boolean;
+        testnetQualificationOnly: boolean;
+    };
+    proofMode?: string;
+};
 export type EvidenceReport = {
     id: string;
     publicSlug: string;
@@ -396,6 +441,9 @@ export declare class Current {
     };
     readonly partners: {
         get: () => Promise<PartnerVaultSnapshot>;
+    };
+    readonly venues: {
+        get: () => Promise<VenueRegistrySnapshot>;
     };
     readonly evidence: {
         list: () => Promise<{

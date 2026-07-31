@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners"
+  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -532,6 +532,16 @@ type PartnerVaultState = {
   proofMode?: string;
 };
 
+type VenueRegistryState = {
+  configured: boolean; network: string; explorerUrl?: string;
+  addresses: null | { registry: string; governor: string; adapter: string; current: string; usdc: string };
+  venue: null | { approved: boolean; venueId: string; venueNameHash: string; registeredCodeHash: string; liveCodeHash: string | null; codeHashMatches: boolean; maxSlippageBps: number; maxAllocationBps: number; activatedAt: number; updatedAt: number };
+  governance: null | { governorOwnsRegistry: boolean; guardian: string; minimumDelaySeconds: number; totalQueued: number; totalExecuted: number; totalCancelled: number };
+  totals?: { approvedVenues: number; approvals: number; revocations: number };
+  readiness?: { custodyAdapterBoundary: boolean; exactBytecodeBinding: boolean; exactPairBinding: boolean; riskCaps: boolean; testnetQualificationOnly: boolean };
+  proofMode?: string;
+};
+
 const pause = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function parseRecipientCsv(value: string, defaultAmount: string): CampaignRecipientDraft[] {
@@ -679,7 +689,7 @@ function formatAtomic(value:string) {
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners",
+  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues",
   "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -700,7 +710,7 @@ const appNav = [
     ["evidence", "Grant evidence", FileCheck2],
   ]},
   { label: "Protocol", items: [
-    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["developers", "Developers", Code2],
+    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["developers", "Developers", Code2],
     ["agents", "AI agents", Bot],
   ]},
 ] as const;
@@ -1844,6 +1854,23 @@ function Evidence({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   </>;
 }
 
+function VenueRegistryDashboard({go}:{go:(v:View)=>void}) {
+  const [snapshot,setSnapshot]=useState<VenueRegistryState|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
+  useEffect(()=>{currentApi.get<VenueRegistryState>("/venues").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Venue qualification could not be read.")).finally(()=>setLoading(false))},[]);
+  const open=(address?:string)=>{if(address&&snapshot?.explorerUrl)window.open(`${snapshot.explorerUrl}/address/${address}`,"_blank","noopener,noreferrer")};
+  const venue=snapshot?.venue; const governance=snapshot?.governance; const readiness=snapshot?.readiness;
+  return <><PageHero eyebrow="MAINNET LIQUIDITY BOUNDARY" title="Every venue enters through a narrow gate." copy="Current CoFi qualifies liquidity adapters by exact deployed bytecode, the $CURRENT and USDC pair, explicit risk ceilings, delayed governance, and independent guardian cancellation." mode="orbit"><Button tone="blue" onClick={()=>go("token")}>View protocol liquidity <ArrowRight/></Button></PageHero>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    <div className="token-metrics-new"><div><small>Qualified venues</small><strong>{loading?"—":snapshot?.totals?.approvedVenues??0}</strong><span>Governed registry</span></div><div><small>Bytecode attestation</small><strong>{loading?"—":venue?.codeHashMatches?"Exact":"Mismatch"}</strong><span>Live code checked on Arc</span></div><div><small>Slippage ceiling</small><strong>{loading?"—":`${(venue?.maxSlippageBps??0)/100}%`}</strong><span>Execution policy maximum</span></div><div><small>Allocation ceiling</small><strong>{loading?"—":`${(venue?.maxAllocationBps??0)/100}%`}</strong><span>Protocol reserve maximum</span></div></div>
+    <section className="data-panel liquidity-proof-panel venue-registry-panel"><div className="panel-head"><div><h3>Venue qualification current</h3><p>The production adapter boundary is fixed before a mainnet DEX is selected</p></div><Status tone={venue?.approved&&venue?.codeHashMatches&&governance?.governorOwnsRegistry?"green":"grey"}>{venue?.approved?"Qualification active":"Awaiting qualification"}</Status></div>
+      <div className="liquidity-current-map venue-current-map"><div><small>VENUE ADAPTER</small><strong>{venue?.codeHashMatches?"Exact bytecode":"Unverified code"}</strong><span>{snapshot?.addresses?.adapter?`${snapshot.addresses.adapter.slice(0,10)}…${snapshot.addresses.adapter.slice(-6)}`:"Awaiting adapter"}</span></div><ArrowRight/><div className="liquidity-governance"><ShieldCheck/><small>{governance?.minimumDelaySeconds??0}s PUBLIC REVIEW</small><strong>Venue governor</strong><span>Guardian can cancel qualification or revocation.</span></div><ArrowRight/><div><small>QUALIFIED POLICY</small><strong>{(venue?.maxSlippageBps??0)/100}% / {(venue?.maxAllocationBps??0)/100}%</strong><span>Slippage / protocol allocation ceilings</span></div></div>
+      <div className="liquidity-proof-grid"><span className={venue?.codeHashMatches?"pass":""}><Fingerprint/><b>Exact bytecode bound</b><small>Runtime code hash must match the approval</small></span><span className={readiness?.exactPairBinding?"pass":""}><CircleDollarSign/><b>Exact pair bound</b><small>$CURRENT and native Arc USDC only</small></span><span className={readiness?.riskCaps?"pass":""}><ShieldCheck/><b>Risk ceilings fixed</b><small>Adapter execution cannot exceed policy</small></span><span className={governance?.governorOwnsRegistry?"pass":""}><Clock3/><b>Delayed governance</b><small>Every venue change receives public review</small></span></div>
+    </section>
+    <div className="partner-proof-grid venue-proof-grid"><section className="data-panel"><div className="panel-head"><div><h3>Mainnet readiness checks</h3><p>What remains stable when the final Arc venue changes</p></div><BadgeCheck/></div><div className="venue-readiness-list">{[["Custody boundary",readiness?.custodyAdapterBoundary,"Liquidity vault never hands control to the application backend"],["Bytecode identity",readiness?.exactBytecodeBinding,"A different deployment requires a new delayed qualification"],["Token pair",readiness?.exactPairBinding,"The registry rejects a substituted settlement asset"],["Risk policy",readiness?.riskCaps,"Slippage and reserve exposure are bounded before execution"]].map(([label,pass,copy])=><div className={pass?"pass":""} key={String(label)}><span><ShieldCheck/></span><b>{String(label)}<small>{String(copy)}</small></b><Status tone={pass?"green":"grey"}>{pass?"Pass":"Pending"}</Status></div>)}</div></section>
+      <section className="data-panel economy-contracts"><div className="panel-head"><div><h3>Public venue proof</h3><p>Inspect registry, governance, and adapter</p></div><Network/></div>{[["Venue registry",snapshot?.addresses?.registry],["Venue registry governor",snapshot?.addresses?.governor],["Qualified adapter",snapshot?.addresses?.adapter],["$CURRENT token",snapshot?.addresses?.current],["Arc USDC",snapshot?.addresses?.usdc]].map(([label,address])=><button className="economy-contract-row" key={label} disabled={!address} onClick={()=>open(address)}><span><Network/></span><b>{label}<small>{address?`${address.slice(0,8)}…${address.slice(-6)}`:"Awaiting deployment"}</small></b><ArrowUpRight/></button>)}</section></div>
+    <p className="economy-disclaimer"><TestTube2/>{snapshot?.proofMode??"This venue proof is configured for Arc testnet only."}</p></>;
+}
+
 function PartnerVaultDashboard({go}:{go:(v:View)=>void}) {
   const [snapshot,setSnapshot]=useState<PartnerVaultState|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
   useEffect(()=>{currentApi.get<PartnerVaultState>("/partners").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Partner reserves could not be read.")).finally(()=>setLoading(false))},[]);
@@ -2160,6 +2187,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "evidence":page=<Evidence auth={auth} go={go}/>;break;
     case "token":page=<TokenDashboard auth={auth} go={go}/>;break;
     case "partners":page=<PartnerVaultDashboard go={go}/>;break;
+    case "venues":page=<VenueRegistryDashboard go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;

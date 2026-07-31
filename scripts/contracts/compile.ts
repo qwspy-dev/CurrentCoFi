@@ -41,6 +41,8 @@ export function compileContracts() {
       "CurrentLiquidityGovernor.sol": { content: readSource("contracts/CurrentLiquidityGovernor.sol") },
       "CurrentPartnerVault.sol": { content: readSource("contracts/CurrentPartnerVault.sol") },
       "CurrentPartnerGovernor.sol": { content: readSource("contracts/CurrentPartnerGovernor.sol") },
+      "CurrentLiquidityVenueRegistry.sol": { content: readSource("contracts/CurrentLiquidityVenueRegistry.sol") },
+      "CurrentVenueRegistryGovernor.sol": { content: readSource("contracts/CurrentVenueRegistryGovernor.sol") },
       "test/MockUSDC.sol": { content: readSource("contracts/test/MockUSDC.sol") },
       "test/MockExchangeAdapter.sol": { content: readSource("contracts/test/MockExchangeAdapter.sol") },
       "test/CurrentTestnetExchangeAdapter.sol": {
@@ -76,6 +78,8 @@ export function compileContracts() {
   const currentLiquidityGovernor = output.contracts?.["CurrentLiquidityGovernor.sol"]?.CurrentLiquidityGovernor;
   const currentPartnerVault = output.contracts?.["CurrentPartnerVault.sol"]?.CurrentPartnerVault;
   const currentPartnerGovernor = output.contracts?.["CurrentPartnerGovernor.sol"]?.CurrentPartnerGovernor;
+  const currentLiquidityVenueRegistry = output.contracts?.["CurrentLiquidityVenueRegistry.sol"]?.CurrentLiquidityVenueRegistry;
+  const currentVenueRegistryGovernor = output.contracts?.["CurrentVenueRegistryGovernor.sol"]?.CurrentVenueRegistryGovernor;
   const mockUsdc = output.contracts?.["test/MockUSDC.sol"]?.MockUSDC;
   const mockExchangeAdapter = output.contracts?.["test/MockExchangeAdapter.sol"]?.MockExchangeAdapter;
   const currentTestnetExchangeAdapter =
@@ -96,6 +100,8 @@ export function compileContracts() {
     !currentLiquidityGovernor?.evm.bytecode.object ||
     !currentPartnerVault?.evm.bytecode.object ||
     !currentPartnerGovernor?.evm.bytecode.object ||
+    !currentLiquidityVenueRegistry?.evm.bytecode.object ||
+    !currentVenueRegistryGovernor?.evm.bytecode.object ||
     !mockUsdc?.evm.bytecode.object ||
     !mockExchangeAdapter?.evm.bytecode.object ||
     !currentTestnetExchangeAdapter?.evm.bytecode.object ||
@@ -145,6 +151,14 @@ export function compileContracts() {
     currentPartnerGovernor: {
       abi: currentPartnerGovernor.abi,
       bytecode: `0x${currentPartnerGovernor.evm.bytecode.object}` as `0x${string}`,
+    },
+    currentLiquidityVenueRegistry: {
+      abi: currentLiquidityVenueRegistry.abi,
+      bytecode: `0x${currentLiquidityVenueRegistry.evm.bytecode.object}` as `0x${string}`,
+    },
+    currentVenueRegistryGovernor: {
+      abi: currentVenueRegistryGovernor.abi,
+      bytecode: `0x${currentVenueRegistryGovernor.evm.bytecode.object}` as `0x${string}`,
     },
     mockUsdc: { abi: mockUsdc.abi, bytecode: `0x${mockUsdc.evm.bytecode.object}` as `0x${string}` },
     mockExchangeAdapter: {
@@ -204,6 +218,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   fs.writeFileSync(path.join(outputDirectory, "CurrentTestnetLiquidityAdapter.json"), JSON.stringify(compiled.currentTestnetLiquidityAdapter, null, 2));
   fs.writeFileSync(path.join(outputDirectory, "CurrentPartnerVault.json"), JSON.stringify(compiled.currentPartnerVault, null, 2));
   fs.writeFileSync(path.join(outputDirectory, "CurrentPartnerGovernor.json"), JSON.stringify(compiled.currentPartnerGovernor, null, 2));
+  fs.writeFileSync(path.join(outputDirectory, "CurrentLiquidityVenueRegistry.json"), JSON.stringify(compiled.currentLiquidityVenueRegistry, null, 2));
+  fs.writeFileSync(path.join(outputDirectory, "CurrentVenueRegistryGovernor.json"), JSON.stringify(compiled.currentVenueRegistryGovernor, null, 2));
   fs.writeFileSync(path.join(outputDirectory, "CurrentTestnetPartnerToken.json"), JSON.stringify(compiled.currentTestnetPartnerToken, null, 2));
   console.log("Current protocol contracts compiled successfully.");
 }

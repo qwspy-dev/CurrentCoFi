@@ -24,7 +24,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v8";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v9";
 
 type Criterion = {
   id: string;
@@ -530,6 +530,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       passed: Boolean(config.CURRENT_PARTNER_VAULT_ADDRESS && config.CURRENT_PARTNER_GOVERNOR_ADDRESS),
       evidence: "Partner project tokens can enter a transparent reserve and fund fully allocated Arc campaigns only after a public governance delay.",
     },
+    {
+      id: "mainnet-venue-qualification",
+      label: "Mainnet liquidity venue boundary",
+      weight: 10,
+      passed: Boolean(config.CURRENT_VENUE_REGISTRY_ADDRESS && config.CURRENT_VENUE_REGISTRY_GOVERNOR_ADDRESS),
+      evidence: "Liquidity venue adapters are qualified through exact bytecode, pair, slippage, allocation, delayed governance, and guardian cancellation constraints.",
+    },
   ];
   const generatedAt = new Date().toISOString();
   return {
@@ -558,6 +565,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       partnerGovernorAddress: config.CURRENT_PARTNER_GOVERNOR_ADDRESS ?? null,
       testnetPartnerTokenAddress: config.CURRENT_TESTNET_PARTNER_TOKEN_ADDRESS ?? null,
       partnerProofCampaignId: config.CURRENT_PARTNER_PROOF_CAMPAIGN_ID ?? null,
+      venueRegistryAddress: config.CURRENT_VENUE_REGISTRY_ADDRESS ?? null,
+      venueRegistryGovernorAddress: config.CURRENT_VENUE_REGISTRY_GOVERNOR_ADDRESS ?? null,
     },
     readiness: evidenceReadiness(criteria),
     totals: {

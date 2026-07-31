@@ -81,5 +81,19 @@
   "currentPartnerGovernanceMinimumDelaySeconds": 30,
   "currentPartnerDepositedAmount": "100000",
   "currentPartnerCampaignFundedAmount": "10000",
-  "currentPartnerStatus": "deployed-and-proven"
+  "currentPartnerStatus": "deployed-and-proven",
+  "currentVenueRegistryAddress": "0x50fea6d2e66bf6159845de72c5493cb17e9ce030",
+  "currentVenueRegistryDeploymentTransactionHash": "0x05e374584fbaae0509f00c5b29edd06effc5399ee05336838087a144bdfe2224",
+  "currentVenueRegistryGovernorAddress": "0xab0d79c4489b971352a0b227460300054904cc36",
+  "currentVenueRegistryGovernorDeploymentTransactionHash": "0xb5a0405fd6aa729bace83a32aa265708c925aa7ad989889f9775e304ce6b399a",
+  "currentVenueRegistryOwnershipTransactionHash": "0xda0ef18620a0222900d80258f68042954e2d945e1e4b02261966c73db6492172",
+  "currentVenueQualificationQueueTransactionHash": "0x0eb32cca076d9e2ca7ddd30bda30bb0d5ca6c9bca78592c7951dbdb69c764781",
+  "currentVenueQualificationTransactionHash": "0xfe09c397faa48186d7fe1ba8f219146e9bb30b0226174a5caaf2a8f8e5e9c43d",
+  "currentVenueQualificationOperationId": "0x12812f0b3c5e9234740a9783e7ac32e2cc9b274d0020a634993ff968794e6d6f",
+  "currentQualifiedVenueId": "0xba67e210f71f309aea3338632686dfbf44b2ba2407ca370de2668070a69f463f",
+  "currentQualifiedVenueNameHash": "0x945cf147a94d1691087221a99f2df6d49b79e68af8288e62eba9d2f03ef6c4a6",
+  "currentQualifiedAdapterCodeHash": "0x495d04b0e1aed27ae4b26d8e4d0c41559dfd5584aca7319baf46455a39c9dd01",
+  "currentVenueMaxSlippageBps": 300,
+  "currentVenueMaxAllocationBps": 2000,
+  "currentVenueRegistryStatus": "deployed-and-proven"
 }
