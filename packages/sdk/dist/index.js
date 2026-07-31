@@ -56,6 +56,12 @@ export class Current {
     funding = {
         list: () => this.get("/api/v1/developer/funding"),
     };
+    gateway = {
+        list: () => this.get("/api/v1/developer/gateway"),
+    };
+    liquidity = {
+        get: () => this.get("/api/v1/developer/liquidity"),
+    };
     evidence = {
         list: () => this.get("/api/v1/developer/evidence"),
         create: (input = {}) => this.signedPost("/api/v1/developer/evidence", input),

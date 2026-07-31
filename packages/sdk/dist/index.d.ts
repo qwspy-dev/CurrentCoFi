@@ -90,6 +90,32 @@ export type DeveloperAnalytics = {
         activations: number;
     }>;
 };
+export type ProtocolLiquidity = {
+    network: string;
+    explorerUrl?: string;
+    addresses: null | {
+        current: string;
+        feeRouter: string;
+        liquidityVault?: string;
+        liquidityGovernor?: string;
+        liquidityAdapter?: string;
+    };
+    allocationBps: number;
+    liquidity: {
+        configured: boolean;
+        governorOwnsVault: boolean;
+        adapterAllowed: boolean;
+        minimumDelaySeconds: number;
+        idleCurrent: string;
+        idleUsdc: string;
+        currentDeployed: string;
+        usdcDeployed: string;
+        liquidityShares: string;
+        positionsCreated: number;
+        positionsRemoved: number;
+        proofMode: string;
+    };
+};
 export type EvidenceReport = {
     id: string;
     publicSlug: string;
@@ -228,6 +254,27 @@ export type CrosschainFundingIntent = {
     createdAt: string;
     updatedAt: string;
 };
+export type GatewayFundingIntent = {
+    id: string;
+    distributionId: string;
+    sourceChain: string;
+    destinationAddress: string;
+    sourceWalletAddress: string | null;
+    amountAtomic: string;
+    maxFeeAtomic: string;
+    status: string;
+    depositTransactionHash: string | null;
+    transferId: string | null;
+    mintTransactionHash: string | null;
+    campaignFundingTransactionHash: string | null;
+    stages: Array<{
+        id: string;
+        label: string;
+        complete: boolean;
+    }>;
+    createdAt: string;
+    updatedAt: string;
+};
 export declare class CurrentError extends Error {
     readonly code: string;
     readonly status: number;
@@ -276,6 +323,30 @@ export declare class Current {
             };
             intents: CrosschainFundingIntent[];
         }>;
+    };
+    readonly gateway: {
+        list: () => Promise<{
+            catalog: {
+                sourceChains: Array<{
+                    code: string;
+                    label: string;
+                    domain: number;
+                    usdcAddress: string;
+                }>;
+                destination: {
+                    code: string;
+                    domain: number;
+                    usdcAddress: string;
+                };
+                transport: string;
+                signerRequirement: string;
+                maxFeeAtomic: string;
+            };
+            intents: GatewayFundingIntent[];
+        }>;
+    };
+    readonly liquidity: {
+        get: () => Promise<ProtocolLiquidity>;
     };
     readonly evidence: {
         list: () => Promise<{

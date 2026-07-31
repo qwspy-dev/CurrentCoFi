@@ -37,10 +37,15 @@ export function compileContracts() {
       "CurrentFeeRouter.sol": { content: readSource("contracts/CurrentFeeRouter.sol") },
       "CurrentAccessManager.sol": { content: readSource("contracts/CurrentAccessManager.sol") },
       "CurrentBuybackGovernor.sol": { content: readSource("contracts/CurrentBuybackGovernor.sol") },
+      "CurrentLiquidityVault.sol": { content: readSource("contracts/CurrentLiquidityVault.sol") },
+      "CurrentLiquidityGovernor.sol": { content: readSource("contracts/CurrentLiquidityGovernor.sol") },
       "test/MockUSDC.sol": { content: readSource("contracts/test/MockUSDC.sol") },
       "test/MockExchangeAdapter.sol": { content: readSource("contracts/test/MockExchangeAdapter.sol") },
       "test/CurrentTestnetExchangeAdapter.sol": {
         content: readSource("contracts/test/CurrentTestnetExchangeAdapter.sol"),
+      },
+      "test/CurrentTestnetLiquidityAdapter.sol": {
+        content: readSource("contracts/test/CurrentTestnetLiquidityAdapter.sol"),
       },
     },
     settings: {
@@ -62,10 +67,14 @@ export function compileContracts() {
   const currentFeeRouter = output.contracts?.["CurrentFeeRouter.sol"]?.CurrentFeeRouter;
   const currentAccessManager = output.contracts?.["CurrentAccessManager.sol"]?.CurrentAccessManager;
   const currentBuybackGovernor = output.contracts?.["CurrentBuybackGovernor.sol"]?.CurrentBuybackGovernor;
+  const currentLiquidityVault = output.contracts?.["CurrentLiquidityVault.sol"]?.CurrentLiquidityVault;
+  const currentLiquidityGovernor = output.contracts?.["CurrentLiquidityGovernor.sol"]?.CurrentLiquidityGovernor;
   const mockUsdc = output.contracts?.["test/MockUSDC.sol"]?.MockUSDC;
   const mockExchangeAdapter = output.contracts?.["test/MockExchangeAdapter.sol"]?.MockExchangeAdapter;
   const currentTestnetExchangeAdapter =
     output.contracts?.["test/CurrentTestnetExchangeAdapter.sol"]?.CurrentTestnetExchangeAdapter;
+  const currentTestnetLiquidityAdapter =
+    output.contracts?.["test/CurrentTestnetLiquidityAdapter.sol"]?.CurrentTestnetLiquidityAdapter;
   if (
     !vault?.evm.bytecode.object ||
     !campaignVault?.evm.bytecode.object ||
@@ -74,9 +83,12 @@ export function compileContracts() {
     !currentFeeRouter?.evm.bytecode.object ||
     !currentAccessManager?.evm.bytecode.object ||
     !currentBuybackGovernor?.evm.bytecode.object ||
+    !currentLiquidityVault?.evm.bytecode.object ||
+    !currentLiquidityGovernor?.evm.bytecode.object ||
     !mockUsdc?.evm.bytecode.object ||
     !mockExchangeAdapter?.evm.bytecode.object ||
-    !currentTestnetExchangeAdapter?.evm.bytecode.object
+    !currentTestnetExchangeAdapter?.evm.bytecode.object ||
+    !currentTestnetLiquidityAdapter?.evm.bytecode.object
   ) {
     throw new Error("Solidity compilation produced no bytecode.");
   }
@@ -106,6 +118,14 @@ export function compileContracts() {
       abi: currentBuybackGovernor.abi,
       bytecode: `0x${currentBuybackGovernor.evm.bytecode.object}` as `0x${string}`,
     },
+    currentLiquidityVault: {
+      abi: currentLiquidityVault.abi,
+      bytecode: `0x${currentLiquidityVault.evm.bytecode.object}` as `0x${string}`,
+    },
+    currentLiquidityGovernor: {
+      abi: currentLiquidityGovernor.abi,
+      bytecode: `0x${currentLiquidityGovernor.evm.bytecode.object}` as `0x${string}`,
+    },
     mockUsdc: { abi: mockUsdc.abi, bytecode: `0x${mockUsdc.evm.bytecode.object}` as `0x${string}` },
     mockExchangeAdapter: {
       abi: mockExchangeAdapter.abi,
@@ -114,6 +134,10 @@ export function compileContracts() {
     currentTestnetExchangeAdapter: {
       abi: currentTestnetExchangeAdapter.abi,
       bytecode: `0x${currentTestnetExchangeAdapter.evm.bytecode.object}` as `0x${string}`,
+    },
+    currentTestnetLiquidityAdapter: {
+      abi: currentTestnetLiquidityAdapter.abi,
+      bytecode: `0x${currentTestnetLiquidityAdapter.evm.bytecode.object}` as `0x${string}`,
     },
   };
 }
@@ -147,9 +171,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
     path.join(outputDirectory, "CurrentBuybackGovernor.json"),
     JSON.stringify(compiled.currentBuybackGovernor, null, 2),
   );
+  fs.writeFileSync(path.join(outputDirectory, "CurrentLiquidityVault.json"), JSON.stringify(compiled.currentLiquidityVault, null, 2));
+  fs.writeFileSync(path.join(outputDirectory, "CurrentLiquidityGovernor.json"), JSON.stringify(compiled.currentLiquidityGovernor, null, 2));
   fs.writeFileSync(
     path.join(outputDirectory, "CurrentTestnetExchangeAdapter.json"),
     JSON.stringify(compiled.currentTestnetExchangeAdapter, null, 2),
   );
+  fs.writeFileSync(path.join(outputDirectory, "CurrentTestnetLiquidityAdapter.json"), JSON.stringify(compiled.currentTestnetLiquidityAdapter, null, 2));
   console.log("Current protocol contracts compiled successfully.");
 }

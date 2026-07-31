@@ -24,7 +24,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v6";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v7";
 
 type Criterion = {
   id: string;
@@ -512,6 +512,17 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       passed: gatewayMintedRoutes > 0,
       evidence: `${gatewayMintedRoutes} Gateway direct-mint route${gatewayMintedRoutes === 1 ? "" : "s"} anchored on Arc.`,
     },
+    {
+      id: "protocol-liquidity",
+      label: "Protocol-owned liquidity",
+      weight: 10,
+      passed: Boolean(
+        config.CURRENT_LIQUIDITY_VAULT_ADDRESS &&
+        config.CURRENT_LIQUIDITY_GOVERNOR_ADDRESS &&
+        config.CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS
+      ),
+      evidence: "A paired $CURRENT/USDC reserve is held by an onchain vault with delayed governance and guardian cancellation.",
+    },
   ];
   const generatedAt = new Date().toISOString();
   return {
@@ -533,6 +544,9 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       usdcAddress: ARC_TESTNET.usdcAddress,
       campaignVaultAddress: config.CURRENT_CAMPAIGN_VAULT_ADDRESS ?? null,
       claimVaultAddress: config.CURRENT_CLAIM_VAULT_ADDRESS ?? null,
+      liquidityVaultAddress: config.CURRENT_LIQUIDITY_VAULT_ADDRESS ?? null,
+      liquidityGovernorAddress: config.CURRENT_LIQUIDITY_GOVERNOR_ADDRESS ?? null,
+      liquidityAdapterAddress: config.CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS ?? null,
     },
     readiness: evidenceReadiness(criteria),
     totals: {

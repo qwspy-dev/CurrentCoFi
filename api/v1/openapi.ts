@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "2.5.0-gateway-unified-balance",
+    version: "2.6.0-protocol-owned-liquidity",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -98,6 +98,9 @@ export default withApi((request) => ok(request, {
     "/developer/gateway": {
       get: { summary: "Read project Gateway deposits, burn intents, Arc mints, and campaign-vault proofs" },
     },
+    "/developer/liquidity": {
+      get: { summary: "Read protocol-owned $CURRENT/USDC reserves, governed positions, and public proof" },
+    },
     "/developer/evidence": {
       get: { summary: "List project evidence reports with a scoped API key" },
       post: { summary: "Generate an HMAC-signed grant-evidence snapshot" },
@@ -123,7 +126,7 @@ export default withApi((request) => ok(request, {
       "project-access-tiers", "buyback-governance",
       "identity-bound-email-claims", "identity-bound-wallet-claims",
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
-      "grant-evidence-reports", "public-evidence-verification", "evidence-digests",
+      "grant-evidence-reports", "public-evidence-verification", "evidence-digests", "protocol-owned-liquidity",
       "pilot-operations", "partner-attestations", "pilot-readiness",
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
       "crosschain-funding-intents", "cctp-v2-forwarding", "crosschain-settlement-proof",

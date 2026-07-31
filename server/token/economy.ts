@@ -50,6 +50,26 @@ const governorAbi = parseAbi([
   "function totalExecuted() view returns (uint256)",
   "function totalCancelled() view returns (uint256)",
 ]);
+const liquidityVaultAbi = parseAbi([
+  "function owner() view returns (address)",
+  "function liquidityAdapters(address) view returns (bool)",
+  "function idleReserves() view returns (uint256 currentAmount,uint256 usdcAmount)",
+  "function totalCurrentDeployed() view returns (uint256)",
+  "function totalUsdcDeployed() view returns (uint256)",
+  "function totalLiquidityShares() view returns (uint256)",
+  "function totalCurrentReturned() view returns (uint256)",
+  "function totalUsdcReturned() view returns (uint256)",
+  "function totalPositionsCreated() view returns (uint256)",
+  "function totalPositionsRemoved() view returns (uint256)",
+]);
+const liquidityGovernorAbi = parseAbi([
+  "function liquidityVault() view returns (address)",
+  "function guardian() view returns (address)",
+  "function minimumDelay() view returns (uint64)",
+  "function totalQueued() view returns (uint256)",
+  "function totalExecuted() view returns (uint256)",
+  "function totalCancelled() view returns (uint256)",
+]);
 
 function contracts() {
   const config = getServerConfig();
@@ -63,6 +83,9 @@ function contracts() {
     accessManager: config.CURRENT_ACCESS_MANAGER_ADDRESS as Address | undefined,
     buybackGovernor: config.CURRENT_BUYBACK_GOVERNOR_ADDRESS as Address | undefined,
     testnetAdapter: config.CURRENT_TESTNET_EXCHANGE_ADAPTER_ADDRESS as Address | undefined,
+    liquidityVault: config.CURRENT_LIQUIDITY_VAULT_ADDRESS as Address | undefined,
+    liquidityGovernor: config.CURRENT_LIQUIDITY_GOVERNOR_ADDRESS as Address | undefined,
+    testnetLiquidityAdapter: config.CURRENT_TESTNET_LIQUIDITY_ADAPTER_ADDRESS as Address | undefined,
   };
 }
 
@@ -197,6 +220,39 @@ export async function economySnapshot(walletAddress?: string, projectId?: string
       owner: String(accessTuple[3]),
     }
     : null;
+  const liquidityConfigured = Boolean(addresses.liquidityVault && addresses.liquidityGovernor && addresses.testnetLiquidityAdapter);
+  let liquidityValues: readonly unknown[] = [];
+  if (liquidityConfigured && rpcStatus === "live") {
+    try {
+      liquidityValues = await client.multicall({
+        multicallAddress: MULTICALL3,
+        allowFailure: false,
+        contracts: [
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "idleReserves" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "totalCurrentDeployed" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "totalUsdcDeployed" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "totalLiquidityShares" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "totalCurrentReturned" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "totalUsdcReturned" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "totalPositionsCreated" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "totalPositionsRemoved" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "owner" },
+          { address: addresses.liquidityVault!, abi: liquidityVaultAbi, functionName: "liquidityAdapters", args: [addresses.testnetLiquidityAdapter!] },
+          { address: addresses.liquidityGovernor!, abi: liquidityGovernorAbi, functionName: "liquidityVault" },
+          { address: addresses.liquidityGovernor!, abi: liquidityGovernorAbi, functionName: "guardian" },
+          { address: addresses.liquidityGovernor!, abi: liquidityGovernorAbi, functionName: "minimumDelay" },
+          { address: addresses.liquidityGovernor!, abi: liquidityGovernorAbi, functionName: "totalQueued" },
+          { address: addresses.liquidityGovernor!, abi: liquidityGovernorAbi, functionName: "totalExecuted" },
+          { address: addresses.liquidityGovernor!, abi: liquidityGovernorAbi, functionName: "totalCancelled" },
+        ] as never,
+      }) as readonly unknown[];
+    } catch { liquidityValues = []; }
+  }
+  const idle = Array.isArray(liquidityValues[0]) && liquidityValues[0].length >= 2
+    ? [BigInt(liquidityValues[0][0]), BigInt(liquidityValues[0][1])] as const
+    : [BigInt(0), BigInt(0)] as const;
+  const liquidityOwner = String(liquidityValues[8] ?? "");
+  const governedVault = String(liquidityValues[10] ?? "");
   const recentActions = hasDatabaseConfig()
     ? await getDb().select({
       id: tokenEconomyActions.id,
@@ -254,6 +310,29 @@ export async function economySnapshot(walletAddress?: string, projectId?: string
       totalExecuted: Number(totalExecuted),
       totalCancelled: Number(totalCancelled),
       totalAccessActivations: Number(totalAccessActivations),
+    },
+    liquidity: {
+      configured: liquidityConfigured,
+      governorOwnsVault: liquidityConfigured &&
+        liquidityOwner.toLowerCase() === addresses.liquidityGovernor!.toLowerCase() &&
+        governedVault.toLowerCase() === addresses.liquidityVault!.toLowerCase(),
+      adapterAllowed: Boolean(liquidityValues[9]),
+      guardian: liquidityConfigured ? String(liquidityValues[11] ?? "") : null,
+      minimumDelaySeconds: Number(liquidityValues[12] ?? 0),
+      totalQueued: Number(liquidityValues[13] ?? 0),
+      totalExecuted: Number(liquidityValues[14] ?? 0),
+      totalCancelled: Number(liquidityValues[15] ?? 0),
+      idleCurrent: display(BigInt(idle[0]), 18),
+      idleUsdc: display(BigInt(idle[1]), 6),
+      currentDeployed: display(BigInt(liquidityValues[1] as bigint ?? 0), 18),
+      usdcDeployed: display(BigInt(liquidityValues[2] as bigint ?? 0), 6),
+      liquidityShares: display(BigInt(liquidityValues[3] as bigint ?? 0), 6),
+      currentReturned: display(BigInt(liquidityValues[4] as bigint ?? 0), 18),
+      usdcReturned: display(BigInt(liquidityValues[5] as bigint ?? 0), 6),
+      positionsCreated: Number(liquidityValues[6] ?? 0),
+      positionsRemoved: Number(liquidityValues[7] ?? 0),
+      venue: "Current testnet paired-reserve adapter",
+      proofMode: "testnet-no-value",
     },
     accessTiers: governanceConfigured ? [
       { name: "Stream", requirement: display(BigInt(streamRequirement as bigint), 18), recipientLimit: 1_000 },

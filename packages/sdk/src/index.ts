@@ -88,6 +88,33 @@ export type DeveloperAnalytics = {
   }>;
 };
 
+export type ProtocolLiquidity = {
+  network: string;
+  explorerUrl?: string;
+  addresses: null | {
+    current: string;
+    feeRouter: string;
+    liquidityVault?: string;
+    liquidityGovernor?: string;
+    liquidityAdapter?: string;
+  };
+  allocationBps: number;
+  liquidity: {
+    configured: boolean;
+    governorOwnsVault: boolean;
+    adapterAllowed: boolean;
+    minimumDelaySeconds: number;
+    idleCurrent: string;
+    idleUsdc: string;
+    currentDeployed: string;
+    usdcDeployed: string;
+    liquidityShares: string;
+    positionsCreated: number;
+    positionsRemoved: number;
+    proofMode: string;
+  };
+};
+
 export type EvidenceReport = {
   id: string;
   publicSlug: string;
@@ -346,6 +373,10 @@ export class Current {
       };
       intents: GatewayFundingIntent[];
     }>("/api/v1/developer/gateway"),
+  };
+
+  readonly liquidity = {
+    get: () => this.get<ProtocolLiquidity>("/api/v1/developer/liquidity"),
   };
 
   readonly evidence = {

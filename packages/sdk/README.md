@@ -63,6 +63,9 @@ console.log(action.status, action.policyDecision);
 // Read durable Gateway Unified Balance funding evidence for the project.
 const gateway = await current.gateway.list();
 console.log(gateway.catalog.transport, gateway.intents[0]?.mintTransactionHash);
+
+const liquidity = await current.liquidity.get();
+console.log(liquidity.liquidity.currentDeployed, liquidity.liquidity.usdcDeployed);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.

@@ -105,6 +105,14 @@ const mockFetch: typeof fetch = async (input, init) => {
       },
     });
   }
+  if (String(input).endsWith("/developer/liquidity")) {
+    return Response.json({ ok: true, data: {
+      network: "ARC-TESTNET", explorerUrl: "https://testnet.arcscan.app",
+      addresses: { current: "0xcurrent", feeRouter: "0xrouter", liquidityVault: "0xvault", liquidityGovernor: "0xgovernor", liquidityAdapter: "0xadapter" },
+      allocationBps: 2000,
+      liquidity: { configured: true, governorOwnsVault: true, adapterAllowed: true, minimumDelaySeconds: 30, idleCurrent: "2.5", idleUsdc: "0", currentDeployed: "10", usdcDeployed: "1", liquidityShares: "1", positionsCreated: 1, positionsRemoved: 0, proofMode: "testnet-no-value" },
+    } });
+  }
   if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
     return Response.json({
       ok: true,
@@ -250,6 +258,9 @@ const gateway = await current.gateway.list();
 assert.equal(gateway.catalog.signerRequirement, "EOA");
 assert.equal(gateway.intents[0]?.mintTransactionHash, "0xgatewaymint");
 assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/gateway");
+
+await current.liquidity.get();
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/liquidity");
 assert.equal(
   new Headers(requests.at(-1)?.init?.headers).get("authorization"),
   `Bearer ${apiKey}`,
