@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "2.4.0-agent-settlement",
+    version: "2.5.0-gateway-unified-balance",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -37,6 +37,10 @@ export default withApi((request) => ok(request, {
     "/funding": {
       get: { summary: "List CCTP V2 funding routes and their source, Arc, and vault proofs" },
       post: { summary: "Create, authorize, bridge, synchronize, or settle a crosschain USDC funding route" },
+    },
+    "/gateway": {
+      get: { summary: "Read Gateway EOA wallets, unified balances, and durable campaign-funding intents" },
+      post: { summary: "Create, deposit, sign, attest, mint, synchronize, or settle a Gateway funding intent" },
     },
     "/evidence": {
       get: { summary: "List immutable grant-evidence reports for the signed-in workspace" },
@@ -90,6 +94,9 @@ export default withApi((request) => ok(request, {
     },
     "/developer/funding": {
       get: { summary: "Read project CCTP routes and their source, Arc, and campaign-vault proofs" },
+    },
+    "/developer/gateway": {
+      get: { summary: "Read project Gateway deposits, burn intents, Arc mints, and campaign-vault proofs" },
     },
     "/developer/evidence": {
       get: { summary: "List project evidence reports with a scoped API key" },

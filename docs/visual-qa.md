@@ -44,6 +44,19 @@ The marketing experience now has a dark cinematic opening, a generated current-n
 
 ## Agent Settlement Gateway pass
 
+## Gateway Unified Balance pass
+
+Validated the funding workspace at 1440×900 and 390×844, plus an authenticated 1440×900 state using deterministic API fixtures.
+
+- Gateway is the primary funding rail while the existing CCTP V2 route remains one click away.
+- The signed-out state keeps one clear action and explains the operator/destination account split.
+- The authenticated state renders the unified balance, per-domain balances, five-stage settlement record, EOA proof, Gateway transfer proof, explorer link, and next valid action without horizontal overflow.
+- Mobile content width equals the 390px viewport; the rail switch, cinematic hero, and account gate remain deliberately composed.
+- Browser checks found no framework overlay, console errors, failed resource requests, or blank states.
+- The static composition remains legible with motion disabled; all new control states use existing Current CoFi primitives and focus behavior.
+
+Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-gateway-authenticated.png`.
+
 - Inspected the Agents route at 1440 × 900 and 390 × 844 after the settlement-ledger update.
 - The page rendered meaningful content with no framework overlay or browser console errors.
 - Mobile document width matched the 390px viewport with no horizontal overflow.

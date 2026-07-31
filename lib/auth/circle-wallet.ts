@@ -279,13 +279,21 @@ export function useCircleWalletAuth() {
       throw new Error("Your secure wallet session has expired. Sign in again to continue.");
     }
     sdk.setAuthentication({ userToken: auth.userToken, encryptionKey: auth.encryptionKey });
-    await new Promise<void>((resolve, reject) => {
+    return new Promise<{
+      status: string;
+      type: string;
+      data?: { signature?: string; txHash?: string; signedTransaction?: string };
+    }>((resolve, reject) => {
       sdk.execute(challengeId, (challengeError, challengeResult) => {
         if (challengeError || challengeResult?.status === "FAILED") {
           reject(new Error(challengeError?.message ?? "The wallet action was not approved."));
           return;
         }
-        resolve();
+        if (!challengeResult) {
+          reject(new Error("Circle did not return the wallet approval result."));
+          return;
+        }
+        resolve(challengeResult);
       });
     });
   }, []);

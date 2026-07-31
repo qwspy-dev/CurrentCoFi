@@ -299,6 +299,40 @@ export const crosschainFundingIntents = pgTable("crosschain_funding_intents", {
   index("crosschain_funding_status_idx").on(table.status, table.updatedAt),
 ]);
 
+export const gatewayFundingIntents = pgTable("gateway_funding_intents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  sourceChain: text("source_chain").notNull(),
+  sourceDomain: integer("source_domain").notNull(),
+  sourceUsdcAddress: text("source_usdc_address").notNull(),
+  destinationAddress: text("destination_address").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  maxFeeAtomic: numeric("max_fee_atomic", { precision: 78, scale: 0 }).default("0").notNull(),
+  status: text("status").default("created").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  sourceWalletId: text("source_wallet_id"),
+  sourceWalletAddress: text("source_wallet_address"),
+  walletChallengeId: text("wallet_challenge_id"),
+  approvalChallengeId: text("approval_challenge_id"),
+  depositChallengeId: text("deposit_challenge_id"),
+  signChallengeId: text("sign_challenge_id"),
+  mintChallengeId: text("mint_challenge_id"),
+  depositTransactionHash: text("deposit_transaction_hash"),
+  transferId: text("transfer_id"),
+  mintTransactionHash: text("mint_transaction_hash"),
+  campaignFundingTransactionHash: text("campaign_funding_transaction_hash"),
+  typedData: jsonb("typed_data").$type<Record<string, unknown>>(),
+  evidence: jsonb("evidence").$type<Record<string, unknown>>().default({}).notNull(),
+  failureCode: text("failure_code"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("gateway_funding_project_key_unique").on(table.projectId, table.idempotencyKey),
+  index("gateway_funding_distribution_idx").on(table.distributionId, table.createdAt),
+  index("gateway_funding_status_idx").on(table.status, table.updatedAt),
+]);
+
 export const identityAttestations = pgTable("identity_attestations", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

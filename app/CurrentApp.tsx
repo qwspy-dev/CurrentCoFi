@@ -100,6 +100,43 @@ type FundingState = {
   intents: FundingIntent[];
 };
 
+type GatewayFundingIntent = {
+  id: string;
+  distributionId: string;
+  sourceChain: string;
+  destinationAddress: string;
+  sourceWalletAddress: string | null;
+  amountAtomic: string;
+  maxFeeAtomic: string;
+  status: string;
+  depositTransactionHash: string | null;
+  transferId: string | null;
+  mintTransactionHash: string | null;
+  campaignFundingTransactionHash: string | null;
+  createdAt: string;
+  source: { label: string; explorer: string; transactionUrl: string | null };
+  destination: { explorer: string; transactionUrl: string | null };
+  stages: Array<{ id: string; label: string; complete: boolean }>;
+};
+
+type GatewayFundingState = {
+  catalog: {
+    sourceChains: Array<{ code: string; label: string; domain: number; usdcAddress: string }>;
+    destination: { code: string; domain: number; usdcAddress: string };
+    transport: string;
+    signerRequirement: string;
+    maxFeeAtomic: string;
+  };
+  unifiedBalance: {
+    total: string;
+    unavailable?: boolean;
+    reason?: string;
+    balances: Array<{ domain: number; balance: string; chain: string; label: string }>;
+    wallets: Array<{ id: string; address: string; blockchain: string; accountType: string }>;
+  };
+  intents: GatewayFundingIntent[];
+};
+
 type CampaignRecipient = {
   id: string;
   campaignId: string;
@@ -1247,6 +1284,140 @@ function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
 }
 
 function CrosschainFunding({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
+  const [rail,setRail]=useState<"gateway"|"cctp">("gateway");
+  return <><div className="funding-rail-switch" role="tablist" aria-label="USDC funding rail">
+    <button className={rail==="gateway"?"active":""} role="tab" aria-selected={rail==="gateway"} onClick={()=>setRail("gateway")}><Zap/>Gateway Unified Balance<small>Consolidated USDC + direct mint</small></button>
+    <button className={rail==="cctp"?"active":""} role="tab" aria-selected={rail==="cctp"} onClick={()=>setRail("cctp")}><Globe2/>CCTP V2 route<small>Burn, forward, and verify</small></button>
+  </div>{rail==="gateway"?<GatewayFunding go={go} auth={auth}/>:<CctpFunding go={go} auth={auth}/>}</>;
+}
+
+function GatewayFunding({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
+  const network=useCampaignNetwork(Boolean(auth.account));
+  const [state,setState]=useState<GatewayFundingState|null>(null);
+  const [distributionId,setDistributionId]=useState("");
+  const [sourceChain,setSourceChain]=useState("ARC-TESTNET");
+  const [selectedId,setSelectedId]=useState("");
+  const [working,setWorking]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(async()=>{
+    if(!auth.account)return;
+    try{
+      const next=await currentApi.get<GatewayFundingState>("/gateway");
+      setState(next);setSelectedId(current=>current||next.intents[0]?.id||"");setError(null);
+    }catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"Gateway funding is unavailable.")}
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const fundable=network.campaigns.filter(campaign=>campaign.status==="awaiting_funding"&&campaign.asset==="USDC");
+  const selected=state?.intents.find(intent=>intent.id===selectedId)??state?.intents[0]??null;
+  const create=async()=>{
+    const campaignId=distributionId||fundable[0]?.id;
+    if(!campaignId){setError("Create a USDC campaign awaiting funding first.");return}
+    setWorking(true);setError(null);
+    try{
+      const intent=await currentApi.post<GatewayFundingIntent>("/gateway",{action:"create",distributionId:campaignId,sourceChain,idempotencyKey:`gateway-${campaignId}-${sourceChain}-${crypto.randomUUID()}`});
+      setSelectedId(intent.id);await refresh();
+    }catch(createError){setError(createError instanceof Error?createError.message:"The Gateway route could not be created.")}
+    finally{setWorking(false)}
+  };
+  const challengeAction=async(action:"wallet"|"approve"|"deposit"|"mint")=>{
+    if(!selected)return;
+    const first=await currentApi.post<WalletActionResult>("/gateway",{action,intentId:selected.id});
+    if(!first.complete){
+      if(!first.challengeId)throw new Error("Circle did not return a wallet approval.");
+      await auth.executeChallenge(first.challengeId);
+      await confirmWalletAction("/gateway",{action,intentId:selected.id},first.challengeId);
+    }
+  };
+  const execute=async(action:"wallet"|"approve"|"deposit"|"mint")=>{
+    setWorking(true);setError(null);
+    try{await challengeAction(action);await refresh()}
+    catch(actionError){setError(actionError instanceof Error?actionError.message:"The Gateway action could not be completed.")}
+    finally{setWorking(false)}
+  };
+  const signAndSubmit=async()=>{
+    if(!selected)return;
+    setWorking(true);setError(null);
+    try{
+      const prepared=await currentApi.post<WalletActionResult>("/gateway",{action:"sign",intentId:selected.id});
+      if(!prepared.challengeId)throw new Error("Circle did not return the Gateway signature request.");
+      const result=await auth.executeChallenge(prepared.challengeId);
+      const signature="data" in result?result.data?.signature:undefined;
+      if(!signature)throw new Error("Circle did not return the approved EOA signature.");
+      await currentApi.post("/gateway",{action:"submit",intentId:selected.id,signature});
+      await refresh();
+    }catch(signError){setError(signError instanceof Error?signError.message:"The Gateway transfer could not be signed.")}
+    finally{setWorking(false)}
+  };
+  const sync=async()=>{
+    if(!selected)return;setWorking(true);setError(null);
+    try{await currentApi.post("/gateway",{action:"sync",intentId:selected.id});await refresh()}
+    catch(syncError){setError(syncError instanceof Error?syncError.message:"Gateway status could not be refreshed.")}
+    finally{setWorking(false)}
+  };
+  const fundVault=async()=>{
+    if(!selected)return;setWorking(true);setError(null);
+    try{
+      for(const action of ["approve","deposit"] as const){
+        const first=await currentApi.post<WalletActionResult>("/campaigns/fund",{distributionId:selected.distributionId,action});
+        if(!first.complete){
+          if(!first.challengeId)throw new Error("Circle did not return the Arc campaign approval.");
+          await auth.executeChallenge(first.challengeId);
+          await confirmWalletAction("/campaigns/fund",{distributionId:selected.distributionId,action},first.challengeId);
+        }
+      }
+      await currentApi.post("/gateway",{action:"sync",intentId:selected.id});await refresh();
+    }catch(fundError){setError(fundError instanceof Error?fundError.message:"The campaign vault could not be funded.")}
+    finally{setWorking(false)}
+  };
+  const action=selected?.status==="created"||selected?.status==="wallet_authorizing"
+    ? {label:"Create Gateway EOA",run:()=>execute("wallet"),icon:Wallet}
+    : selected?.status==="wallet_ready"||selected?.status==="approving"
+      ? {label:"Approve unified deposit",run:()=>execute("approve"),icon:ShieldCheck}
+      : selected?.status==="approved"||selected?.status==="deposit_authorizing"
+        ? {label:"Deposit to Gateway",run:()=>execute("deposit"),icon:ArrowRight}
+        : selected?.status==="deposited"||selected?.status==="signature_authorizing"
+          ? {label:"Sign Gateway transfer",run:signAndSubmit,icon:Fingerprint}
+          : selected?.status==="attested"||selected?.status==="mint_authorizing"
+            ? {label:"Mint USDC on Arc",run:()=>execute("mint"),icon:Zap}
+            : selected?.status==="arc_arrived"
+              ? {label:"Fund campaign vault",run:fundVault,icon:Lock}
+              : null;
+  const ActionIcon=action?.icon??CheckCircle2;
+  return <><PageHero eyebrow="GATEWAY UNIFIED BALANCE" title="One USDC balance. Any campaign current." copy="Deposit USDC from supported networks into Circle Gateway, authorize the burn with a dedicated EOA, mint directly to the sponsored Arc account, and lock the result into a verifiable campaign." mode="network"><Status tone="green">Gateway integrated</Status></PageHero>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Sign in to open the Gateway console</h3><p>Current creates the correct Circle-controlled operator and destination accounts for you.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {auth.account&&<><div className="gateway-balance-strip">
+      <article><span><CircleDollarSign/></span><small>UNIFIED GATEWAY BALANCE</small><strong>{state?.unifiedBalance.total??"0.000000"} USDC</strong><p>Finalized deposits across {state?.unifiedBalance.balances.length??0} supported domains.</p></article>
+      {(state?.unifiedBalance.balances.length?state.unifiedBalance.balances.slice(0,3):[{domain:26,balance:"0.000000",chain:"ARC-TESTNET",label:"Arc Testnet"}]).map(balance=><article className="gateway-chain-balance" key={`${balance.domain}-${balance.chain}`}><small>{balance.label}</small><strong>{Number(balance.balance).toFixed(6)}</strong><span>DOMAIN {balance.domain}</span></article>)}
+      <article className="gateway-signer-proof"><Fingerprint/><small>SIGNER MODEL</small><strong>EOA operator</strong><p>Separate from the sponsored Arc recipient account.</p></article>
+    </div>{state?.unifiedBalance.unavailable&&<p className="auth-system-note is-error"><HelpCircle/>{state.unifiedBalance.reason}</p>}
+    <div className="funding-workspace">
+      <section className="funding-compose data-panel">
+        <div className="panel-head"><div><h3>New unified route</h3><p>Gateway deposit → EOA intent → Arc direct mint</p></div><Zap/></div>
+        <div className="field-grid">
+          <label className="full">Campaign<select value={distributionId} onChange={event=>setDistributionId(event.target.value)}><option value="">Select an awaiting USDC campaign</option>{fundable.map(campaign=><option value={campaign.id} key={campaign.id}>{campaign.name} · {campaign.totalAmount} USDC</option>)}</select></label>
+          <label className="full">Deposit network<select value={sourceChain} onChange={event=>setSourceChain(event.target.value)}>{state?.catalog.sourceChains.map(chain=><option value={chain.code} key={chain.code}>{chain.label}</option>)}</select></label>
+        </div>
+        <div className="funding-route-preview gateway-route-preview"><span><i>1</i><b>EOA operator</b></span><ArrowRight/><span><i>2</i><b>Unified balance</b></span><ArrowRight/><span><i>3</i><b>Arc mint</b></span><ArrowRight/><span><i>4</i><b>Campaign vault</b></span></div>
+        <Button tone="blue" onClick={()=>void create()} disabled={working||!fundable.length}>Create Gateway route <ArrowRight/></Button>
+        <p className="builder-note"><ShieldCheck/>Gateway requires an EOA signature. Current keeps that operator separate from your gas-sponsored Arc account and verifies every signature before submission.</p>
+      </section>
+      <section className="funding-routes data-panel">
+        <div className="panel-head"><div><h3>Gateway control</h3><p>{state?.intents.length??0} durable funding intents</p></div>{working?<RefreshCw className="spin"/>:<Radio/>}</div>
+        {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+        {!selected&&<div className="campaign-empty compact"><Zap/><b>No Gateway route yet</b><p>Create one to establish an auditable unified-balance settlement record.</p></div>}
+        {selected&&<div className="funding-detail">
+          <div className="funding-title"><div><Status tone={selected.status==="complete"?"green":"cyan"}>{selected.status.replaceAll("_"," ")}</Status><h3>{selected.source.label} <ArrowRight/> Gateway <ArrowRight/> Arc</h3><p>{formatAtomic(selected.amountAtomic)} USDC allocation · up to {formatAtomic(selected.maxFeeAtomic)} USDC Gateway fee reserve</p></div><small>{selected.id.slice(0,8)}</small></div>
+          <div className="funding-stage-list gateway-stage-list">{selected.stages.map((stage,index)=><div className={stage.complete?"complete":""} key={stage.id}><i>{stage.complete?<Check/>:index+1}</i><span><b>{stage.label}</b><small>{["EOA ownership verified","Gateway deposit recorded","Burn intent accepted","Arc mint confirmed","Vault funding anchored"][index]}</small></span></div>)}</div>
+          <div className="gateway-proof-row"><span><small>OPERATOR</small><code>{selected.sourceWalletAddress?`${selected.sourceWalletAddress.slice(0,8)}…${selected.sourceWalletAddress.slice(-6)}`:"Not created"}</code></span><span><small>TRANSFER</small><code>{selected.transferId??"Not attested"}</code></span></div>
+          <div className="funding-proof-links">{selected.source.transactionUrl&&<a href={selected.source.transactionUrl} target="_blank" rel="noreferrer">Deposit proof <ArrowUpRight/></a>}{selected.destination.transactionUrl&&<a href={selected.destination.transactionUrl} target="_blank" rel="noreferrer">Arc mint proof <ArrowUpRight/></a>}</div>
+          <div className="form-actions"><Button tone="ghost" onClick={()=>void sync()} disabled={working}>Refresh proof <RefreshCw/></Button>{action&&<Button tone="blue" onClick={()=>void action.run()} disabled={working}>{action.label} <ActionIcon/></Button>}</div>
+        </div>}
+        {!!state?.intents.length&&<div className="funding-intent-tabs">{state.intents.map(intent=><button className={intent.id===selected?.id?"active":""} onClick={()=>setSelectedId(intent.id)} key={intent.id}><span>{intent.source.label} → Gateway</span><Status tone={intent.status==="complete"?"green":"grey"}>{intent.status.replaceAll("_"," ")}</Status></button>)}</div>}
+      </section>
+    </div></>}</>;
+}
+
+function CctpFunding({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
   const network=useCampaignNetwork(Boolean(auth.account));
   const [state,setState]=useState<FundingState|null>(null);
   const [distributionId,setDistributionId]=useState("");
@@ -1819,7 +1990,7 @@ function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","crosschain.funding.created","crosschain.funding.source-confirmed","crosschain.funding.arc-arrived","crosschain.funding.campaign-funded","agent.settlement-ready","agent.settlement-approved","agent.settled","identity.verified","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
+    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","crosschain.funding.created","crosschain.funding.source-confirmed","crosschain.funding.arc-arrived","crosschain.funding.campaign-funded","gateway.funding.created","gateway.funding.deposited","gateway.funding.attested","gateway.funding.arc-arrived","gateway.funding.campaign-funded","agent.settlement-ready","agent.settlement-approved","agent.settled","identity.verified","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Webhook creation failed.")}
     finally{setBusy(false)}
   };

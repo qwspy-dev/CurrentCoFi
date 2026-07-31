@@ -1,7 +1,7 @@
 {
   "name": "@currentcofi/sdk",
-  "version": "0.7.0",
-  "description": "Server SDK for Current CoFi identity-bound Arc distributions, CCTP funding proof, policy-bound agent settlement handoffs, and activation attribution.",
+  "version": "0.8.0",
+  "description": "Server SDK for Current CoFi identity-bound Arc distributions, Gateway and CCTP funding proof, policy-bound agent settlement handoffs, and activation attribution.",
   "type": "module",
   "sideEffects": false,
   "exports": {

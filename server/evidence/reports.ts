@@ -12,6 +12,7 @@ import {
   crosschainFundingIntents,
   distributions,
   evidenceReports,
+  gatewayFundingIntents,
   identityAttestations,
   projectMembers,
   projects,
@@ -23,7 +24,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v5";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v6";
 
 type Criterion = {
   id: string;
@@ -131,6 +132,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     agentActionRows,
     agentSettlementRows,
     crosschainFundingRows,
+    gatewayFundingRows,
   ] = await Promise.all([
     campaignIds.length
       ? db.select({
@@ -257,6 +259,24 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         .where(inArray(crosschainFundingIntents.distributionId, campaignIds))
         .orderBy(desc(crosschainFundingIntents.createdAt))
       : [],
+    campaignIds.length
+      ? db.select({
+        distributionId: gatewayFundingIntents.distributionId,
+        sourceChain: gatewayFundingIntents.sourceChain,
+        status: gatewayFundingIntents.status,
+        amountAtomic: gatewayFundingIntents.amountAtomic,
+        maxFeeAtomic: gatewayFundingIntents.maxFeeAtomic,
+        sourceWalletAddress: gatewayFundingIntents.sourceWalletAddress,
+        depositTransactionHash: gatewayFundingIntents.depositTransactionHash,
+        transferId: gatewayFundingIntents.transferId,
+        mintTransactionHash: gatewayFundingIntents.mintTransactionHash,
+        campaignFundingTransactionHash: gatewayFundingIntents.campaignFundingTransactionHash,
+        createdAt: gatewayFundingIntents.createdAt,
+        updatedAt: gatewayFundingIntents.updatedAt,
+      }).from(gatewayFundingIntents)
+        .where(inArray(gatewayFundingIntents.distributionId, campaignIds))
+        .orderBy(desc(gatewayFundingIntents.createdAt))
+      : [],
   ]);
 
   const allocationsByCampaign = new Map(allocationRows.map((row) => [row.distributionId, row]));
@@ -285,6 +305,12 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     const current = crosschainByCampaign.get(row.distributionId) ?? [];
     current.push(row);
     crosschainByCampaign.set(row.distributionId, current);
+  }
+  const gatewayByCampaign = new Map<string, typeof gatewayFundingRows>();
+  for (const row of gatewayFundingRows) {
+    const current = gatewayByCampaign.get(row.distributionId) ?? [];
+    current.push(row);
+    gatewayByCampaign.set(row.distributionId, current);
   }
 
   const campaignEvidence = campaigns.map((campaign) => {
@@ -348,6 +374,20 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
           createdAt: route.createdAt.toISOString(),
           verifiedAt: route.updatedAt.toISOString(),
         })),
+        gatewayFunding: (gatewayByCampaign.get(campaign.id) ?? []).map((route) => ({
+          sourceChain: route.sourceChain,
+          destinationChain: ARC_TESTNET.network,
+          status: route.status,
+          amountAtomic: route.amountAtomic,
+          maxFeeAtomic: route.maxFeeAtomic,
+          sourceWalletAddress: route.sourceWalletAddress,
+          depositTransactionHash: route.depositTransactionHash,
+          transferId: route.transferId,
+          mintTransactionHash: route.mintTransactionHash,
+          campaignFundingTransactionHash: route.campaignFundingTransactionHash,
+          createdAt: route.createdAt.toISOString(),
+          verifiedAt: route.updatedAt.toISOString(),
+        })),
       },
       timeline: {
         createdAt: campaign.createdAt.toISOString(),
@@ -391,6 +431,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const completedAgentActions = agentActionRows.filter((action) => action.status === "completed").length;
   const reviewedAgentActions = agentActionRows.filter((action) => Boolean(action.reviewedAt)).length;
   const settledAgentActions = agentSettlementRows.filter((settlement) => settlement.status === "settled").length;
+  const gatewayMintedRoutes = gatewayFundingRows.filter((route) => Boolean(route.mintTransactionHash)).length;
   const criteria: Criterion[] = [
     {
       id: "working-product",
@@ -464,6 +505,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       passed: settledAgentActions > 0,
       evidence: `${settledAgentActions} agent-funded Arc settlement${settledAgentActions === 1 ? "" : "s"}, ${completedAgentActions} completed action${completedAgentActions === 1 ? "" : "s"}, and ${reviewedAgentActions} human-reviewed action${reviewedAgentActions === 1 ? "" : "s"}.`,
     },
+    {
+      id: "gateway-funding",
+      label: "Gateway unified funding",
+      weight: 10,
+      passed: gatewayMintedRoutes > 0,
+      evidence: `${gatewayMintedRoutes} Gateway direct-mint route${gatewayMintedRoutes === 1 ? "" : "s"} anchored on Arc.`,
+    },
   ];
   const generatedAt = new Date().toISOString();
   return {
@@ -504,6 +552,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       completedAgentActions,
       reviewedAgentActions,
       settledAgentActions,
+      gatewayFundingRoutes: gatewayFundingRows.length,
+      gatewayMintedRoutes,
     },
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({
@@ -560,6 +610,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         "Partner-signed pilot attestations",
         "Policy-bound agent actions and human approval decisions",
         "Human-authorized agent campaign vault settlements",
+        "Circle Gateway deposits, EOA burn intents, attestations, and Arc mint hashes",
       ],
     },
   };

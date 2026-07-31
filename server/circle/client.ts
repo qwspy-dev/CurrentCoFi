@@ -129,6 +129,7 @@ export function createUserWalletChallenge(
   request: Request,
   userToken: string,
   blockchain: string,
+  accountType: "SCA" | "EOA" = "SCA",
 ) {
   return circleRequest<{ challengeId: string }>(
     request,
@@ -138,7 +139,30 @@ export function createUserWalletChallenge(
       body: {
         idempotencyKey: crypto.randomUUID(),
         blockchains: [blockchain],
-        metadata: [{ name: `Current CoFi ${blockchain}`, refId: `current-${blockchain.toLowerCase()}` }],
+        accountType,
+        metadata: [{
+          name: `Current CoFi ${blockchain} ${accountType}`,
+          refId: `current-${blockchain.toLowerCase()}-${accountType.toLowerCase()}`,
+        }],
+      },
+    },
+  );
+}
+
+export function createUserTypedDataChallenge(
+  request: Request,
+  userToken: string,
+  input: { walletId: string; data: Record<string, unknown>; memo: string },
+) {
+  return circleRequest<{ challengeId: string }>(
+    request,
+    "/v1/w3s/user/sign/typedData",
+    {
+      userToken,
+      body: {
+        walletId: input.walletId,
+        data: JSON.stringify(input.data),
+        memo: input.memo,
       },
     },
   );

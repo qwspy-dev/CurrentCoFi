@@ -74,6 +74,37 @@ const mockFetch: typeof fetch = async (input, init) => {
       },
     });
   }
+  if (String(input).endsWith("/developer/gateway")) {
+    return Response.json({
+      ok: true,
+      data: {
+        catalog: {
+          sourceChains: [{ code: "BASE-SEPOLIA", label: "Base Sepolia", domain: 6, usdcAddress: "0xsource" }],
+          destination: { code: "ARC-TESTNET", domain: 26, usdcAddress: "0xarc" },
+          transport: "Circle Gateway Unified Balance + Direct Mint",
+          signerRequirement: "EOA",
+          maxFeeAtomic: "2010000",
+        },
+        intents: [{
+          id: "gateway_sdk",
+          distributionId: "dist_sdk",
+          sourceChain: "BASE-SEPOLIA",
+          destinationAddress: "0xarcwallet",
+          sourceWalletAddress: "0xeoa",
+          amountAtomic: "25000000",
+          maxFeeAtomic: "2010000",
+          status: "arc_arrived",
+          depositTransactionHash: "0xdeposit",
+          transferId: "transfer_sdk",
+          mintTransactionHash: "0xgatewaymint",
+          campaignFundingTransactionHash: null,
+          stages: [],
+          createdAt: "2026-08-14T00:00:00.000Z",
+          updatedAt: "2026-08-14T00:05:00.000Z",
+        }],
+      },
+    });
+  }
   if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
     return Response.json({
       ok: true,
@@ -214,6 +245,11 @@ const funding = await current.funding.list();
 assert.equal(funding.catalog.destination.code, "ARC-TESTNET");
 assert.equal(funding.intents[0]?.destinationTransactionHash, "0xmint");
 assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/funding");
+
+const gateway = await current.gateway.list();
+assert.equal(gateway.catalog.signerRequirement, "EOA");
+assert.equal(gateway.intents[0]?.mintTransactionHash, "0xgatewaymint");
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/gateway");
 assert.equal(
   new Headers(requests.at(-1)?.init?.headers).get("authorization"),
   `Bearer ${apiKey}`,

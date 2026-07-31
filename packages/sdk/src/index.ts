@@ -205,6 +205,24 @@ export type CrosschainFundingIntent = {
   updatedAt: string;
 };
 
+export type GatewayFundingIntent = {
+  id: string;
+  distributionId: string;
+  sourceChain: string;
+  destinationAddress: string;
+  sourceWalletAddress: string | null;
+  amountAtomic: string;
+  maxFeeAtomic: string;
+  status: string;
+  depositTransactionHash: string | null;
+  transferId: string | null;
+  mintTransactionHash: string | null;
+  campaignFundingTransactionHash: string | null;
+  stages: Array<{ id: string; label: string; complete: boolean }>;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type CurrentEnvelope<T> = {
   ok: boolean;
   data?: T;
@@ -315,6 +333,19 @@ export class Current {
       };
       intents: CrosschainFundingIntent[];
     }>("/api/v1/developer/funding"),
+  };
+
+  readonly gateway = {
+    list: () => this.get<{
+      catalog: {
+        sourceChains: Array<{ code: string; label: string; domain: number; usdcAddress: string }>;
+        destination: { code: string; domain: number; usdcAddress: string };
+        transport: string;
+        signerRequirement: string;
+        maxFeeAtomic: string;
+      };
+      intents: GatewayFundingIntent[];
+    }>("/api/v1/developer/gateway"),
   };
 
   readonly evidence = {

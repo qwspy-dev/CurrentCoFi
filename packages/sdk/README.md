@@ -59,6 +59,10 @@ const action = await current.agentActions.proposeDistribution({
 // authorized project wallet to approve its token and fund the Arc vault.
 // completed is returned only after that funding transaction is confirmed.
 console.log(action.status, action.policyDecision);
+
+// Read durable Gateway Unified Balance funding evidence for the project.
+const gateway = await current.gateway.list();
+console.log(gateway.catalog.transport, gateway.intents[0]?.mintTransactionHash);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.
