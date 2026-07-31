@@ -8,7 +8,6 @@ import {
   parseUnits,
   stringToHex,
   type Address,
-  type Hex,
 } from "viem";
 import type { CurrentSession } from "../auth/session.js";
 import { arcWallet, circleChallengeResult } from "../campaigns/settlement.js";

@@ -90,6 +90,28 @@ export type DeveloperAnalytics = {
         activations: number;
     }>;
 };
+export type EvidenceReport = {
+    id: string;
+    publicSlug: string;
+    schemaVersion: string;
+    digest: string;
+    distributionId: string | null;
+    readinessScore: number;
+    snapshot: Record<string, unknown>;
+    createdAt: string;
+};
+export type EvidenceReportSummary = Omit<EvidenceReport, "snapshot"> & {
+    project: {
+        name: string;
+        slug: string;
+    };
+    totals: {
+        campaigns: number;
+        recipients: number;
+        claims: number;
+        activations: number;
+    };
+};
 export declare class CurrentError extends Error {
     readonly code: string;
     readonly status: number;
@@ -119,6 +141,14 @@ export declare class Current {
     };
     readonly analytics: {
         get: () => Promise<DeveloperAnalytics>;
+    };
+    readonly evidence: {
+        list: () => Promise<{
+            reports: EvidenceReportSummary[];
+        }>;
+        create: (input?: {
+            distributionId?: string;
+        }) => Promise<EvidenceReport>;
     };
     constructor(options: CurrentOptions);
     private get;

@@ -43,6 +43,13 @@
       "when": 1785453570610,
       "tag": "0005_careful_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785456016363,
+      "tag": "0006_volatile_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }

@@ -53,6 +53,10 @@ export class Current {
     analytics = {
         get: () => this.get("/api/v1/developer/analytics"),
     };
+    evidence = {
+        list: () => this.get("/api/v1/developer/evidence"),
+        create: (input = {}) => this.signedPost("/api/v1/developer/evidence", input),
+    };
     constructor(options) {
         if (!options.apiKey || !options.signingSecret) {
             throw new Error("Current requires apiKey and signingSecret.");

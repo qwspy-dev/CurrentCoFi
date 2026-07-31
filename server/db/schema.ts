@@ -305,6 +305,23 @@ export const auditEvents = pgTable("audit_events", {
   index("audit_events_resource_idx").on(table.resourceType, table.resourceId),
 ]);
 
+export const evidenceReports = pgTable("evidence_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "set null" }),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdByKeyId: uuid("created_by_key_id").references(() => apiKeys.id, { onDelete: "set null" }),
+  publicSlug: text("public_slug").notNull(),
+  schemaVersion: text("schema_version").default("current-evidence-v1").notNull(),
+  digest: text("digest").notNull(),
+  snapshot: jsonb("snapshot").$type<Record<string, unknown>>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("evidence_reports_public_slug_unique").on(table.publicSlug),
+  index("evidence_reports_project_created_idx").on(table.projectId, table.createdAt),
+  index("evidence_reports_distribution_idx").on(table.distributionId, table.createdAt),
+]);
+
 export const tokenEconomyActions = pgTable("token_economy_actions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),

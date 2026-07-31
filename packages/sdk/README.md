@@ -1,6 +1,6 @@
 # @currentcofi/sdk
 
-Server SDK for creating identity-bound walletless Arc distributions, attesting project identities, submitting signed activation events, reading campaign analytics, and verifying Current CoFi webhooks.
+Server SDK for creating identity-bound walletless Arc distributions, attesting project identities, submitting signed activation events, freezing grant-evidence reports, reading campaign analytics, and verifying Current CoFi webhooks.
 
 ```ts
 import { Current } from "@currentcofi/sdk";
@@ -27,6 +27,12 @@ await current.identities.attest({
   walletAddress: "0x1111111111111111111111111111111111111111",
   provider: "x-oauth",
 });
+
+const evidence = await current.evidence.create({
+  distributionId: campaign.id,
+});
+
+console.log(evidence.digest, evidence.publicSlug);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.

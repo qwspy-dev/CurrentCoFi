@@ -48,6 +48,38 @@ const mockFetch: typeof fetch = async (input, init) => {
       data: { totals: { campaigns: 1, recipients: 1, claims: 0, activations: 0 }, campaigns: [] },
     });
   }
+  if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
+    return Response.json({
+      ok: true,
+      data: {
+        id: "evidence_sdk",
+        publicSlug: "proof_sdk",
+        schemaVersion: "current-evidence-v1",
+        digest: "digest_sdk",
+        distributionId: "dist_sdk",
+        readinessScore: 80,
+        snapshot: {},
+        createdAt: "2026-08-14T00:00:00.000Z",
+      },
+    }, { status: 201 });
+  }
+  if (String(input).endsWith("/developer/evidence")) {
+    return Response.json({
+      ok: true,
+      data: {
+        reports: [{
+          id: "evidence_sdk",
+          publicSlug: "proof_sdk",
+          schemaVersion: "current-evidence-v1",
+          digest: "digest_sdk",
+          distributionId: "dist_sdk",
+          readinessScore: 80,
+          snapshot: {},
+          createdAt: "2026-08-14T00:00:00.000Z",
+        }],
+      },
+    });
+  }
   return Response.json({
     ok: false,
     error: { code: "NOT_FOUND", message: "Missing test route." },
@@ -113,6 +145,14 @@ assert.equal(
   new Headers(requests.at(-1)?.init?.headers).get("authorization"),
   `Bearer ${apiKey}`,
 );
+
+const evidence = await current.evidence.create({ distributionId: distribution.id });
+assert.equal(evidence.publicSlug, "proof_sdk");
+const evidenceRequest = requests.at(-1);
+assert.ok(evidenceRequest?.url.endsWith("/api/v1/developer/evidence"));
+assert.equal(JSON.parse(String(evidenceRequest?.init?.body)).distributionId, "dist_sdk");
+const evidenceList = await current.evidence.list();
+assert.equal(evidenceList.reports[0]?.digest, "digest_sdk");
 
 const webhookBody = JSON.stringify({ type: "claim.completed", data: { id: "claim_1" } });
 const webhookTimestamp = Date.now().toString();

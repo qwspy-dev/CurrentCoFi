@@ -88,6 +88,22 @@ export type DeveloperAnalytics = {
   }>;
 };
 
+export type EvidenceReport = {
+  id: string;
+  publicSlug: string;
+  schemaVersion: string;
+  digest: string;
+  distributionId: string | null;
+  readinessScore: number;
+  snapshot: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type EvidenceReportSummary = Omit<EvidenceReport, "snapshot"> & {
+  project: { name: string; slug: string };
+  totals: { campaigns: number; recipients: number; claims: number; activations: number };
+};
+
 type CurrentEnvelope<T> = {
   ok: boolean;
   data?: T;
@@ -187,6 +203,14 @@ export class Current {
 
   readonly analytics = {
     get: () => this.get<DeveloperAnalytics>("/api/v1/developer/analytics"),
+  };
+
+  readonly evidence = {
+    list: () => this.get<{ reports: EvidenceReportSummary[] }>("/api/v1/developer/evidence"),
+    create: (input: { distributionId?: string } = {}) => this.signedPost<EvidenceReport>(
+      "/api/v1/developer/evidence",
+      input,
+    ),
   };
 
   constructor(options: CurrentOptions) {

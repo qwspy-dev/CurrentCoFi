@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  Activity, ArrowLeft, ArrowRight, ArrowUpRight, BarChart3, Bell, Bot,
+  Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
   Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
-  Copy, Download, Eye, Fingerprint, Gauge, Gift,
+  Copy, Download, Eye, FileCheck2, Fingerprint, Gauge, Gift,
   Globe2, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
   MoreHorizontal, Network, Pause, Play, Plus, Radio, RefreshCw, Search,
-  Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target,
+  Settings, Share2, ShieldCheck, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "recipients" | "referrals" | "analytics" | "token"
+  | "new-campaign" | "recipients" | "referrals" | "analytics" | "evidence" | "token"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -107,6 +107,94 @@ type CampaignAnalytics = {
     claimRate: number;
     activations: number;
   }>;
+};
+
+type EvidenceCriterion = {
+  id: string;
+  label: string;
+  weight: number;
+  passed: boolean;
+  evidence: string;
+};
+
+type EvidenceCampaign = {
+  id: string;
+  name: string;
+  status: string;
+  asset: { symbol: string; address: string; totalAmount: string; claimedAmount: string };
+  targeting: { claimMode: string; targeted: number; claimed: number; claimRate: number };
+  activation: { requestedEvent: string | null; total: number; rate: number };
+  identityVerification: { attestations: number; consumedAttestations: number };
+  anchors: {
+    merkleRoot: string | null;
+    vaultAddress: string | null;
+    fundingTransactionHash: string | null;
+    claimTransactions: Array<{ hash: string; confirmedAt: string | null }>;
+  };
+};
+
+type EvidenceSnapshot = {
+  generatedAt: string;
+  purpose: string;
+  privacy: string;
+  project: { id: string; slug: string; name: string; description: string | null };
+  network: {
+    name: string;
+    chainId: number;
+    explorerUrl: string;
+    usdcAddress: string;
+    campaignVaultAddress: string | null;
+  };
+  readiness: {
+    score: number;
+    earned: number;
+    possible: number;
+    criteria: EvidenceCriterion[];
+  };
+  totals: {
+    campaigns: number;
+    fundedCampaigns: number;
+    recipients: number;
+    claims: number;
+    walletsCreated: number;
+    activations: number;
+    identityAttestations: number;
+    claimRate: number;
+    activationRate: number;
+    activeApiKeys: number;
+    activeWebhooks: number;
+  };
+  campaigns: EvidenceCampaign[];
+  auditTrail: Array<{
+    action: string;
+    resourceType: string;
+    resourceId: string | null;
+    createdAt: string;
+  }>;
+};
+
+type EvidenceReport = {
+  id: string;
+  publicSlug: string;
+  schemaVersion: string;
+  digest: string;
+  distributionId: string | null;
+  readinessScore: number;
+  snapshot: EvidenceSnapshot;
+  createdAt: string;
+  integrity?: { valid: boolean; recalculatedDigest: string };
+};
+
+type EvidenceReportSummary = {
+  id: string;
+  publicSlug: string;
+  schemaVersion: string;
+  digest: string;
+  distributionId: string | null;
+  readinessScore: number;
+  project: { name: string; slug: string };
+  totals: { campaigns: number; recipients: number; claims: number; activations: number };
+  createdAt: string;
 };
 
 type CampaignRecipientDraft = {
@@ -330,6 +418,26 @@ function downloadCampaignLinks(campaign: CreatedCampaign) {
   URL.revokeObjectURL(url);
 }
 
+function evidenceShareUrl(publicSlug: string) {
+  return `${location.origin}/?evidence=${encodeURIComponent(publicSlug)}#/evidence`;
+}
+
+function downloadEvidenceReport(report: EvidenceReport) {
+  const payload = JSON.stringify({
+    reportId: report.id,
+    schemaVersion: report.schemaVersion,
+    digest: report.digest,
+    integrity: report.integrity ?? { valid: true },
+    snapshot: report.snapshot,
+  }, null, 2);
+  const url = URL.createObjectURL(new Blob([payload], { type: "application/json;charset=utf-8" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${report.snapshot.project.slug}-current-cofi-evidence.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function useCampaignNetwork(enabled: boolean) {
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([]);
   const [analytics, setAnalytics] = useState<CampaignAnalytics | null>(null);
@@ -376,7 +484,7 @@ async function confirmWalletAction(
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "recipients", "referrals", "analytics", "token",
+  "new-campaign", "recipients", "referrals", "analytics", "evidence", "token",
   "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -393,6 +501,7 @@ const appNav = [
     ["create", "Create link", Link2],
     ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
     ["referrals", "Referrals", Network], ["analytics", "Analytics", BarChart3],
+    ["evidence", "Grant evidence", FileCheck2],
   ]},
   { label: "Protocol", items: [
     ["token", "$CURRENT", CircleDollarSign], ["developers", "Developers", Code2],
@@ -1066,6 +1175,97 @@ function Analytics({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     {!auth.account&&<div className="campaign-empty"><Lock/><h3>Your live analytics are private</h3><p>Sign in to inspect campaign settlement and conversion data.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}</>;
 }
 
+function Evidence({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const network=useCampaignNetwork(Boolean(auth.account));
+  const [reports,setReports]=useState<EvidenceReportSummary[]>([]);
+  const [active,setActive]=useState<EvidenceReport|null>(null);
+  const [campaignId,setCampaignId]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [creating,setCreating]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const requestedSlug=useMemo(
+    ()=>typeof window==="undefined"?null:new URLSearchParams(window.location.search).get("evidence"),
+    [],
+  );
+  const loadPublic=useCallback(async(slug:string)=>{
+    setLoading(true);setError(null);
+    try{setActive(await currentApi.get<EvidenceReport>(`/evidence/public?slug=${encodeURIComponent(slug)}`))}
+    catch(loadError){setError(loadError instanceof Error?loadError.message:"The evidence report is unavailable.")}
+    finally{setLoading(false)}
+  },[]);
+  const loadReports=useCallback(async()=>{
+    if(!auth.account){setLoading(false);return}
+    setLoading(true);setError(null);
+    try{
+      const result=await currentApi.get<{reports:EvidenceReportSummary[]}>("/evidence");
+      setReports(result.reports);
+      if(result.reports[0])await loadPublic(result.reports[0].publicSlug);
+    }catch(loadError){setError(loadError instanceof Error?loadError.message:"Grant evidence is unavailable.");setLoading(false)}
+    finally{setLoading(false)}
+  },[auth.account,loadPublic]);
+  useEffect(()=>{
+    const task=window.setTimeout(()=>{
+      if(requestedSlug)void loadPublic(requestedSlug);
+      else void loadReports();
+    },0);
+    return()=>window.clearTimeout(task);
+  },[loadPublic,loadReports,requestedSlug]);
+  const create=async()=>{
+    setCreating(true);setError(null);
+    try{
+      const report=await currentApi.post<EvidenceReport>("/evidence",campaignId?{distributionId:campaignId}:{});
+      setActive(report);
+      const list=await currentApi.get<{reports:EvidenceReportSummary[]}>("/evidence");
+      setReports(list.reports);
+      history.replaceState(null,"",`${location.pathname}#/evidence`);
+    }catch(createError){setError(createError instanceof Error?createError.message:"The evidence snapshot could not be created.")}
+    finally{setCreating(false)}
+  };
+  const share=async(report:EvidenceReport|EvidenceReportSummary)=>{
+    await navigator.clipboard.writeText(evidenceShareUrl(report.publicSlug));
+  };
+  const snapshot=active?.snapshot;
+  const publicMode=Boolean(requestedSlug);
+  return <><PageHero eyebrow="GRANT EVIDENCE" title="Prove the product, not the pitch." copy="Freeze Arc settlements, Circle wallet onboarding, identity attestations, activations, referrals, and builder integrations into one shareable verification record." mode="branches">
+    {active&&<><Button tone="cyan" onClick={()=>void share(active)}>Copy public proof <Share2/></Button><Button tone="light" onClick={()=>downloadEvidenceReport(active)}>Export JSON <Download/></Button></>}
+  </PageHero>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    {loading&&<div className="evidence-loading"><RefreshCw className="spin"/><div><b>Reconciling the evidence current</b><small>Reading immutable report data and checking its SHA-256 digest.</small></div></div>}
+    {!loading&&!auth.account&&!publicMode&&!active&&<div className="evidence-intro-grid">
+      <article><FileCheck2/><span>ONE REVIEW RECORD</span><h3>Everything Circle needs to inspect.</h3><p>Campaign funding, claims, wallets, activations, identity proof, integrations, and transaction anchors are assembled without exposing recipient identities.</p></article>
+      <article><BadgeCheck/><span>TAMPER EVIDENT</span><h3>Every snapshot has a digest.</h3><p>Reports use canonical JSON and SHA-256 verification so a reviewer can confirm that the shared evidence still matches the stored snapshot.</p></article>
+      <article><Share2/><span>PUBLIC BY LINK</span><h3>No reviewer account required.</h3><p>Generate a public verification URL and export the complete machine-readable evidence package.</p></article>
+      <div className="campaign-empty"><Lock/><h3>Open your workspace evidence</h3><p>Sign in to generate an immutable report from your live Current CoFi campaigns.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>
+    </div>}
+    {auth.account&&!publicMode&&<div className="evidence-create">
+      <div><Eyebrow>CREATE A REVIEW SNAPSHOT</Eyebrow><h3>Freeze today&apos;s grant evidence.</h3><p>Select one pilot or include the complete project. Reports never include raw recipient identities.</p></div>
+      <label>Evidence scope<select value={campaignId} onChange={event=>setCampaignId(event.target.value)}><option value="">Complete Current CoFi project</option>{network.campaigns.map(campaign=><option value={campaign.id} key={campaign.id}>{campaign.name}</option>)}</select></label>
+      <Button tone="blue" disabled={creating} onClick={()=>void create()}>{creating?"Reconciling…":"Generate report"} <FileCheck2/></Button>
+    </div>}
+    {snapshot&&active&&<>
+      <section className="evidence-proof-head">
+        <div className="evidence-score"><div style={{"--evidence-score":`${snapshot.readiness.score*3.6}deg`} as React.CSSProperties}><span>{snapshot.readiness.score}</span><small>/ 100</small></div><p><b>Grant evidence score</b><small>{snapshot.readiness.earned} of {snapshot.readiness.possible} weighted checks proven</small></p></div>
+        <div className="evidence-identity"><Status tone={active.integrity?.valid===false?"red":"green"}>{active.integrity?.valid===false?"Integrity failed":"Integrity verified"}</Status><h2>{snapshot.project.name}</h2><p>{snapshot.purpose}</p><code>{active.digest}</code><small>SHA-256 · {new Date(snapshot.generatedAt).toLocaleString()}</small></div>
+        <div className="evidence-actions"><Button tone="dark" onClick={()=>void share(active)}>Copy proof URL <Copy/></Button><Button tone="ghost" onClick={()=>downloadEvidenceReport(active)}>Download evidence <Download/></Button></div>
+      </section>
+      <div className="metric-grid-new evidence-metrics"><MetricCard label="Recipients targeted" value={snapshot.totals.recipients.toLocaleString()} icon={Users}/><MetricCard label="Claims settled" value={snapshot.totals.claims.toLocaleString()} icon={Gift}/><MetricCard label="Wallets created" value={snapshot.totals.walletsCreated.toLocaleString()} icon={Wallet}/><MetricCard label="Activations proven" value={snapshot.totals.activations.toLocaleString()} icon={Target}/></div>
+      <div className="evidence-grid">
+        <div className="data-panel"><div className="panel-head"><div><h3>Circle readiness checks</h3><p>Weighted evidence captured in this immutable snapshot</p></div><Status tone="green">{snapshot.readiness.score}% proven</Status></div>
+          <div className="evidence-criteria">{snapshot.readiness.criteria.map(item=><div className={item.passed?"passed":""} key={item.id}><span>{item.passed?<Check/>:<Clock3/>}</span><div><b>{item.label}</b><small>{item.evidence}</small></div><em>{item.weight} pts</em></div>)}</div>
+        </div>
+        <div className="data-panel"><div className="panel-head"><div><h3>Verification source</h3><p>Public network and protocol anchors</p></div><Status tone="blue">{snapshot.network.name}</Status></div>
+          <div className="evidence-network"><span><small>CHAIN ID</small><b>{snapshot.network.chainId}</b></span><span><small>USDC</small><code>{snapshot.network.usdcAddress}</code></span><span><small>CAMPAIGN VAULT</small><code>{snapshot.network.campaignVaultAddress??"Not configured"}</code></span><span><small>PRIVACY</small><b>Aggregate proof only</b></span></div>
+        </div>
+      </div>
+      <div className="data-panel evidence-campaigns"><div className="panel-head"><div><h3>Pilot campaign proof</h3><p>Funding, targeting, identity, activation, and Arc transaction anchors</p></div><Status tone="green">{snapshot.campaigns.length} included</Status></div>
+        {snapshot.campaigns.map(campaign=><article key={campaign.id}><div className="evidence-campaign-title"><span>{campaign.asset.symbol.slice(0,2)}</span><div><b>{campaign.name}</b><small>{campaign.targeting.claimMode} · {campaign.status}</small></div><Status tone={campaign.anchors.fundingTransactionHash?"green":"cyan"}>{campaign.anchors.fundingTransactionHash?"Funded":"Awaiting funding"}</Status></div><div className="evidence-campaign-stats"><span><small>TARGETED</small><b>{campaign.targeting.targeted}</b></span><span><small>SETTLED</small><b>{campaign.targeting.claimed}</b></span><span><small>CLAIM RATE</small><b>{campaign.targeting.claimRate.toFixed(1)}%</b></span><span><small>ACTIVATIONS</small><b>{campaign.activation.total}</b></span><span><small>ATTESTATIONS</small><b>{campaign.identityVerification.attestations}</b></span></div><div className="evidence-anchor-row"><code>{campaign.anchors.merkleRoot??"Merkle root pending"}</code>{campaign.anchors.fundingTransactionHash&&<a href={`${snapshot.network.explorerUrl}/tx/${campaign.anchors.fundingTransactionHash}`} target="_blank" rel="noreferrer">Funding transaction <ArrowUpRight/></a>}<span>{campaign.anchors.claimTransactions.length} claim transaction{campaign.anchors.claimTransactions.length===1?"":"s"}</span></div></article>)}
+        {!snapshot.campaigns.length&&<div className="campaign-empty compact"><FileCheck2/><b>No campaign evidence yet</b><p>Create and fund a pilot campaign before generating the next report.</p></div>}
+      </div>
+    </>}
+    {!publicMode&&reports.length>0&&<div className="data-panel evidence-history"><div className="panel-head"><div><h3>Evidence history</h3><p>Immutable snapshots already shared with reviewers</p></div><Status tone="green">{reports.length} reports</Status></div>{reports.map(report=><div className="evidence-report-row" key={report.id}><span><FileCheck2/></span><div><b>{report.project.name}</b><code>{report.digest.slice(0,20)}…</code></div><strong>{report.readinessScore}<small>/100</small></strong><time>{new Date(report.createdAt).toLocaleDateString()}</time><button aria-label="Open evidence report" onClick={()=>void loadPublic(report.publicSlug)}><Eye/></button><button aria-label="Copy public evidence URL" onClick={()=>void share(report)}><Copy/></button></div>)}</div>}
+  </>;
+}
+
 function TokenDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const [economy,setEconomy]=useState<TokenEconomyState|null>(null);
   const [loading,setLoading]=useState(true);
@@ -1192,7 +1392,7 @@ X-Current-Signature: <HMAC-SHA256>
   const copy=async()=>{await navigator.clipboard.writeText(snippets[sample]);setCopied(true);window.setTimeout(()=>setCopied(false),1800)};
   return <><PageHero eyebrow="CURRENT COFI API" title="One integration. Every activation current." copy="Create real walletless distributions, embed the claim experience, attribute post-claim actions, and let agents move value inside explicit boundaries."><div className="hero-button-row"><Button tone="cyan" onClick={()=>go("api-keys")}>Create API key <ArrowRight/></Button><Button tone="ghost" onClick={()=>document.getElementById("sdk-quickstart")?.scrollIntoView({behavior:"smooth"})}>Read quickstart <ArrowUpRight/></Button></div></PageHero>
     <div className="developer-proof"><span><i/><b>LIVE ON ARC TESTNET</b></span><p>SDK · identity verifiers · React components · HMAC requests · durable webhooks · agent manifest</p><a href="/api/v1/openapi" target="_blank" rel="noreferrer">Open API spec <ArrowUpRight/></a></div>
-    <div className="developer-grid"><article><Braces/><span>SERVER SDK</span><h3>Distribution API</h3><p>Create signed USDC and project-token campaigns from a backend or launchpad.</p><code>current.distributions.create()</code></article><article><Fingerprint/><span>IDENTITY NETWORK</span><h3>Verifier adapters</h3><p>Bind X, game, ticket, or community identities to a new Arc wallet without exposing the identity onchain.</p><code>current.identities.attest()</code></article><article><Webhook/><span>EVENT DELIVERY</span><h3>Signed webhooks</h3><p>Receive campaign, identity, claim, activation, referral, refund, and delivery events.</p><code>identity.verified</code></article><article><Bot/><span>MACHINE-READABLE</span><h3>Agent tools</h3><p>Let autonomous software create distributions and report activations within scoped policies.</p><code>create_distribution</code></article><article><Layers3/><span>REACT PACKAGE</span><h3>Embeddable claims</h3><p>Put Current’s walletless reward card and referral links directly inside another app.</p><code>&lt;CurrentClaimEmbed /&gt;</code></article></div>
+    <div className="developer-grid"><article><Braces/><span>SERVER SDK</span><h3>Distribution API</h3><p>Create signed USDC and project-token campaigns from a backend or launchpad.</p><code>current.distributions.create()</code></article><article><Fingerprint/><span>IDENTITY NETWORK</span><h3>Verifier adapters</h3><p>Bind X, game, ticket, or community identities to a new Arc wallet without exposing the identity onchain.</p><code>current.identities.attest()</code></article><article><Webhook/><span>EVENT DELIVERY</span><h3>Signed webhooks</h3><p>Receive campaign, identity, claim, activation, referral, refund, and delivery events.</p><code>identity.verified</code></article><article><Bot/><span>MACHINE-READABLE</span><h3>Agent tools</h3><p>Let autonomous software create distributions and report activations within scoped policies.</p><code>create_distribution</code></article><article><Layers3/><span>REACT PACKAGE</span><h3>Embeddable claims</h3><p>Put Current’s walletless reward card and referral links directly inside another app.</p><code>&lt;CurrentClaimEmbed /&gt;</code></article><article><FileCheck2/><span>GRANT EVIDENCE</span><h3>Proof API</h3><p>Freeze campaign outcomes and public Arc anchors into a digest-verified reviewer report.</p><code>current.evidence.create()</code></article></div>
     <div className="quickstart-panel" id="sdk-quickstart"><div><Eyebrow>PRODUCTION QUICKSTART</Eyebrow><h2>Create a verified activation current.</h2><ol><li><span>1</span>Install the Current server SDK</li><li><span>2</span>Create a scoped project key</li><li><span>3</span>Generate identity-bound claim links</li><li><span>4</span>Attest external identities</li><li><span>5</span>Measure real activation</li></ol><div className="code-tabs">{(["sdk","verifier","react","curl"] as const).map(tab=><button className={sample===tab?"active":""} key={tab} onClick={()=>setSample(tab)}>{tab==="sdk"?"Distribution":tab==="verifier"?"Verifier adapter":tab==="react"?"React embed":"Raw API"}</button>)}</div></div><pre><button className="code-copy" onClick={()=>void copy()}>{copied?<Check/>:<Copy/>}{copied?"Copied":"Copy"}</button><code>{snippets[sample]}</code></pre></div>
     <div className="verifier-story"><div><Eyebrow>IDENTITY WITHOUT CUSTODY</Eyebrow><h2>Bring any community identity into an Arc wallet.</h2><p>The project verifies the account it already understands—an X profile, game account, ticket, Discord member, or internal customer—and signs a short-lived attestation to the recipient’s Current wallet. Current checks the campaign allocation, API-key scope, wallet binding, expiry, and replay state before signing the onchain claim.</p></div><div className="verifier-flow"><span><b>01</b>Project OAuth or account proof<small>Identity stays with the project</small></span><i/><span><b>02</b>HMAC-signed attestation<small>Hashed identity + exact wallet</small></span><i/><span><b>03</b>Gasless Arc settlement<small>Single-use claim authorization</small></span></div></div>
     <div className="integration-lab"><div className="integration-lab-copy"><Eyebrow>EMBED LAB</Eyebrow><h2>The claim experience travels with your product.</h2><p>Games, communities, launchpads, and AI agents can embed a branded reward without rebuilding wallet creation, claim resolution, or gasless onboarding.</p><div><span><CheckCircle2/> No wallet required</span><span><CheckCircle2/> Referral attribution preserved</span><span><CheckCircle2/> Hosted fallback included</span></div><Button tone="blue" onClick={()=>go("api-keys")}>Start integrating <ArrowRight/></Button></div><div className="integration-lab-preview"><div className="embed-browser"><header><i/><i/><i/><span>play.example/rewards</span></header><main><CurrentClaimEmbed compact accent="#22e4d5" onOpen={()=>go("claim")} preview={{amount:"250",asset:"TIDE",claimable:true,expiresAt:"2026-08-14T00:00:00.000Z",message:"Complete your first match to activate this reward.",project:{name:"Tidebreak",logoUrl:null},sender:"Tidebreak community",status:"claimable"}}/></main></div></div></div>
@@ -1288,7 +1488,7 @@ function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{setCreated(await currentApi.post<CreatedDeveloperKey>("/developer/keys",{name,kind:"agent",permissions:["campaigns:read","claims:write","activations:write","analytics:read"],policies:{dailyEventLimit:Number(dailyLimit),allowedEventTypes:eventTypes.split(",").map(value=>value.trim()).filter(Boolean)}}));await refresh()}
+    try{setCreated(await currentApi.post<CreatedDeveloperKey>("/developer/keys",{name,kind:"agent",permissions:["campaigns:read","claims:write","activations:write","analytics:read","evidence:write"],policies:{dailyEventLimit:Number(dailyLimit),allowedEventTypes:eventTypes.split(",").map(value=>value.trim()).filter(Boolean)}}));await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Agent creation failed.")}
     finally{setBusy(false)}
   };
@@ -1339,6 +1539,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "recipients":page=<Recipients auth={auth} go={go}/>;break;
     case "referrals":page=<Referrals auth={auth} go={go}/>;break;
     case "analytics":page=<Analytics auth={auth} go={go}/>;break;
+    case "evidence":page=<Evidence auth={auth} go={go}/>;break;
     case "token":page=<TokenDashboard auth={auth} go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
