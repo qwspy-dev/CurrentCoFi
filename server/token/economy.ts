@@ -224,6 +224,10 @@ export async function economySnapshot(walletAddress?: string, projectId?: string
   let liquidityValues: readonly unknown[] = [];
   if (liquidityConfigured && rpcStatus === "live") {
     try {
+      // Arc's public testnet RPC currently enforces a tight per-client request
+      // cadence. Space this proof read from the base economy multicall so live
+      // dashboards do not incorrectly fall back to zeroed liquidity metrics.
+      await new Promise((resolve) => setTimeout(resolve, 1_100));
       liquidityValues = await client.multicall({
         multicallAddress: MULTICALL3,
         allowFailure: false,
