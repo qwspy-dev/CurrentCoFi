@@ -4,9 +4,9 @@ import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
   Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
   Copy, Download, Eye, FileCheck2, Fingerprint, Gauge, Gift,
-  Globe2, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
+  Globe2, Handshake, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
   MoreHorizontal, Network, Pause, Play, Plus, Radio, RefreshCw, Search,
-  Settings, Share2, ShieldCheck, SlidersHorizontal, Sparkles, Target,
+  Rocket, Settings, Share2, ShieldCheck, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "recipients" | "referrals" | "analytics" | "evidence" | "token"
+  | "new-campaign" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -195,6 +195,54 @@ type EvidenceReportSummary = {
   project: { name: string; slug: string };
   totals: { campaigns: number; recipients: number; claims: number; activations: number };
   createdAt: string;
+};
+
+type PilotRecord = {
+  id: string;
+  publicSlug: string;
+  partnerName: string;
+  partnerWebsite: string | null;
+  useCase: string;
+  status: "onboarding" | "ready" | "live" | "measuring" | "complete";
+  integrationMode: string;
+  requestedIntegrations: string[];
+  targets: { recipients: number; claimRate: number; activationRate: number };
+  successCriteria: Record<string, unknown>;
+  notes: string | null;
+  readinessScore: number;
+  targetMet: boolean;
+  milestones: Array<{ id: string; label: string; passed: boolean; evidence: string }>;
+  campaign: null | {
+    id: string;
+    name: string;
+    status: string;
+    recipientCount: number;
+    fundingTxHash: string | null;
+    merkleRoot: string | null;
+    asset: string;
+    claims: number;
+    activations: number;
+    claimRate: number;
+    activationRate: number;
+  };
+  attestation: null | {
+    signerName: string;
+    signerRole: string;
+    statement: string;
+    digest: string;
+    attestedAt: string;
+  };
+  startsAt: string | null;
+  dueAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type PublicPilot = {
+  project: { name: string; websiteUrl: string | null };
+  pilot: PilotRecord;
+  attestationStatement: string;
 };
 
 type CampaignRecipientDraft = {
@@ -422,6 +470,10 @@ function evidenceShareUrl(publicSlug: string) {
   return `${location.origin}/?evidence=${encodeURIComponent(publicSlug)}#/evidence`;
 }
 
+function pilotShareUrl(publicSlug: string) {
+  return `${location.origin}/?pilot=${encodeURIComponent(publicSlug)}#/pilots`;
+}
+
 function downloadEvidenceReport(report: EvidenceReport) {
   const payload = JSON.stringify({
     reportId: report.id,
@@ -484,7 +536,7 @@ async function confirmWalletAction(
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "recipients", "referrals", "analytics", "evidence", "token",
+  "new-campaign", "recipients", "referrals", "analytics", "pilots", "evidence", "token",
   "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -501,6 +553,7 @@ const appNav = [
     ["create", "Create link", Link2],
     ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
     ["referrals", "Referrals", Network], ["analytics", "Analytics", BarChart3],
+    ["pilots", "Pilot operations", Handshake],
     ["evidence", "Grant evidence", FileCheck2],
   ]},
   { label: "Protocol", items: [
@@ -1175,6 +1228,144 @@ function Analytics({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     {!auth.account&&<div className="campaign-empty"><Lock/><h3>Your live analytics are private</h3><p>Sign in to inspect campaign settlement and conversion data.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}</>;
 }
 
+const pilotIntegrationOptions = [
+  ["circle-wallets", "Circle wallets"],
+  ["gas-sponsorship", "Sponsored gas"],
+  ["usdc", "USDC settlement"],
+  ["project-token", "Project token"],
+  ["identity-attestations", "Identity proof"],
+  ["referrals", "Referral attribution"],
+  ["activation-webhooks", "Activation webhooks"],
+  ["agent-api", "Agent API"],
+] as const;
+
+function PilotOperations({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const network=useCampaignNetwork(Boolean(auth.account));
+  const requestedSlug=useMemo(
+    ()=>typeof window==="undefined"?null:new URLSearchParams(window.location.search).get("pilot"),
+    [],
+  );
+  const [pilots,setPilots]=useState<PilotRecord[]>([]);
+  const [publicPilot,setPublicPilot]=useState<PublicPilot|null>(null);
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const [creating,setCreating]=useState(false);
+  const [partnerName,setPartnerName]=useState("");
+  const [partnerWebsite,setPartnerWebsite]=useState("");
+  const [useCase,setUseCase]=useState("");
+  const [integrationMode,setIntegrationMode]=useState("hosted-links");
+  const [targetRecipients,setTargetRecipients]=useState("100");
+  const [targetClaimRate,setTargetClaimRate]=useState("60");
+  const [targetActivationRate,setTargetActivationRate]=useState("30");
+  const [dueAt,setDueAt]=useState("");
+  const [integrations,setIntegrations]=useState<string[]>(["circle-wallets","gas-sponsorship","usdc"]);
+  const [campaignChoice,setCampaignChoice]=useState<Record<string,string>>({});
+  const [signerName,setSignerName]=useState("");
+  const [signerRole,setSignerRole]=useState("");
+  const [agreed,setAgreed]=useState(false);
+
+  const refresh=useCallback(async()=>{
+    if(!auth.account){setPilots([]);setLoading(false);return}
+    setLoading(true);
+    try{
+      const result=await currentApi.get<{pilots:PilotRecord[]}>("/pilots");
+      setPilots(result.pilots);setError(null);
+    }catch(loadError){setError(loadError instanceof Error?loadError.message:"Pilot operations are unavailable.")}
+    finally{setLoading(false)}
+  },[auth.account]);
+  const loadPublic=useCallback(async(slug:string)=>{
+    setLoading(true);
+    try{
+      setPublicPilot(await currentApi.get<PublicPilot>(`/pilots/public?slug=${encodeURIComponent(slug)}`));
+      setError(null);
+    }catch(loadError){setError(loadError instanceof Error?loadError.message:"This pilot invitation is unavailable.")}
+    finally{setLoading(false)}
+  },[]);
+  useEffect(()=>{
+    const task=window.setTimeout(()=>requestedSlug?void loadPublic(requestedSlug):void refresh(),0);
+    return()=>window.clearTimeout(task);
+  },[loadPublic,refresh,requestedSlug]);
+  const toggleIntegration=(value:string)=>setIntegrations(current=>
+    current.includes(value)?current.filter(item=>item!==value):[...current,value],
+  );
+  const create=async()=>{
+    setBusy(true);setError(null);
+    try{
+      await currentApi.post<PilotRecord>("/pilots",{
+        partnerName,partnerWebsite:partnerWebsite||undefined,useCase,integrationMode,
+        targetRecipients:Number(targetRecipients),targetClaimRate:Number(targetClaimRate),
+        targetActivationRate:Number(targetActivationRate),requestedIntegrations:integrations,
+        dueAt:dueAt?new Date(`${dueAt}T18:00:00Z`).toISOString():undefined,
+      });
+      setCreating(false);setPartnerName("");setPartnerWebsite("");setUseCase("");
+      await refresh();
+    }catch(createError){setError(createError instanceof Error?createError.message:"The pilot could not be created.")}
+    finally{setBusy(false)}
+  };
+  const linkCampaign=async(pilotId:string)=>{
+    const distributionId=campaignChoice[pilotId];
+    if(!distributionId)return;
+    setBusy(true);setError(null);
+    try{
+      await currentApi.post<PilotRecord>("/pilots",{action:"update",pilotId,distributionId});
+      await refresh();
+    }catch(linkError){setError(linkError instanceof Error?linkError.message:"The campaign could not be linked.")}
+    finally{setBusy(false)}
+  };
+  const attest=async()=>{
+    if(!requestedSlug)return;
+    setBusy(true);setError(null);
+    try{
+      await currentApi.post(`/pilots/public?slug=${encodeURIComponent(requestedSlug)}`,{
+        signerName,signerRole,agreed,statement:publicPilot?.attestationStatement,
+      });
+      await loadPublic(requestedSlug);
+    }catch(attestError){setError(attestError instanceof Error?attestError.message:"The attestation could not be recorded.")}
+    finally{setBusy(false)}
+  };
+  const totals=pilots.reduce((current,pilot)=>({
+    active:current.active+(pilot.status==="complete"?0:1),
+    ready:current.ready+(pilot.readinessScore>=70?1:0),
+    attested:current.attested+(pilot.attestation?1:0),
+    recipients:current.recipients+(pilot.campaign?.recipientCount??pilot.targets.recipients),
+  }),{active:0,ready:0,attested:0,recipients:0});
+
+  if(requestedSlug){
+    const pilot=publicPilot?.pilot;
+    return <><PageHero eyebrow="PARTNER PILOT" title={pilot?`${pilot.partnerName} × Current CoFi`:"Verify the pilot current."} copy={pilot?.useCase??"Open a partner pilot record, inspect its measurable targets, and confirm participation without creating an account."} mode="branches">
+      {pilot?.attestation&&<Button tone="light" onClick={()=>navigator.clipboard.writeText(pilot.attestation?.digest??"")}>Copy attestation digest <Copy/></Button>}
+    </PageHero>
+      {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+      {loading&&<div className="evidence-loading"><RefreshCw className="spin"/><div><b>Loading pilot record</b><small>Reconciling campaign proof and partner confirmation.</small></div></div>}
+      {pilot&&<div className="pilot-public-shell">
+        <section className="pilot-public-summary">
+          <div className="pilot-score-ring" style={{"--pilot-score":`${pilot.readinessScore*3.6}deg`} as React.CSSProperties}><strong>{pilot.readinessScore}</strong><small>/100</small></div>
+          <div><Status tone={pilot.status==="complete"?"green":"cyan"}>{pilot.status}</Status><h2>{pilot.partnerName}</h2><p>{pilot.useCase}</p><div className="pilot-target-strip"><span><small>TARGET USERS</small><b>{pilot.targets.recipients.toLocaleString()}</b></span><span><small>CLAIM TARGET</small><b>{pilot.targets.claimRate}%</b></span><span><small>ACTIVATION TARGET</small><b>{pilot.targets.activationRate}%</b></span></div></div>
+        </section>
+        <section className="data-panel pilot-public-proof"><div className="panel-head"><div><h3>Live readiness record</h3><p>Product facts update from Current CoFi campaign settlement</p></div><Status tone="blue">{pilot.milestones.filter(item=>item.passed).length}/{pilot.milestones.length} proven</Status></div><div className="pilot-milestones">{pilot.milestones.map(item=><article className={item.passed?"passed":""} key={item.id}><span>{item.passed?<Check/>:<Clock3/>}</span><div><b>{item.label}</b><small>{item.evidence}</small></div></article>)}</div></section>
+        {pilot.attestation?<section className="pilot-attested"><BadgeCheck/><div><Eyebrow>PARTNER CONFIRMED</Eyebrow><h3>Participation is digest verified.</h3><p>{pilot.attestation.statement}</p><b>{pilot.attestation.signerName} · {pilot.attestation.signerRole}</b><code>{pilot.attestation.digest}</code><small>{new Date(pilot.attestation.attestedAt).toLocaleString()}</small></div></section>:<section className="pilot-attest-form"><div><Eyebrow>PARTNER ATTESTATION</Eyebrow><h2>Confirm the pilot.</h2><p>This creates a permanent confirmation digest that can be included in Current CoFi&apos;s Circle grant evidence. It does not authorize transactions or expose recipient identities.</p></div><div className="form-grid"><label>Your name<input value={signerName} onChange={event=>setSignerName(event.target.value)} placeholder="Founder or project lead"/></label><label>Your role<input value={signerRole} onChange={event=>setSignerRole(event.target.value)} placeholder="Founder, CEO, community lead"/></label><label className="pilot-agree"><input type="checkbox" checked={agreed} onChange={event=>setAgreed(event.target.checked)}/><span>{publicPilot?.attestationStatement}</span></label><Button tone="blue" disabled={busy||!agreed||!signerName||!signerRole} onClick={()=>void attest()}>{busy?"Recording…":"Sign pilot attestation"} <BadgeCheck/></Button></div></section>}
+      </div>}
+    </>;
+  }
+
+  return <><PageHero eyebrow="PILOT OPERATIONS" title="Turn partners into proof." copy="Onboard real Arc projects, define measurable success, link production campaigns, and collect partner-signed validation for the Circle grant review." mode="branches"><Button tone="cyan" onClick={()=>setCreating(current=>!current)}>{creating?"Close brief":"Open new pilot"} <Plus/></Button></PageHero>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    {!auth.account&&!loading&&<div className="pilot-intro">
+      <article><Handshake/><span>EXTERNAL VALIDATION</span><h3>Real builders, named pilots.</h3><p>Replace vague letters of interest with structured pilot records linked to actual Arc campaigns.</p></article>
+      <article><Target/><span>MEASURABLE OUTCOMES</span><h3>Agree on success first.</h3><p>Set recipient, claim, and activation targets before tokens begin flowing.</p></article>
+      <article><BadgeCheck/><span>SIGNED PROOF</span><h3>Founder confirmation by link.</h3><p>Partners inspect the live record and create a digest-verified attestation without an account.</p></article>
+      <div className="campaign-empty"><Lock/><h3>Open pilot operations</h3><p>Sign in to begin onboarding external Arc projects.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>
+    </div>}
+    {auth.account&&<>{creating&&<section className="pilot-create-panel"><div><Eyebrow>NEW PARTNER PILOT</Eyebrow><h2>Define the proof before launch.</h2><p>Current CoFi will track every milestone against campaign and partner evidence.</p></div><div className="pilot-create-fields"><label>Partner name<input value={partnerName} onChange={event=>setPartnerName(event.target.value)} placeholder="Tidebreak Games"/></label><label>Partner website<input value={partnerWebsite} onChange={event=>setPartnerWebsite(event.target.value)} placeholder="https://"/></label><label className="wide">Pilot use case<textarea value={useCase} onChange={event=>setUseCase(event.target.value)} placeholder="What audience will this project activate with Current CoFi?"/></label><label>Integration mode<select value={integrationMode} onChange={event=>setIntegrationMode(event.target.value)}><option value="hosted-links">Hosted claim links</option><option value="react-embed">React embed</option><option value="server-sdk">Server SDK</option><option value="agent-api">Agent API</option></select></label><label>Target recipients<input type="number" min="1" value={targetRecipients} onChange={event=>setTargetRecipients(event.target.value)}/></label><label>Claim target %<input type="number" min="0" max="100" value={targetClaimRate} onChange={event=>setTargetClaimRate(event.target.value)}/></label><label>Activation target %<input type="number" min="0" max="100" value={targetActivationRate} onChange={event=>setTargetActivationRate(event.target.value)}/></label><label>Target completion<input type="date" value={dueAt} onChange={event=>setDueAt(event.target.value)}/></label><div className="pilot-integration-picker wide">{pilotIntegrationOptions.map(([value,label])=><button className={integrations.includes(value)?"active":""} onClick={()=>toggleIntegration(value)} key={value}>{integrations.includes(value)?<Check/>:<Plus/>}{label}</button>)}</div><div className="pilot-create-action wide"><span>{integrations.length} integration{integrations.length===1?"":"s"} selected</span><Button tone="blue" disabled={busy||!partnerName||!useCase} onClick={()=>void create()}>{busy?"Creating…":"Create pilot"} <Rocket/></Button></div></div></section>}
+      <div className="metric-grid-new pilot-metrics"><MetricCard label="Active pilots" value={totals.active.toString()} icon={Handshake}/><MetricCard label="Launch ready" value={totals.ready.toString()} icon={Rocket}/><MetricCard label="Partner attested" value={totals.attested.toString()} icon={BadgeCheck}/><MetricCard label="Targeted recipients" value={totals.recipients.toLocaleString()} icon={Users}/></div>
+      {loading&&<div className="evidence-loading"><RefreshCw className="spin"/><div><b>Reconciling pilots</b><small>Checking linked campaigns, Arc anchors, and partner attestations.</small></div></div>}
+      {!loading&&!pilots.length&&<div className="campaign-empty pilot-empty"><Handshake/><h3>No external pilots yet</h3><p>Create the first partner brief, agree on outcomes, and send its confirmation link.</p><Button tone="blue" onClick={()=>setCreating(true)}>Open first pilot <Plus/></Button></div>}
+      <div className="pilot-board">{pilots.map(pilot=><article className="pilot-card" key={pilot.id}><header><div className="pilot-mark">{pilot.partnerName.slice(0,2).toUpperCase()}</div><div><Status tone={pilot.status==="complete"?"green":pilot.status==="live"||pilot.status==="measuring"?"cyan":"grey"}>{pilot.status}</Status><h3>{pilot.partnerName}</h3><p>{pilot.useCase}</p></div><div className="pilot-score"><strong>{pilot.readinessScore}</strong><small>READY</small></div></header><div className="pilot-stat-row"><span><small>USERS</small><b>{(pilot.campaign?.recipientCount??pilot.targets.recipients).toLocaleString()}</b></span><span><small>CLAIM RATE</small><b>{pilot.campaign?`${pilot.campaign.claimRate.toFixed(1)}%`:`${pilot.targets.claimRate}% target`}</b></span><span><small>ACTIVATION</small><b>{pilot.campaign?`${pilot.campaign.activationRate.toFixed(1)}%`:`${pilot.targets.activationRate}% target`}</b></span></div><div className="pilot-progress"><i><b style={{width:`${pilot.readinessScore}%`}}/></i><span>{pilot.milestones.filter(item=>item.passed).length} of {pilot.milestones.length} milestones proven</span></div><div className="pilot-checks">{pilot.milestones.map(item=><span className={item.passed?"passed":""} key={item.id}>{item.passed?<Check/>:<Clock3/>}{item.label}</span>)}</div>{!pilot.campaign&&<div className="pilot-link-campaign"><select value={campaignChoice[pilot.id]??""} onChange={event=>setCampaignChoice(current=>({...current,[pilot.id]:event.target.value}))}><option value="">Select campaign</option>{network.campaigns.map(campaign=><option value={campaign.id} key={campaign.id}>{campaign.name}</option>)}</select><Button tone="ghost" disabled={busy||!campaignChoice[pilot.id]} onClick={()=>void linkCampaign(pilot.id)}>Link campaign</Button></div>}<footer><button onClick={()=>navigator.clipboard.writeText(pilotShareUrl(pilot.publicSlug))}><Share2/>Copy partner link</button>{pilot.partnerWebsite&&<a href={pilot.partnerWebsite} target="_blank" rel="noreferrer">Partner site <ArrowUpRight/></a>}<span>{pilot.dueAt?`Due ${new Date(pilot.dueAt).toLocaleDateString()}`:"Open schedule"}</span></footer></article>)}</div>
+    </>}
+  </>;
+}
+
 function Evidence({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const network=useCampaignNetwork(Boolean(auth.account));
   const [reports,setReports]=useState<EvidenceReportSummary[]>([]);
@@ -1488,7 +1679,7 @@ function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{setCreated(await currentApi.post<CreatedDeveloperKey>("/developer/keys",{name,kind:"agent",permissions:["campaigns:read","claims:write","activations:write","analytics:read","evidence:write"],policies:{dailyEventLimit:Number(dailyLimit),allowedEventTypes:eventTypes.split(",").map(value=>value.trim()).filter(Boolean)}}));await refresh()}
+    try{setCreated(await currentApi.post<CreatedDeveloperKey>("/developer/keys",{name,kind:"agent",permissions:["campaigns:read","claims:write","activations:write","analytics:read","evidence:write","pilots:write"],policies:{dailyEventLimit:Number(dailyLimit),allowedEventTypes:eventTypes.split(",").map(value=>value.trim()).filter(Boolean)}}));await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Agent creation failed.")}
     finally{setBusy(false)}
   };
@@ -1539,6 +1730,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "recipients":page=<Recipients auth={auth} go={go}/>;break;
     case "referrals":page=<Referrals auth={auth} go={go}/>;break;
     case "analytics":page=<Analytics auth={auth} go={go}/>;break;
+    case "pilots":page=<PilotOperations auth={auth} go={go}/>;break;
     case "evidence":page=<Evidence auth={auth} go={go}/>;break;
     case "token":page=<TokenDashboard auth={auth} go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;

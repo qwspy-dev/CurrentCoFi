@@ -104,6 +104,55 @@ export type EvidenceReportSummary = Omit<EvidenceReport, "snapshot"> & {
   totals: { campaigns: number; recipients: number; claims: number; activations: number };
 };
 
+export type CreatePilotInput = {
+  partnerName: string;
+  partnerWebsite?: string;
+  useCase: string;
+  integrationMode?: "hosted-links" | "react-embed" | "server-sdk" | "agent-api";
+  targetRecipients?: number;
+  targetClaimRate?: number;
+  targetActivationRate?: number;
+  requestedIntegrations?: string[];
+  dueAt?: string;
+  notes?: string;
+};
+
+export type PilotRecord = {
+  id: string;
+  publicSlug: string;
+  partnerName: string;
+  partnerWebsite: string | null;
+  useCase: string;
+  status: "onboarding" | "ready" | "live" | "measuring" | "complete";
+  integrationMode: string;
+  requestedIntegrations: string[];
+  targets: { recipients: number; claimRate: number; activationRate: number };
+  readinessScore: number;
+  targetMet: boolean;
+  milestones: Array<{ id: string; label: string; passed: boolean; evidence: string }>;
+  campaign: {
+    id: string;
+    name: string;
+    status: string;
+    recipientCount: number;
+    fundingTxHash: string | null;
+    claims: number;
+    activations: number;
+    claimRate: number;
+    activationRate: number;
+  } | null;
+  attestation: {
+    signerName: string;
+    signerRole: string;
+    statement: string;
+    digest: string;
+    attestedAt: string;
+  } | null;
+  dueAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type CurrentEnvelope<T> = {
   ok: boolean;
   data?: T;
@@ -210,6 +259,23 @@ export class Current {
     create: (input: { distributionId?: string } = {}) => this.signedPost<EvidenceReport>(
       "/api/v1/developer/evidence",
       input,
+    ),
+  };
+
+  readonly pilots = {
+    list: () => this.get<{ pilots: PilotRecord[] }>("/api/v1/developer/pilots"),
+    create: (input: CreatePilotInput) => this.signedPost<PilotRecord>(
+      "/api/v1/developer/pilots",
+      input,
+    ),
+    update: (pilotId: string, input: {
+      distributionId?: string | null;
+      notes?: string;
+      dueAt?: string | null;
+      requestedIntegrations?: string[];
+    }) => this.signedPost<PilotRecord>(
+      "/api/v1/developer/pilots",
+      { action: "update", pilotId, ...input },
     ),
   };
 

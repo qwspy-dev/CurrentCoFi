@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "2.0.0-grant-evidence",
+    version: "2.1.0-pilot-operations",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -41,6 +41,14 @@ export default withApi((request) => ok(request, {
     "/evidence/public": {
       get: { summary: "Verify a public evidence report, canonical digest, and campaign anchors" },
     },
+    "/pilots": {
+      get: { summary: "List external Arc pilot engagements and verified launch readiness" },
+      post: { summary: "Create, configure, or link a campaign to a pilot engagement" },
+    },
+    "/pilots/public": {
+      get: { summary: "Open a partner pilot confirmation link without an account" },
+      post: { summary: "Create a digest-verified partner pilot attestation" },
+    },
     "/referrals": {
       get: { summary: "Read referral codes, claims, and verified activation attribution" },
       post: { summary: "Create an attributable referral code for a campaign" },
@@ -69,6 +77,10 @@ export default withApi((request) => ok(request, {
       get: { summary: "List project evidence reports with a scoped API key" },
       post: { summary: "Generate an HMAC-signed grant-evidence snapshot" },
     },
+    "/developer/pilots": {
+      get: { summary: "List project pilots with a scoped API key" },
+      post: { summary: "Create or update an HMAC-signed pilot engagement" },
+    },
     "/token/economy": {
       get: { summary: "Read the public $CURRENT economy, access tiers, and governed buyback proof" },
       post: { summary: "Approve, execute, and activate a project lock or route a product fee" },
@@ -87,6 +99,7 @@ export default withApi((request) => ok(request, {
       "identity-bound-email-claims", "identity-bound-wallet-claims",
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
       "grant-evidence-reports", "public-evidence-verification", "evidence-digests",
+      "pilot-operations", "partner-attestations", "pilot-readiness",
     ],
     plannedResourceGroups: [],
   },

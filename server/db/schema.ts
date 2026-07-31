@@ -322,6 +322,48 @@ export const evidenceReports = pgTable("evidence_reports", {
   index("evidence_reports_distribution_idx").on(table.distributionId, table.createdAt),
 ]);
 
+export const pilotEngagements = pgTable("pilot_engagements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "set null" }),
+  ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  publicSlug: text("public_slug").notNull(),
+  partnerName: text("partner_name").notNull(),
+  partnerWebsite: text("partner_website"),
+  useCase: text("use_case").notNull(),
+  status: text("status").default("onboarding").notNull(),
+  integrationMode: text("integration_mode").default("hosted-links").notNull(),
+  targetRecipients: integer("target_recipients").default(100).notNull(),
+  targetClaimRateBps: integer("target_claim_rate_bps").default(5000).notNull(),
+  targetActivationRateBps: integer("target_activation_rate_bps").default(2500).notNull(),
+  requestedIntegrations: jsonb("requested_integrations").$type<string[]>().default([]).notNull(),
+  successCriteria: jsonb("success_criteria").$type<Record<string, unknown>>().default({}).notNull(),
+  notes: text("notes"),
+  startsAt: timestamp("starts_at", { withTimezone: true }),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("pilot_engagements_public_slug_unique").on(table.publicSlug),
+  index("pilot_engagements_project_status_idx").on(table.projectId, table.status),
+  index("pilot_engagements_distribution_idx").on(table.distributionId),
+]);
+
+export const pilotAttestations = pgTable("pilot_attestations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  pilotId: uuid("pilot_id").references(() => pilotEngagements.id, { onDelete: "cascade" }).notNull(),
+  signerName: text("signer_name").notNull(),
+  signerRole: text("signer_role").notNull(),
+  statement: text("statement").notNull(),
+  digest: text("digest").notNull(),
+  proof: jsonb("proof").$type<Record<string, unknown>>().default({}).notNull(),
+  attestedAt: timestamp("attested_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("pilot_attestations_pilot_unique").on(table.pilotId),
+  uniqueIndex("pilot_attestations_digest_unique").on(table.digest),
+]);
+
 export const tokenEconomyActions = pgTable("token_economy_actions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),

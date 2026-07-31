@@ -50,6 +50,13 @@
       "when": 1785456016363,
       "tag": "0006_volatile_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785469402113,
+      "tag": "0007_thin_nextwave",
+      "breakpoints": true
     }
   ]
 }

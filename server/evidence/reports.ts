@@ -17,9 +17,10 @@ import {
   webhookEndpoints,
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
+import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v1";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v2";
 
 type Criterion = {
   id: string;
@@ -123,6 +124,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     referralRows,
     integrationRows,
     recentAuditRows,
+    pilotRows,
   ] = await Promise.all([
     campaignIds.length
       ? db.select({
@@ -203,6 +205,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       .where(eq(auditEvents.projectId, projectId))
       .orderBy(desc(auditEvents.createdAt))
       .limit(30),
+    listProjectPilots(projectId),
   ]);
 
   const allocationsByCampaign = new Map(allocationRows.map((row) => [row.distributionId, row]));
@@ -314,6 +317,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const identityBoundCampaigns = campaignEvidence.filter(
     (campaign) => campaign.targeting.claimMode === "identity-bound",
   ).length;
+  const attestedPilots = pilotRows.filter((pilot) => pilot.attestation).length;
+  const completedPilots = pilotRows.filter((pilot) => pilot.status === "complete").length;
   const criteria: Criterion[] = [
     {
       id: "working-product",
@@ -325,7 +330,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     {
       id: "campaigns",
       label: "Pilot campaigns",
-      weight: 15,
+      weight: 10,
       passed: totals.campaigns > 0,
       evidence: `${totals.campaigns} campaign${totals.campaigns === 1 ? "" : "s"} included.`,
     },
@@ -339,7 +344,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     {
       id: "settlement",
       label: "Recipient settlement",
-      weight: 15,
+      weight: 10,
       passed: totals.claims > 0,
       evidence: `${totals.claims} confirmed Arc claim${totals.claims === 1 ? "" : "s"}.`,
     },
@@ -353,7 +358,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     {
       id: "activation",
       label: "Post-claim activation",
-      weight: 15,
+      weight: 10,
       passed: totals.activations > 0,
       evidence: `${totals.activations} project-signed activation event${totals.activations === 1 ? "" : "s"}.`,
     },
@@ -372,6 +377,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       weight: 10,
       passed: apiKeyCount > 0 || webhookCount > 0,
       evidence: `${apiKeyCount} active API key${apiKeyCount === 1 ? "" : "s"} and ${webhookCount} webhook endpoint${webhookCount === 1 ? "" : "s"}.`,
+    },
+    {
+      id: "external-pilot",
+      label: "External pilot validation",
+      weight: 15,
+      passed: attestedPilots > 0,
+      evidence: `${attestedPilots} partner-attested pilot${attestedPilots === 1 ? "" : "s"} and ${completedPilots} completed pilot${completedPilots === 1 ? "" : "s"}.`,
     },
   ];
   const generatedAt = new Date().toISOString();
@@ -406,8 +418,26 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         : 0,
       activeApiKeys: apiKeyCount,
       activeWebhooks: webhookCount,
+      pilots: pilotRows.length,
+      attestedPilots,
+      completedPilots,
     },
     campaigns: campaignEvidence,
+    pilots: pilotRows.map((pilot) => ({
+      id: pilot.id,
+      partnerName: pilot.partnerName,
+      useCase: pilot.useCase,
+      status: pilot.status,
+      readinessScore: pilot.readinessScore,
+      targetMet: pilot.targetMet,
+      campaignId: pilot.campaign?.id ?? null,
+      attestation: pilot.attestation ? {
+        signerName: pilot.attestation.signerName,
+        signerRole: pilot.attestation.signerRole,
+        digest: pilot.attestation.digest,
+        attestedAt: pilot.attestation.attestedAt,
+      } : null,
+    })),
     auditTrail: recentAuditRows.map((event) => ({
       action: event.action,
       resourceType: event.resourceType,
@@ -422,6 +452,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         "Arc campaign and claim settlement transaction hashes",
         "Circle user-controlled wallet records",
         "Project-signed activation and identity events",
+        "Partner-signed pilot attestations",
       ],
     },
   };

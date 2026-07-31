@@ -2,7 +2,7 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.2.0",
+  version: "1.3.0",
   network: "ARC-TESTNET",
   authentication: {
     type: "scoped-api-key",
@@ -63,6 +63,24 @@ export default withApi((request) => ok(request, {
       method: "GET",
       path: "/api/v1/developer/analytics",
       permission: "analytics:read",
+    },
+    {
+      name: "create_pilot",
+      description: "Open a measurable external-project pilot with targets, integrations, and a partner attestation path.",
+      method: "POST",
+      path: "/api/v1/developer/pilots",
+      permission: "pilots:write",
+      input: {
+        partnerName: "string",
+        partnerWebsite: "optional URL",
+        useCase: "string",
+        integrationMode: "hosted-links | react-embed | server-sdk | agent-api",
+        targetRecipients: "integer",
+        targetClaimRate: "0-100",
+        targetActivationRate: "0-100",
+        requestedIntegrations: "array",
+        dueAt: "optional ISO-8601 date",
+      },
     },
     {
       name: "create_grant_evidence",

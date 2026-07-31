@@ -112,6 +112,62 @@ export type EvidenceReportSummary = Omit<EvidenceReport, "snapshot"> & {
         activations: number;
     };
 };
+export type CreatePilotInput = {
+    partnerName: string;
+    partnerWebsite?: string;
+    useCase: string;
+    integrationMode?: "hosted-links" | "react-embed" | "server-sdk" | "agent-api";
+    targetRecipients?: number;
+    targetClaimRate?: number;
+    targetActivationRate?: number;
+    requestedIntegrations?: string[];
+    dueAt?: string;
+    notes?: string;
+};
+export type PilotRecord = {
+    id: string;
+    publicSlug: string;
+    partnerName: string;
+    partnerWebsite: string | null;
+    useCase: string;
+    status: "onboarding" | "ready" | "live" | "measuring" | "complete";
+    integrationMode: string;
+    requestedIntegrations: string[];
+    targets: {
+        recipients: number;
+        claimRate: number;
+        activationRate: number;
+    };
+    readinessScore: number;
+    targetMet: boolean;
+    milestones: Array<{
+        id: string;
+        label: string;
+        passed: boolean;
+        evidence: string;
+    }>;
+    campaign: {
+        id: string;
+        name: string;
+        status: string;
+        recipientCount: number;
+        fundingTxHash: string | null;
+        claims: number;
+        activations: number;
+        claimRate: number;
+        activationRate: number;
+    } | null;
+    attestation: {
+        signerName: string;
+        signerRole: string;
+        statement: string;
+        digest: string;
+        attestedAt: string;
+    } | null;
+    dueAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
 export declare class CurrentError extends Error {
     readonly code: string;
     readonly status: number;
@@ -149,6 +205,18 @@ export declare class Current {
         create: (input?: {
             distributionId?: string;
         }) => Promise<EvidenceReport>;
+    };
+    readonly pilots: {
+        list: () => Promise<{
+            pilots: PilotRecord[];
+        }>;
+        create: (input: CreatePilotInput) => Promise<PilotRecord>;
+        update: (pilotId: string, input: {
+            distributionId?: string | null;
+            notes?: string;
+            dueAt?: string | null;
+            requestedIntegrations?: string[];
+        }) => Promise<PilotRecord>;
     };
     constructor(options: CurrentOptions);
     private get;

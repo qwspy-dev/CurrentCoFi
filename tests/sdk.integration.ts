@@ -80,6 +80,34 @@ const mockFetch: typeof fetch = async (input, init) => {
       },
     });
   }
+  if (String(input).endsWith("/developer/pilots") && init?.method === "POST") {
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    return Response.json({
+      ok: true,
+      data: {
+        id: "pilot_sdk",
+        publicSlug: "pilot_sdk_proof",
+        partnerName: body.partnerName ?? "SDK partner",
+        partnerWebsite: null,
+        useCase: body.useCase ?? "SDK pilot",
+        status: "onboarding",
+        integrationMode: body.integrationMode ?? "server-sdk",
+        requestedIntegrations: body.requestedIntegrations ?? [],
+        targets: { recipients: 100, claimRate: 60, activationRate: 30 },
+        readinessScore: 29,
+        targetMet: false,
+        milestones: [],
+        campaign: null,
+        attestation: null,
+        dueAt: null,
+        createdAt: "2026-08-14T00:00:00.000Z",
+        updatedAt: "2026-08-14T00:00:00.000Z",
+      },
+    }, { status: 201 });
+  }
+  if (String(input).endsWith("/developer/pilots")) {
+    return Response.json({ ok: true, data: { pilots: [] } });
+  }
   return Response.json({
     ok: false,
     error: { code: "NOT_FOUND", message: "Missing test route." },
@@ -153,6 +181,22 @@ assert.ok(evidenceRequest?.url.endsWith("/api/v1/developer/evidence"));
 assert.equal(JSON.parse(String(evidenceRequest?.init?.body)).distributionId, "dist_sdk");
 const evidenceList = await current.evidence.list();
 assert.equal(evidenceList.reports[0]?.digest, "digest_sdk");
+
+const pilot = await current.pilots.create({
+  partnerName: "SDK partner",
+  useCase: "Walletless rewards for a partner community",
+  integrationMode: "server-sdk",
+  targetRecipients: 100,
+  targetClaimRate: 60,
+  targetActivationRate: 30,
+  requestedIntegrations: ["circle-wallets", "activation-webhooks"],
+});
+assert.equal(pilot.publicSlug, "pilot_sdk_proof");
+const pilotRequest = requests.at(-1);
+assert.ok(pilotRequest?.url.endsWith("/api/v1/developer/pilots"));
+assert.equal(JSON.parse(String(pilotRequest?.init?.body)).partnerName, "SDK partner");
+const pilotList = await current.pilots.list();
+assert.deepEqual(pilotList.pilots, []);
 
 const webhookBody = JSON.stringify({ type: "claim.completed", data: { id: "claim_1" } });
 const webhookTimestamp = Date.now().toString();

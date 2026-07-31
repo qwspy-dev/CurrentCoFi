@@ -19,6 +19,7 @@ export const developerPermissions = [
   "activations:write",
   "analytics:read",
   "evidence:write",
+  "pilots:write",
   "webhooks:write",
 ] as const;
 
@@ -94,7 +95,7 @@ export async function createDeveloperKey(input: {
   const permissions = safePermissions(input.permissions?.length
     ? input.permissions
     : kind === "agent"
-      ? ["campaigns:read", "claims:write", "activations:write", "analytics:read", "evidence:write"]
+      ? ["campaigns:read", "claims:write", "activations:write", "analytics:read", "evidence:write", "pilots:write"]
       : [...developerPermissions]);
   const prefix = `cofi_test_${randomSecret(6)}`;
   const token = `${prefix}.${randomSecret(32)}`;

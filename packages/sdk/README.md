@@ -33,6 +33,18 @@ const evidence = await current.evidence.create({
 });
 
 console.log(evidence.digest, evidence.publicSlug);
+
+const pilot = await current.pilots.create({
+  partnerName: "Tidebreak Games",
+  useCase: "Walletless tournament rewards for verified players",
+  integrationMode: "server-sdk",
+  targetRecipients: 500,
+  targetClaimRate: 65,
+  targetActivationRate: 35,
+  requestedIntegrations: ["circle-wallets", "project-token", "activation-webhooks"],
+});
+
+console.log(pilot.publicSlug, pilot.readinessScore);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.
