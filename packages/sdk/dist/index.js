@@ -44,6 +44,11 @@ export class Current {
         list: () => this.get("/api/v1/developer/escrow"),
         create: (input) => this.signedPost("/api/v1/developer/escrow", input),
     };
+    checkout = {
+        list: () => this.get("/api/v1/developer/checkout"),
+        setup: (input) => this.signedPost("/api/v1/developer/checkout", { action: "setup", ...input }),
+        create: (input) => this.signedPost("/api/v1/developer/checkout", input),
+    };
     activations = {
         submit: (input) => this.signedPost("/api/v1/developer/activations", {
             ...input,

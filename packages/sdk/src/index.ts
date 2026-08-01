@@ -62,6 +62,31 @@ export type EscrowAgreement = {
 
 export type EscrowState = { configured: boolean; network: string; agreements: EscrowAgreement[] };
 
+export type CreateCheckoutInput = {
+  title: string;
+  description?: string;
+  amount: string;
+  expiresAt?: string;
+  successUrl?: string;
+  settlementAddress?: `0x${string}`;
+  merchantName?: string;
+};
+
+export type MerchantCommerce = {
+  merchant: null | { id: string; displayName: string; slug: string; settlementAddress: string; status: string };
+  checkouts: Array<{
+    id: string; slug: string; title: string; description: string | null; status: string;
+    amount: string; amountAtomic: string; currency: string; checkoutUrl: string;
+    expiresAt: string | null; successUrl: string | null; createdAt: string;
+  }>;
+  payments: Array<{
+    id: string; receiptNumber: string; status: string; amount: string; currency: string;
+    customerAddress: string; merchantAddress: string; paymentTransactionHash: string | null;
+    refundTransactionHash: string | null; paidAt: string | null; refundedAt: string | null;
+  }>;
+  totals: { checkouts: number; payments: number; volume: string; refunds: number };
+};
+
 export type ActivationResult = {
   id?: string;
   duplicate: boolean;
@@ -454,6 +479,18 @@ export class Current {
   readonly escrow = {
     list: () => this.get<EscrowState>("/api/v1/developer/escrow"),
     create: (input: CreateEscrowInput) => this.signedPost<EscrowAgreement>("/api/v1/developer/escrow", input),
+  };
+
+  readonly checkout = {
+    list: () => this.get<MerchantCommerce>("/api/v1/developer/checkout"),
+    setup: (input: { displayName: string; settlementAddress: `0x${string}`; description?: string }) => this.signedPost<MerchantCommerce["merchant"]>(
+      "/api/v1/developer/checkout",
+      { action: "setup", ...input },
+    ),
+    create: (input: CreateCheckoutInput) => this.signedPost<MerchantCommerce["checkouts"][number]>(
+      "/api/v1/developer/checkout",
+      input,
+    ),
   };
 
   readonly activations = {

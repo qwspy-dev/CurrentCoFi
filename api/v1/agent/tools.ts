@@ -2,7 +2,7 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.7.0",
+  version: "1.8.0",
   network: "ARC-TESTNET",
   authentication: {
     type: "scoped-api-key",
@@ -11,6 +11,27 @@ export default withApi((request) => ok(request, {
     signatureHeader: "x-current-signature",
   },
   tools: [
+    {
+      name: "create_usdc_checkout",
+      description: "Publish a fixed-price hosted USDC checkout that onboards walletless customers and settles directly to the merchant's Arc wallet.",
+      method: "POST",
+      path: "/api/v1/developer/checkout",
+      permission: "campaigns:write",
+      input: {
+        title: "product or payment title",
+        description: "optional customer-facing description",
+        amount: "decimal USDC amount",
+        expiresInHours: "optional 1-720",
+        successUrl: "optional http or https redirect",
+      },
+    },
+    {
+      name: "read_usdc_checkout_activity",
+      description: "Read checkout links, direct Arc settlements, receipts, refunds, and merchant volume.",
+      method: "GET",
+      path: "/api/v1/developer/checkout",
+      permission: "analytics:read",
+    },
     {
       name: "prepare_milestone_escrow",
       description: "Prepare a fully funded USDC or Arc project-token agreement with sequential proof, release, dispute, and recovery boundaries. An authorized client wallet completes funding.",

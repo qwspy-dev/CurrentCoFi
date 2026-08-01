@@ -45,6 +45,14 @@ export default withApi((request) => ok(request, {
       post: { summary: "Create a USDC or project-token milestone agreement" },
     },
     "/escrow/actions": { post: { summary: "Approve, fund, submit, release, dispute, resolve, cancel, or recover a milestone agreement" } },
+    "/merchant": {
+      get: { summary: "Read the signed-in project's merchant profile, checkout links, settlements, refunds, and volume" },
+      post: { summary: "Create a merchant settlement profile or publish a fixed-price USDC checkout" },
+    },
+    "/checkout/public": { get: { summary: "Resolve a public hosted checkout without exposing private merchant data" } },
+    "/checkout/pay": { post: { summary: "Prepare or confirm an exact USDC transfer from a Current wallet to the merchant" } },
+    "/checkout/refund": { post: { summary: "Prepare or confirm a refund from the merchant settlement wallet" } },
+    "/checkout/receipt": { get: { summary: "Verify a confirmed or refunded Arc checkout receipt" } },
     "/funding": {
       get: { summary: "List CCTP V2 funding routes and their source, Arc, and vault proofs" },
       post: { summary: "Create, authorize, bridge, synchronize, or settle a crosschain USDC funding route" },
@@ -92,6 +100,10 @@ export default withApi((request) => ok(request, {
     "/developer/escrow": {
       get: { summary: "List project milestone agreements with a scoped API key" },
       post: { summary: "Prepare an HMAC-signed milestone agreement for wallet funding" },
+    },
+    "/developer/checkout": {
+      get: { summary: "Read merchant checkout analytics with a scoped API key" },
+      post: { summary: "Create a merchant profile or hosted checkout with an HMAC-signed request" },
     },
     "/developer/agent-actions": {
       get: { summary: "List auditable policy decisions made for a scoped agent" },
@@ -155,7 +167,7 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "project-access-tiers", "buyback-governance",

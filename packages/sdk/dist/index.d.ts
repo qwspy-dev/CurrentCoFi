@@ -90,6 +90,57 @@ export type EscrowState = {
     network: string;
     agreements: EscrowAgreement[];
 };
+export type CreateCheckoutInput = {
+    title: string;
+    description?: string;
+    amount: string;
+    expiresAt?: string;
+    successUrl?: string;
+    settlementAddress?: `0x${string}`;
+    merchantName?: string;
+};
+export type MerchantCommerce = {
+    merchant: null | {
+        id: string;
+        displayName: string;
+        slug: string;
+        settlementAddress: string;
+        status: string;
+    };
+    checkouts: Array<{
+        id: string;
+        slug: string;
+        title: string;
+        description: string | null;
+        status: string;
+        amount: string;
+        amountAtomic: string;
+        currency: string;
+        checkoutUrl: string;
+        expiresAt: string | null;
+        successUrl: string | null;
+        createdAt: string;
+    }>;
+    payments: Array<{
+        id: string;
+        receiptNumber: string;
+        status: string;
+        amount: string;
+        currency: string;
+        customerAddress: string;
+        merchantAddress: string;
+        paymentTransactionHash: string | null;
+        refundTransactionHash: string | null;
+        paidAt: string | null;
+        refundedAt: string | null;
+    }>;
+    totals: {
+        checkouts: number;
+        payments: number;
+        volume: string;
+        refunds: number;
+    };
+};
 export type ActivationResult = {
     id?: string;
     duplicate: boolean;
@@ -649,6 +700,34 @@ export declare class Current {
     readonly escrow: {
         list: () => Promise<EscrowState>;
         create: (input: CreateEscrowInput) => Promise<EscrowAgreement>;
+    };
+    readonly checkout: {
+        list: () => Promise<MerchantCommerce>;
+        setup: (input: {
+            displayName: string;
+            settlementAddress: `0x${string}`;
+            description?: string;
+        }) => Promise<{
+            id: string;
+            displayName: string;
+            slug: string;
+            settlementAddress: string;
+            status: string;
+        } | null>;
+        create: (input: CreateCheckoutInput) => Promise<{
+            id: string;
+            slug: string;
+            title: string;
+            description: string | null;
+            status: string;
+            amount: string;
+            amountAtomic: string;
+            currency: string;
+            checkoutUrl: string;
+            expiresAt: string | null;
+            successUrl: string | null;
+            createdAt: string;
+        }>;
     };
     readonly activations: {
         submit: (input: ActivationInput) => Promise<ActivationResult>;

@@ -172,6 +172,66 @@ export const escrowMilestones = pgTable("escrow_milestones", {
   index("escrow_milestones_status_due_idx").on(table.status, table.dueAt),
 ]);
 
+export const merchantAccounts = pgTable("merchant_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  displayName: text("display_name").notNull(),
+  slug: text("slug").notNull(),
+  description: text("description"),
+  logoUrl: text("logo_url"),
+  settlementAddress: text("settlement_address").notNull(),
+  status: text("status").default("active").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("merchant_accounts_project_unique").on(table.projectId),
+  uniqueIndex("merchant_accounts_slug_unique").on(table.slug),
+  index("merchant_accounts_owner_idx").on(table.ownerUserId, table.createdAt),
+]);
+
+export const checkoutLinks = pgTable("checkout_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").references(() => merchantAccounts.id, { onDelete: "cascade" }).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  slug: text("slug").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  currency: text("currency").default("USDC").notNull(),
+  status: text("status").default("active").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  successUrl: text("success_url"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("checkout_links_slug_unique").on(table.slug),
+  index("checkout_links_merchant_status_idx").on(table.merchantId, table.status, table.createdAt),
+]);
+
+export const checkoutPayments = pgTable("checkout_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  checkoutId: uuid("checkout_id").references(() => checkoutLinks.id, { onDelete: "restrict" }).notNull(),
+  customerUserId: uuid("customer_user_id").references(() => users.id, { onDelete: "set null" }),
+  customerWalletId: text("customer_wallet_id"),
+  customerAddress: text("customer_address").notNull(),
+  merchantAddress: text("merchant_address").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  status: text("status").default("created").notNull(),
+  paymentChallengeId: text("payment_challenge_id"),
+  paymentTransactionHash: text("payment_transaction_hash"),
+  refundChallengeId: text("refund_challenge_id"),
+  refundTransactionHash: text("refund_transaction_hash"),
+  receiptNumber: text("receipt_number").notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  refundedAt: timestamp("refunded_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("checkout_payments_receipt_unique").on(table.receiptNumber),
+  index("checkout_payments_checkout_status_idx").on(table.checkoutId, table.status, table.createdAt),
+  index("checkout_payments_customer_idx").on(table.customerUserId, table.createdAt),
+]);
+
 export const allocations = pgTable("allocations", {
   id: uuid("id").primaryKey().defaultRandom(),
   distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),

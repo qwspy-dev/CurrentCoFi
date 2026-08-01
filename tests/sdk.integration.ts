@@ -8,6 +8,18 @@ const requests: Array<{ url: string; init?: RequestInit }> = [];
 
 const mockFetch: typeof fetch = async (input, init) => {
   requests.push({ url: String(input), init });
+  if (String(input).endsWith("/developer/checkout")) {
+    const checkout = {
+      id: "checkout_sdk", slug: "founding-membership-sdk", title: "Founding membership", description: "Current community access",
+      status: "active", amount: "25", amountAtomic: "25000000", currency: "USDC",
+      checkoutUrl: "https://current.test/#/checkout/founding-membership-sdk", expiresAt: null, successUrl: null,
+      createdAt: "2026-08-14T00:00:00.000Z",
+    };
+    return Response.json({ ok: true, data: init?.method === "POST" ? checkout : {
+      merchant: { id: "merchant_sdk", displayName: "SDK Store", slug: "sdk-store", settlementAddress: "0x1111111111111111111111111111111111111111", status: "active" },
+      checkouts: [checkout], payments: [], totals: { checkouts: 1, payments: 0, volume: "0", refunds: 0 },
+    } }, { status: init?.method === "POST" ? 201 : 200 });
+  }
   if (String(input).endsWith("/developer/escrow")) {
     const agreement = {
       id: "escrow_sdk", name: "SDK milestone proof", status: "awaiting_funding",
@@ -333,6 +345,14 @@ assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/escrow
 assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
 const escrows = await current.escrow.list();
 assert.equal(escrows.agreements[0]?.asset.symbol, "USDC");
+
+const checkout = await current.checkout.create({ title: "Founding membership", description: "Current community access", amount: "25" });
+assert.equal(checkout.currency, "USDC");
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/checkout");
+assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
+const commerce = await current.checkout.list();
+assert.equal(commerce.totals.checkouts, 1);
+assert.equal(commerce.merchant?.settlementAddress, "0x1111111111111111111111111111111111111111");
 
 const activation = await current.activations.submit({
   externalEventId: "event_1",

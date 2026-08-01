@@ -22,6 +22,6 @@ for (const requirement of ["settles at most once", "Raw email", "governance dela
 
 const scope = JSON.parse(await readFile("security/audit-scope.json", "utf8"));
 assert.equal(scope.mainnetApproved, false);
-assert.equal(scope.contracts.length, 15);
+assert.equal(scope.contracts.length, 16);
 assert.ok(scope.priorityProperties.length >= 6);
 console.log("Security adversarial integration checks passed.");

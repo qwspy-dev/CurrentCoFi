@@ -6,7 +6,7 @@ import {
   Copy, Download, Eye, ExternalLink, FileCheck2, Fingerprint, Gauge, Gift,
   Globe2, Handshake, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
   MoreHorizontal, Network, Pause, Play, Plus, Radar, Radio, RefreshCw, Search,
-  Rocket, Settings, Share2, ShieldAlert, ShieldCheck, SlidersHorizontal, Sparkles, Target,
+  ReceiptText, Rocket, Settings, Share2, ShieldAlert, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -467,6 +467,9 @@ type EscrowAgreement = {
 };
 
 type EscrowState = { configured: boolean; network: string; agreements: EscrowAgreement[] };
+type CheckoutRecord = { id:string;slug:string;title:string;description:string|null;status:string;amount:string;amountAtomic:string;currency:string;expiresAt:string|null;successUrl:string|null;checkoutUrl?:string;merchant:{id:string;name:string;slug:string;description:string|null;logoUrl:string|null;settlementAddress:string};createdAt:string };
+type CheckoutPayment = { id:string;receiptNumber:string;status:string;amount:string;currency:string;customerAddress:string;merchantAddress:string;paymentTransactionHash:string|null;refundTransactionHash:string|null;paidAt:string|null;refundedAt:string|null;checkout:{id:string;title:string;slug:string};merchant:{name:string;slug:string};createdAt:string };
+type CommerceState = { merchant:null|{id:string;displayName:string;slug:string;description:string|null;logoUrl:string|null;settlementAddress:string;status:string};checkouts:CheckoutRecord[];payments:CheckoutPayment[];totals:{checkouts:number;payments:number;volume:string;refunds:number} };
 const escrowPlanningEpoch = new Date().getTime();
 function futureEscrowDate(days:number){const date=new Date(escrowPlanningEpoch+days*86_400_000);date.setMinutes(date.getMinutes()-date.getTimezoneOffset());return date.toISOString().slice(0,16)}
 
@@ -822,11 +825,12 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "developers", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
   if (hash.startsWith("#state=")) return "claim";
+  if (hash.startsWith("#/checkout/")) return "checkout";
   if (!hash.startsWith("#/")) return null;
   const value = hash.slice(2) as View;
   return validViews.has(value) ? value : null;
@@ -838,6 +842,7 @@ const appNav = [
     ["create", "Create link", Link2],
     ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
     ["escrow", "Milestone escrow", Lock],
+    ["commerce", "Merchant checkout", ShoppingBag],
     ["referrals", "Referrals", Network], ["analytics", "Analytics", BarChart3],
     ["pilots", "Pilot operations", Handshake],
     ["evidence", "Grant evidence", FileCheck2],
@@ -1137,7 +1142,7 @@ function Marketing({ go }: { go: (v: View) => void }) {
         <section className="roadmap-scene">
           <div data-reveal><Eyebrow>THE CURRENT EXPANDS</Eyebrow><h2>One distribution layer.<br/>An entire community economy.</h2></div>
           <div className="roadmap-current" data-reveal>
-            {[["Now","Token + USDC distribution"],["Next","Merchant checkout"],["Next","Milestone escrow"],["Next","Subscriptions"],["Later","Cross-chain USDC"]].map(([time,title],i)=><article key={title}><span>{i+1}</span><small>{time}</small><h3>{title}</h3></article>)}
+            {[["Live","Token + USDC distribution"],["Live","Merchant checkout"],["Live","Milestone escrow"],["Next","Subscriptions"],["Live","Cross-chain USDC"]].map(([time,title],i)=><article key={title}><span>{i+1}</span><small>{time}</small><h3>{title}</h3></article>)}
           </div>
         </section>
 
@@ -1253,8 +1258,8 @@ function MetricCard({label,value,change,icon:Icon}:{label:string;value:string;ch
   return <article className="metric-card-new"><span><Icon/></span><small>{label}</small><strong>{value}</strong>{change&&<em><TrendingUp/>{change}</em>}</article>;
 }
 
-function PageHero({eyebrow,title,copy,mode="network",children}:{eyebrow:string;title:string;copy:string;mode?:"network"|"branches"|"orbit";children?:React.ReactNode}) {
-  return <section className="app-page-hero"><FluidCanvas mode={mode}/><div><Eyebrow light>{eyebrow}</Eyebrow><h1>{title}</h1><p>{copy}</p>{children}</div></section>;
+function PageHero({eyebrow,title,copy,mode="network",children,action}:{eyebrow:string;title:string;copy:string;mode?:"network"|"branches"|"orbit";children?:React.ReactNode;action?:React.ReactNode}) {
+  return <section className="app-page-hero"><FluidCanvas mode={mode}/><div><Eyebrow light>{eyebrow}</Eyebrow><h1>{title}</h1><p>{copy}</p>{children}{action}</div></section>;
 }
 
 function CampaignTable({
@@ -2442,7 +2447,32 @@ function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     <div className="data-panel guardrail-panel"><div className="panel-head"><div><h3>Network guardrails</h3><p>Evaluated before an agent can create any reward campaign.</p></div><Status tone="green">Enforced</Status></div><div className="guardrail-grid">{[["Signature window","5 minutes",Clock3],["Policy ledger","Immutable decisions",ShieldCheck],["Idempotency","Agent scoped",Fingerprint],["Approval route","Human controlled",Braces]].map(([x,v,I])=>{const Icon=I as typeof Gauge;return <div key={String(x)}><span><Icon/></span><b>{String(v)}</b><small>{String(x)}</small></div>})}</div></div></>}</>;
 }
 
-/* eslint-disable react-hooks/purity */
+/* eslint-disable react-hooks/purity, @next/next/no-img-element */
+function HostedCheckout({auth,go}:{auth:CircleAuth;go:(view:View)=>void}) {
+  const slug=typeof location==="undefined"?"":decodeURIComponent(location.hash.replace("#/checkout/",""));
+  const [checkout,setCheckout]=useState<CheckoutRecord|null>(null);const [payment,setPayment]=useState<CheckoutPayment|null>(null);
+  const [email,setEmail]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState<string|null>(null);
+  useEffect(()=>{let active=true;currentApi.get<CheckoutRecord>(`/checkout/public?slug=${encodeURIComponent(slug)}`).then(value=>{if(active)setCheckout(value)}).catch(loadError=>{if(active)setError(loadError instanceof Error?loadError.message:"Checkout unavailable.")});return()=>{active=false}},[slug]);
+  const remember=()=>sessionStorage.setItem("current.auth.return",location.hash);
+  const pay=async()=>{if(!auth.account)return;setBusy(true);setError(null);try{const started=await currentApi.post<{complete:boolean;paymentId?:string;challengeId?:string;payment?:CheckoutPayment}>("/checkout/pay",{slug});if(started.payment){setPayment(started.payment);return}if(!started.challengeId||!started.paymentId)throw new Error("Wallet approval could not be prepared.");await auth.executeChallenge(started.challengeId);const confirmed=await confirmWalletAction("/checkout/pay",{slug,paymentId:started.paymentId},started.challengeId) as WalletActionResult&{payment?:CheckoutPayment};if(confirmed.payment)setPayment(confirmed.payment)}catch(payError){setError(payError instanceof Error?payError.message:"Payment could not be completed.")}finally{setBusy(false)}};
+  if(error&&!checkout)return <div className="hosted-checkout-page"><div className="checkout-card checkout-unavailable"><X/><h1>Checkout unavailable</h1><p>{error}</p><Button tone="dark" onClick={()=>go("home")}>Return to Current</Button></div></div>;
+  return <div className="hosted-checkout-page"><header><Brand light onClick={()=>go("home")}/><span><ShieldCheck/>Secured on Arc testnet</span></header><main className="checkout-card">{!checkout?<div className="checkout-loading"><RefreshCw className="spin"/><b>Reading checkout…</b></div>:payment?<div className="checkout-success"><span><Check/></span><Eyebrow>PAYMENT CONFIRMED</Eyebrow><h1>Your payment is flowing.</h1><p>{payment.amount} {payment.currency} reached {checkout.merchant.name} on Arc testnet.</p><div><small>RECEIPT</small><code>{payment.receiptNumber}</code><small>ARC TRANSACTION</small>{payment.paymentTransactionHash?<a href={`https://testnet.arcscan.app/tx/${payment.paymentTransactionHash}`} target="_blank" rel="noreferrer">View settlement proof <ExternalLink/></a>:<b>Confirmed by Circle</b>}</div><Button tone="dark" onClick={()=>go("overview")}>Open your Current account <ArrowRight/></Button></div>:<><div className="checkout-merchant"><span>{checkout.merchant.logoUrl?<img src={checkout.merchant.logoUrl} alt=""/>:checkout.merchant.name.slice(0,1)}</span><div><small>PAYING</small><b>{checkout.merchant.name}</b></div><Status tone="green">Verified route</Status></div><div className="checkout-product"><Eyebrow>HOSTED USDC CHECKOUT</Eyebrow><h1>{checkout.title}</h1><p>{checkout.description||"A direct, verifiable payment settled through Current CoFi."}</p><strong>{checkout.amount}<small> USDC</small></strong></div><div className="checkout-assurance"><span><ShieldCheck/><b>Direct settlement</b><small>Merchant wallet</small></span><span><Wallet/><b>Walletless account</b><small>Circle embedded</small></span><span><ReceiptText/><b>Public receipt</b><small>Arc proof</small></span></div>{!auth.account?<div className="checkout-auth"><h2>Create your payment account.</h2><p>No extension, seed phrase, or separate gas token required.</p><Button tone="blue" onClick={()=>{remember();void auth.startGoogle()}}>Continue with Google <ArrowRight/></Button><div><i/>or use email<i/></div><label>Email address<input type="email" value={email} onChange={event=>setEmail(event.target.value)} placeholder="you@example.com"/></label><Button tone="ghost" disabled={!email} onClick={()=>{remember();void auth.startEmail(email)}}>Continue with email</Button></div>:<div className="checkout-pay"><div><span>{auth.account.displayName.slice(0,1)}</span><p><small>PAYING FROM</small><b>{auth.account.displayName}</b></p><code>{auth.account.wallets.find(wallet=>wallet.blockchain==="ARC-TESTNET")?.address.slice(0,10)}…</code></div><Button tone="blue" disabled={busy} onClick={()=>void pay()}>{busy?"Confirming on Arc…":`Pay ${checkout.amount} USDC`} <ArrowRight/></Button><p>Testnet assets have no monetary value. You approve the exact amount in your Circle wallet.</p></div>}{error&&<p className="auth-system-note is-error"><X/>{error}</p>}<footer><Lock/>Current never receives the merchant’s funds.</footer></>}</main></div>;
+}
+
+function MerchantCommerce({auth,go}:{auth:CircleAuth;go:(view:View)=>void}) {
+  const [state,setState]=useState<CommerceState|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState<string|null>(null);const [copied,setCopied]=useState<string|null>(null);
+  const [merchantName,setMerchantName]=useState("Tidebreak Studio");const [description,setDescription]=useState("Community-native products settled in USDC.");
+  const [title,setTitle]=useState("Founding membership");const [checkoutDescription,setCheckoutDescription]=useState("One-time access to the founding Current community.");const [amount,setAmount]=useState("25");
+  const refresh=useCallback(async()=>{if(!auth.account)return;try{setState(await currentApi.get<CommerceState>("/merchant"));setError(null)}catch(loadError){setError(loadError instanceof Error?loadError.message:"Merchant data is unavailable.")}},[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const setup=async(event:React.FormEvent)=>{event.preventDefault();setBusy(true);try{await currentApi.post("/merchant",{action:"setup",displayName:merchantName,description});await refresh()}catch(setupError){setError(setupError instanceof Error?setupError.message:"Merchant setup failed.")}finally{setBusy(false)}};
+  const create=async(event:React.FormEvent)=>{event.preventDefault();setBusy(true);try{await currentApi.post("/merchant",{action:"create-checkout",title,description:checkoutDescription,amount});await refresh()}catch(createError){setError(createError instanceof Error?createError.message:"Checkout creation failed.")}finally{setBusy(false)}};
+  const refund=async(paymentId:string)=>{setBusy(true);try{const started=await currentApi.post<{complete:boolean;challengeId?:string}>("/checkout/refund",{paymentId});if(!started.complete&&started.challengeId){await auth.executeChallenge(started.challengeId);await confirmWalletAction("/checkout/refund",{paymentId},started.challengeId)}await refresh()}catch(refundError){setError(refundError instanceof Error?refundError.message:"Refund failed.")}finally{setBusy(false)}};
+  const copy=async(checkout:CheckoutRecord)=>{if(!checkout.checkoutUrl)return;await navigator.clipboard.writeText(checkout.checkoutUrl);setCopied(checkout.id);window.setTimeout(()=>setCopied(null),1800)};
+  if(!auth.account)return <><PageHero eyebrow="STABLECOIN COMMERCE" title="Turn every audience into a checkout." copy="Publish a walletless USDC checkout, settle directly to your Arc wallet, and keep a verifiable receipt for every payment."/><div className="campaign-empty"><Wallet/><h3>Connect your Current account</h3><p>Your embedded Arc wallet becomes the settlement and refund authority.</p><Button tone="blue" onClick={()=>go("claim")}>Sign in to continue <ArrowRight/></Button></div></>;
+  return <><PageHero eyebrow="MERCHANT CHECKOUT" title="Sell through one Current." copy="Hosted links onboard the customer, approve an exact USDC payment, settle directly to your wallet, and expose the Arc proof." action={<Button tone="blue" onClick={()=>document.getElementById("new-checkout")?.scrollIntoView({behavior:"smooth"})}>New checkout <Plus/></Button>}/><div className="commerce-metrics"><MetricCard label="Checkout links" value={String(state?.totals.checkouts??0)} icon={Link2}/><MetricCard label="Confirmed payments" value={String(state?.totals.payments??0)} icon={CheckCircle2}/><MetricCard label="Testnet volume" value={`${state?.totals.volume??"0"} USDC`} icon={CircleDollarSign}/><MetricCard label="Refunded" value={String(state?.totals.refunds??0)} icon={ArrowLeft}/></div>{!state?.merchant?<form className="data-panel merchant-setup" onSubmit={event=>void setup(event)}><div><Eyebrow>MERCHANT PROFILE</Eyebrow><h2>Open your Current storefront.</h2><p>Your active Arc wallet becomes the exact settlement destination. It is also the only wallet permitted to issue refunds.</p></div><div className="field-grid"><label>Merchant name<input value={merchantName} onChange={event=>setMerchantName(event.target.value)}/></label><label className="full">Description<textarea value={description} onChange={event=>setDescription(event.target.value)}/></label><Button tone="blue" type="submit" disabled={busy}>Create merchant profile <ArrowRight/></Button></div></form>:<><div className="commerce-grid"><form id="new-checkout" className="data-panel checkout-builder" onSubmit={event=>void create(event)}><div className="panel-head"><div><h3>Publish a checkout</h3><p>Fixed-price USDC settlement on Arc testnet.</p></div><ShoppingBag/></div><label>Product or payment title<input value={title} onChange={event=>setTitle(event.target.value)} maxLength={100}/></label><label>Description<textarea value={checkoutDescription} onChange={event=>setCheckoutDescription(event.target.value)} maxLength={500}/></label><label>Price in USDC<input inputMode="decimal" value={amount} onChange={event=>setAmount(event.target.value)}/></label><div className="checkout-total"><span><small>CUSTOMER PAYS</small><b>{amount||"0"} USDC</b></span><span><small>YOU RECEIVE</small><b>{amount||"0"} USDC</b></span></div><Button tone="blue" type="submit" disabled={busy||!title||!amount}>Publish checkout <ArrowRight/></Button></form><div className="data-panel checkout-list"><div className="panel-head"><div><h3>Live checkouts</h3><p>Walletless links ready to share.</p></div><Status tone="green">{state.checkouts.length} active</Status></div>{state.checkouts.map(checkout=><article key={checkout.id}><span><ShoppingBag/></span><div><b>{checkout.title}</b><small>{checkout.amount} USDC · {checkout.slug}</small></div><button onClick={()=>void copy(checkout)}>{copied===checkout.id?<Check/>:<Copy/>}{copied===checkout.id?"Copied":"Copy link"}</button><a href={`#/checkout/${checkout.slug}`} target="_blank" rel="noreferrer"><ExternalLink/></a></article>)}{!state.checkouts.length&&<div className="campaign-empty compact"><Link2/><b>No checkout links yet</b><p>Publish the first one from the builder.</p></div>}</div></div><div className="data-panel payment-ledger"><div className="panel-head"><div><h3>Settlement ledger</h3><p>Confirmed payments and merchant-authorized refunds.</p></div><ReceiptText/></div><div className="payment-table"><div><span>Receipt</span><span>Checkout</span><span>Customer</span><span>Amount</span><span>Status</span><span/></div>{state.payments.map(payment=><div key={payment.id}><code>{payment.receiptNumber}</code><span>{payment.checkout.title}</span><code>{payment.customerAddress.slice(0,8)}…{payment.customerAddress.slice(-5)}</code><b>{payment.amount} USDC</b><Status tone={payment.status==="confirmed"?"green":"grey"}>{payment.status}</Status><button disabled={busy||payment.status!=="confirmed"} onClick={()=>void refund(payment.id)}>{payment.status==="confirmed"?"Refund":"Closed"}</button></div>)}{!state.payments.length&&<div className="campaign-empty compact"><ReceiptText/><b>No settlements yet</b><p>Confirmed Arc payments will appear here with receipt numbers.</p></div>}</div></div></>}{error&&<p className="auth-system-note is-error"><X/>{error}</p>}</>;
+}
+
 function MilestoneEscrow({auth,go}:{auth:CircleAuth;go:(view:View)=>void}) {
   const futureDate=futureEscrowDate;
   const [state,setState]=useState<EscrowState|null>(null);
@@ -2537,6 +2567,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "operations":page=<OperationsDashboard auth={auth} go={go}/>;break;
     case "security":page=<SecurityDashboard go={go}/>;break;
     case "escrow":page=<MilestoneEscrow auth={auth} go={go}/>;break;
+    case "commerce":page=<MerchantCommerce auth={auth} go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;
@@ -2558,6 +2589,8 @@ export default function CurrentApp() {
   useEffect(()=>{
     if (!location.hash.startsWith("#state=")) return;
     if (!["verifying","creating-wallet","authenticated","error"].includes(auth.state)) return;
+    const returnHash=sessionStorage.getItem("current.auth.return");
+    if(auth.state==="authenticated"&&returnHash?.startsWith("#/checkout/")){sessionStorage.removeItem("current.auth.return");history.replaceState(null,"",`${location.pathname}${location.search}${returnHash}`);const task=window.setTimeout(()=>setView("checkout"),0);return()=>window.clearTimeout(task)}
     history.replaceState(null, "", `${location.pathname}${location.search}#/claim`);
   },[auth.state]);
   const go=(next:View)=>{
@@ -2565,5 +2598,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }
