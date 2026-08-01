@@ -68,6 +68,17 @@ export type ReviewerDemo = {
   developerRecipe:{package:string;sequence:string[];integrationPaths:Array<{id:string;label:string}>};
 };
 
+export type ProjectTokenProof = {
+  schemaVersion:string;product:string;environment:string;generatedAt:string;configured:boolean;proofMode:string;valueStatus:string;boundary:string;headline:string;digest:string;privacy:string;
+  readiness:{complete:boolean;verifiedStages:number;stages:number};
+  asset:null|{symbol:string;name:string;decimals:number;contractAddress:string;contractUrl:string|null;approved:boolean;metadataHash:string;reserveBalance:string;totalDeposited:string;totalCampaignFunded:string};
+  campaign:null|{proofRef:string;totalAmount:string;remainingAmount:string;recipientCount:number;merkleRoot:string;state:string;expiresAt:string;claimEvidence:string};
+  governance:null|{governorOwnsVault:boolean;minimumDelaySeconds:number;queuedOperations:number;executedOperations:number;cancelledOperations:number};
+  flow:Array<{id:string;label:string;status:string;evidence:string|null}>;
+  contracts:Array<{id:string;label:string;address:string;url:string|null}>;
+  transactions:Array<{id:string;label:string;hash:string;url:string|null}>;
+};
+
 export type PublicGrantDossier = {
   schemaVersion: string; product: string; environment: string; generatedAt: string; boundary: string; digest: string;
   application: { oneLiner: string; problem: string; solution: string; ecosystemValue: string };
@@ -647,6 +658,7 @@ export class Current {
   readonly proofs = {
     campaigns: () => this.publicGet<CampaignProofExplorer>("/api/v1/campaign-proofs"),
     reviewerDemo: () => this.publicGet<ReviewerDemo>("/api/v1/reviewer-demo"),
+    projectToken: () => this.publicGet<ProjectTokenProof>("/api/v1/project-token-proof"),
   };
 
   readonly quality = {

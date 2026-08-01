@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "proof-explorer" | "reviewer-demo" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -125,6 +125,17 @@ type ReviewerDemoState = {
   liveContext:{campaigns:number;confirmedClaims:number;fundedWallets:number;activatedUsers:number;networkDigest:string;integrationDigest:string};
   reviewerActions:Array<{id:string;label:string;url:string|null}>;
   developerRecipe:{package:string;sequence:string[];integrationPaths:Array<{id:string;label:string}>};
+};
+
+type ProjectTokenProofState = {
+  schemaVersion:string;product:string;environment:string;generatedAt:string;configured:boolean;proofMode:string;valueStatus:string;boundary:string;headline:string;digest:string;privacy:string;
+  readiness:{complete:boolean;verifiedStages:number;stages:number};
+  asset:null|{symbol:string;name:string;decimals:number;contractAddress:string;contractUrl:string|null;approved:boolean;metadataHash:string;reserveBalance:string;totalDeposited:string;totalCampaignFunded:string};
+  campaign:null|{proofRef:string;totalAmount:string;remainingAmount:string;recipientCount:number;merkleRoot:string;state:string;expiresAt:string;claimEvidence:string};
+  governance:null|{governorOwnsVault:boolean;minimumDelaySeconds:number;queuedOperations:number;executedOperations:number;cancelledOperations:number};
+  flow:Array<{id:string;label:string;status:string;evidence:string|null}>;
+  contracts:Array<{id:string;label:string;address:string;url:string|null}>;
+  transactions:Array<{id:string;label:string;hash:string;url:string|null}>;
 };
 
 const securityPreview: SecurityPostureState = {
@@ -913,7 +924,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "proof-explorer", "reviewer-demo", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "proof-explorer", "reviewer-demo", "project-token-proof", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -1181,6 +1192,44 @@ function ReviewerDemoView({go}:{go:(v:View)=>void}) {
       <section className="reviewer-demo-evidence"><div><Eyebrow light>STAGE-BY-STAGE EVIDENCE</Eyebrow><h2>Nothing hidden<br/>behind the animation.</h2><p>Every visual step maps to a public anchor, privacy-safe aggregate, or canonical digest. Capability-only states remain labeled honestly.</p></div><div>{(demo?.stages??[]).map((stage,index)=><article key={stage.id}><span>{String(index+1).padStart(2,"0")}</span><div><small>{stage.status.replaceAll("-"," ")}</small><h3>{stage.label}</h3><p>{stage.explanation}</p><code>{JSON.stringify(stage.evidence)}</code></div>{stage.status==="capability-verified"?<Clock3/>:<BadgeCheck/>}</article>)}</div></section>
       <section className="reviewer-demo-links"><div><Eyebrow>OPEN THE SOURCE</Eyebrow><h2>Verify the replay yourself.</h2><p>{demo?.privacy??"Public evidence excludes every private recipient and project identifier."}</p><code>SHA-256 · {demo?.digest??"Verifying…"}</code></div><div>{(demo?.reviewerActions??[]).map(action=>action.url?<a href={action.url} target="_blank" rel="noreferrer" key={action.id}><span><small>{action.id.replaceAll("-"," ")}</small><b>{action.label}</b></span><ArrowUpRight/></a>:<span className="unavailable" key={action.id}><span><small>{action.id.replaceAll("-"," ")}</small><b>{action.label}</b></span><Clock3/></span>)}</div></section>
       <section className="reviewer-demo-recipe"><div><Eyebrow>BUILDER RECIPE</Eyebrow><h2>The same loop,<br/>one integration.</h2><p>Games, communities, token projects, and agents can use hosted claims, the SDK, React embeds, or signed REST calls.</p></div><pre><code>{(demo?.developerRecipe.sequence??[]).map((line,index)=><span key={line}><i>{String(index+1).padStart(2,"0")}</i>{line}</span>)}</code></pre></section>
+    </main>
+  </div>;
+}
+
+function ProjectTokenProofView({go}:{go:(v:View)=>void}) {
+  const [proof,setProof]=useState<ProjectTokenProofState|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const load=useCallback(()=>currentApi.get<ProjectTokenProofState>("/project-token-proof").then(value=>{setProof(value);setError(null)}).catch(reason=>setError(reason instanceof Error?reason.message:"Project-token proof is temporarily unavailable.")),[]);
+  useEffect(()=>{let active=true;currentApi.get<ProjectTokenProofState>("/project-token-proof").then(value=>{if(active)setProof(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Project-token proof is temporarily unavailable.")});return()=>{active=false}},[]);
+  const short=(value?:string|null)=>value?`${value.slice(0,8)}…${value.slice(-6)}`:"Unavailable";
+  return <div className="project-token-proof-page">
+    <header><Brand light onClick={()=>go("home")}/><nav><button onClick={()=>go("grant-dossier")}>Grant dossier</button><button onClick={()=>go("reviewer-demo")}>Verified replay</button></nav><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
+    <main>
+      <section className="project-token-proof-hero">
+        <FluidCanvas mode="branches"/>
+        <div className="project-token-proof-copy"><Eyebrow light><TestTube2/> PROJECT-TOKEN PROOF</Eyebrow><h1>USDC isn’t the<br/>only <em>current.</em></h1><p>{proof?.headline??"Verifying Current CoFi’s arbitrary-token campaign rail directly against Arc testnet."}</p><div><a href="/api/v1/project-token-proof" target="_blank" rel="noreferrer">Open public JSON <ArrowUpRight/></a><button onClick={load}><RefreshCw/>Refresh chain reads</button></div></div>
+        <aside><span><i className={proof?.readiness.complete?"complete":""}/>{proof?.readiness.complete?"PROOF COMPLETE":"VERIFYING"}</span><strong>{proof?`${proof.readiness.verifiedStages}/${proof.readiness.stages}`:"—"}</strong><small>ONCHAIN STAGES</small><p>{proof?.valueStatus??"Arc testnet demonstration asset. No monetary value."}</p></aside>
+      </section>
+      {error?<section className="project-token-proof-error"><ShieldAlert/><div><h2>Chain proof unavailable</h2><p>{error}</p></div><Button tone="cyan" onClick={load}>Try again</Button></section>:null}
+      <section className="project-token-proof-stats">
+        <article><small>RESERVED</small><strong>{proof?.asset?`${Number(proof.asset.totalDeposited).toLocaleString()} ${proof.asset.symbol}`:"—"}</strong><span>Governed project-token reserve</span></article>
+        <article><small>CAMPAIGN FUNDED</small><strong>{proof?.campaign?`${Number(proof.campaign.totalAmount).toLocaleString()} ${proof.asset?.symbol??"CPT"}`:"—"}</strong><span>Fully allocated before activation</span></article>
+        <article><small>RECIPIENT CAPACITY</small><strong>{proof?.campaign?.recipientCount??"—"}</strong><span>Merkle-bound walletless claims</span></article>
+        <article><small>PUBLIC DELAY</small><strong>{proof?.governance?`${proof.governance.minimumDelaySeconds}s`:"—"}</strong><span>Guardian-cancellable governance</span></article>
+      </section>
+      <section className="project-token-proof-flow">
+        <div><Eyebrow>THE ARBITRARY-ASSET RAIL</Eyebrow><h2>One visible current.<br/>Four verified stages.</h2><p>Each stage resolves to a public Arc contract or transaction. The interface never turns this internal protocol demonstration into a traction claim.</p></div>
+        <div className="project-token-proof-flowline">{(proof?.flow??["erc20","reserve","governance","campaign"].map((id,index)=>({id,label:["Arbitrary ERC-20 registered","Project reserve funded","Delayed governance","Campaign fully funded"][index],status:"loading",evidence:null}))).map((stage,index)=><article key={stage.id}><span>{String(index+1).padStart(2,"0")}</span><i/><div><small>{stage.status}</small><h3>{stage.label}</h3>{stage.evidence?<a href={stage.evidence} target="_blank" rel="noreferrer">Inspect evidence <ArrowUpRight/></a>:<b>Reading Arc…</b>}</div>{stage.status==="verified"?<BadgeCheck/>:<Clock3/>}</article>)}</div>
+      </section>
+      <section className="project-token-proof-campaign">
+        <div><Eyebrow light>FUNDED CAMPAIGN OBJECT</Eyebrow><h2>The allocation exists<br/><em>before a claimant does.</em></h2><p>Current’s campaign vault stores the exact token, amount, recipient capacity, allocation root, expiry, and remaining balance.</p><span><TestTube2/>{proof?.campaign?.claimEvidence?.replaceAll("-"," ")??"capability verification"}</span></div>
+        <aside><small>PROOF REFERENCE</small><code>{proof?.campaign?.proofRef??"Assembling…"}</code><dl><div><dt>State</dt><dd>{proof?.campaign?.state??"—"}</dd></div><div><dt>Remaining</dt><dd>{proof?.campaign?`${Number(proof.campaign.remainingAmount).toLocaleString()} ${proof.asset?.symbol??"CPT"}`:"—"}</dd></div><div><dt>Recipients</dt><dd>{proof?.campaign?.recipientCount??"—"}</dd></div><div><dt>Expiry</dt><dd>{proof?.campaign?new Date(proof.campaign.expiresAt).toLocaleDateString():"—"}</dd></div></dl><small>MERKLE ROOT</small><code>{short(proof?.campaign?.merkleRoot)}</code></aside>
+      </section>
+      <section className="project-token-proof-ledger">
+        <div><Eyebrow>PUBLIC PROOF STACK</Eyebrow><h2>Review every contract.<br/>Follow every transaction.</h2><p>{proof?.boundary??"Protocol-owned testnet evidence only."}</p><code>SHA-256 · {proof?.digest??"Verifying…"}</code></div>
+        <div><h3>Contracts</h3>{(proof?.contracts??[]).map(item=><a href={item.url??undefined} target="_blank" rel="noreferrer" key={item.id}><span><small>{item.label}</small><b>{short(item.address)}</b></span><ArrowUpRight/></a>)}<h3>Transactions</h3>{(proof?.transactions??[]).map(item=><a href={item.url??undefined} target="_blank" rel="noreferrer" key={item.id}><span><small>{item.label}</small><b>{short(item.hash)}</b></span><ArrowUpRight/></a>)}</div>
+      </section>
+      <section className="project-token-proof-boundary"><ShieldCheck/><div><small>HONEST EVIDENCE BOUNDARY</small><h2>Capability proven. External adoption still earned.</h2><p>{proof?.privacy} This demonstration is kept separate from the persisted user-traction totals in Network Proof.</p></div><Button tone="blue" onClick={()=>go("grant-dossier")}>Open grant dossier <ArrowRight/></Button></section>
     </main>
   </div>;
 }
@@ -2526,7 +2575,7 @@ function PartnerVaultDashboard({go}:{go:(v:View)=>void}) {
   useEffect(()=>{currentApi.get<PartnerVaultState>("/partners").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Partner reserves could not be read.")).finally(()=>setLoading(false))},[]);
   const open=(address?:string)=>{if(address&&snapshot?.explorerUrl)window.open(`${snapshot.explorerUrl}/address/${address}`,"_blank","noopener,noreferrer")};
   const asset=snapshot?.asset; const governance=snapshot?.governance; const proof=snapshot?.proofCampaign;
-  return <><PageHero eyebrow="ARC ECOSYSTEM RESERVES" title="Partner tokens become funded campaigns." copy="Arc projects can contribute their own tokens to a transparent Current CoFi reserve. Delayed governance moves those assets only into fully allocated, walletless campaigns." mode="branches"><Button tone="blue" onClick={()=>go("new-campaign")}>Create a campaign <ArrowRight/></Button></PageHero>
+  return <><PageHero eyebrow="ARC ECOSYSTEM RESERVES" title="Partner tokens become funded campaigns." copy="Arc projects can contribute their own tokens to a transparent Current CoFi reserve. Delayed governance moves those assets only into fully allocated, walletless campaigns." mode="branches"><Button tone="ghost" onClick={()=>go("project-token-proof")}>Public proof <BadgeCheck/></Button><Button tone="blue" onClick={()=>go("new-campaign")}>Create a campaign <ArrowRight/></Button></PageHero>
     {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
     <div className="token-metrics-new"><div><small>Approved partner assets</small><strong>{loading?"—":snapshot?.totals?.approvedAssets??0}</strong><span>Governed allowlist</span></div><div><small>Partner contributions</small><strong>{loading?"—":snapshot?.totals?.deposits??0}</strong><span>Public deposit receipts</span></div><div><small>Total deposited</small><strong>{loading?"—":`${asset?.totalDeposited??"0"} ${asset?.symbol??"tokens"}`}</strong><span>Arc testnet proof asset</span></div><div><small>Campaigns funded</small><strong>{loading?"—":snapshot?.totals?.campaignsFunded??0}</strong><span>{asset?.totalCampaignFunded??"0"} {asset?.symbol??"tokens"} committed</span></div></div>
     <section className="data-panel partner-vault-panel"><div className="panel-head"><div><h3>Partner reserve current</h3><p>One auditable path from project treasury to claimable community rewards</p></div><Status tone={snapshot?.configured&&governance?.governorOwnsVault&&asset?.approved?"green":"grey"}>{snapshot?.configured?"Onchain proof active":"Awaiting deployment"}</Status></div>
@@ -3032,5 +3081,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

@@ -3,6 +3,7 @@ import { integrationManifest } from "../developer/integration-readiness.js";
 import { getNetworkProof, type NetworkProof } from "../network/proof.js";
 import { getLaunchReadinessSnapshot } from "../releases/readiness.js";
 import { getSecurityPosture } from "../security/posture.js";
+import { getProjectTokenProof } from "../partners/project-token-proof.js";
 
 type LaunchSnapshot = Awaited<ReturnType<typeof getLaunchReadinessSnapshot>>;
 
@@ -44,6 +45,8 @@ const links = {
   campaignProofsApi: "https://www.currentco.finance/api/v1/campaign-proofs",
   reviewerDemo: "https://www.currentco.finance/#/reviewer-demo",
   reviewerDemoApi: "https://www.currentco.finance/api/v1/reviewer-demo",
+  projectTokenProof: "https://www.currentco.finance/#/project-token-proof",
+  projectTokenProofApi: "https://www.currentco.finance/api/v1/project-token-proof",
   developers: "https://www.currentco.finance/#/developers",
   integrationManifest: "https://www.currentco.finance/api/v1/integration-manifest",
   openapi: "https://www.currentco.finance/api/v1/openapi",
@@ -69,6 +72,8 @@ export function buildGrantDossier(input: {
   network: NetworkProof;
   launch: LaunchSnapshot | null;
   launchError?: string | null;
+  projectToken?: Awaited<ReturnType<typeof getProjectTokenProof>> | null;
+  projectTokenError?: string | null;
 }) {
   const security = getSecurityPosture();
   const manifest = integrationManifest();
@@ -113,6 +118,20 @@ export function buildGrantDossier(input: {
         endpoints: manifest.endpoints.length,
         circleStack: manifest.circleStack,
       },
+      projectToken: input.projectToken ? {
+        available: true,
+        proofMode: input.projectToken.proofMode,
+        complete: input.projectToken.readiness.complete,
+        verifiedStages: input.projectToken.readiness.verifiedStages,
+        stages: input.projectToken.readiness.stages,
+        symbol: input.projectToken.asset?.symbol ?? null,
+        deposited: input.projectToken.asset?.totalDeposited ?? "0",
+        campaignFunded: input.projectToken.asset?.totalCampaignFunded ?? "0",
+        recipientCapacity: input.projectToken.campaign?.recipientCount ?? 0,
+        claimEvidence: input.projectToken.campaign?.claimEvidence ?? "unavailable",
+        digest: input.projectToken.digest,
+        boundary: input.projectToken.boundary,
+      } : { available: false, complete: false, verifiedStages: 0, stages: 4, proofMode: input.projectTokenError ?? "Project-token proof unavailable" },
     },
     externalGates,
     proposedGrantMilestones: [
@@ -128,12 +147,14 @@ export function buildGrantDossier(input: {
 }
 
 export async function getGrantDossier() {
-  const [networkResult, launchResult] = await Promise.allSettled([getNetworkProof(), getLaunchReadinessSnapshot()]);
+  const [networkResult, launchResult, projectTokenResult] = await Promise.allSettled([getNetworkProof(), getLaunchReadinessSnapshot(), getProjectTokenProof()]);
   const network = networkResult.status === "fulfilled" ? networkResult.value : await getNetworkProof();
   return buildGrantDossier({
     generatedAt: new Date().toISOString(),
     network,
     launch: launchResult.status === "fulfilled" ? launchResult.value : null,
     launchError: launchResult.status === "rejected" ? "Arc release verification is temporarily unavailable." : null,
+    projectToken: projectTokenResult.status === "fulfilled" ? projectTokenResult.value : null,
+    projectTokenError: projectTokenResult.status === "rejected" ? "Arc project-token verification is temporarily unavailable." : null,
   });
 }
