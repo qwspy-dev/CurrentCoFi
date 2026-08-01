@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
+  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -342,6 +342,21 @@ type EvidenceReportSummary = {
   project: { name: string; slug: string };
   totals: { campaigns: number; recipients: number; claims: number; activations: number };
   createdAt: string;
+};
+
+type GrantReviewPackage = {
+  schemaVersion: string;
+  digest: string;
+  evidence: { id: string; publicSlug: string; schemaVersion: string; digest: string; integrity: { valid: boolean; recalculatedDigest: string }; generatedAt: string };
+  application: { project: string; website: string; oneLiner: string; problem: string; solution: string; whyArc: string; ecosystemValue: string };
+  officialCriteria: Array<{ id: string; label: string; summary: string }>;
+  architecture: Array<{ product: string; role: string }>;
+  proof: { readinessScore: number; campaigns: number; targetedRecipients: number; claims: number; walletsCreated: number; activations: number; activeApiKeys: number; activeWebhooks: number; pilots: number; checkoutVolume: string; subscriptionVolume: string; network: string; chainId: number; usdcAddress: string; campaignVaultAddress: string | null; releaseReadiness: boolean; securityPackageReady: boolean };
+  shipped: string[];
+  proposedMilestones: Array<{ id: string; title: string; measurement: string; dependsOn: string }>;
+  honestGaps: Array<{ id: string; label: string; evidence: string }>;
+  reviewerLinks: Record<string, string>;
+  privacy: string;
 };
 
 type PilotRecord = {
@@ -764,6 +779,10 @@ function evidenceShareUrl(publicSlug: string) {
   return `${location.origin}/?evidence=${encodeURIComponent(publicSlug)}#/evidence`;
 }
 
+function grantShareUrl(publicSlug: string) {
+  return `${location.origin}/?grant=${encodeURIComponent(publicSlug)}#/grant`;
+}
+
 function pilotShareUrl(publicSlug: string) {
   return `${location.origin}/?pilot=${encodeURIComponent(publicSlug)}#/pilots`;
 }
@@ -839,7 +858,7 @@ function formatAtomic(value:string) {
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch", "operations", "security",
+  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -862,7 +881,7 @@ const appNav = [
     ["subscriptions", "Subscriptions", Repeat2],
     ["referrals", "Referrals", Network], ["analytics", "Analytics", BarChart3],
     ["pilots", "Pilot operations", Handshake],
-    ["evidence", "Grant evidence", FileCheck2],
+    ["evidence", "Grant evidence", FileCheck2], ["grant", "Grant review room", BadgeCheck],
   ]},
   { label: "Protocol", items: [
     ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["operations", "Operations", Activity], ["security", "Security", ShieldCheck], ["developers", "Developers", Code2],
@@ -2089,6 +2108,61 @@ function Evidence({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   </>;
 }
 
+function GrantReviewRoom({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [active,setActive]=useState<GrantReviewPackage|null>(null);
+  const [history,setHistory]=useState<EvidenceReportSummary[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const publicSlug=useMemo(()=>typeof window==="undefined"?null:new URLSearchParams(window.location.search).get("grant"),[]);
+  const publicMode=Boolean(publicSlug);
+  const loadPublic=useCallback(async(slug:string)=>{
+    setLoading(true);setError(null);
+    try{setActive(await currentApi.get<GrantReviewPackage>(`/grant/public?slug=${encodeURIComponent(slug)}`))}
+    catch(reason){setError(reason instanceof Error?reason.message:"The grant review package is unavailable.")}
+    finally{setLoading(false)}
+  },[]);
+  const refresh=useCallback(async()=>{
+    if(!auth.account){setLoading(false);return}
+    setLoading(true);setError(null);
+    try{
+      const result=await currentApi.get<{packages:EvidenceReportSummary[]}>('/grant');setHistory(result.packages);
+      if(result.packages[0])await loadPublic(result.packages[0].publicSlug);else setLoading(false);
+    }catch(reason){setError(reason instanceof Error?reason.message:"The grant review workspace is unavailable.");setLoading(false)}
+  },[auth.account,loadPublic]);
+  useEffect(()=>{const task=window.setTimeout(()=>{if(publicSlug){void loadPublic(publicSlug);return}void refresh()},0);return()=>window.clearTimeout(task)},[publicSlug,loadPublic,refresh]);
+  const create=async()=>{
+    setBusy(true);setError(null);
+    try{
+      const result=await currentApi.post<GrantReviewPackage>('/grant',{});setActive(result);
+      const list=await currentApi.get<{packages:EvidenceReportSummary[]}>('/grant');setHistory(list.packages);
+      window.history.replaceState(null,"",`${location.pathname}#/grant`);
+    }catch(reason){setError(reason instanceof Error?reason.message:"The review package could not be created.")}
+    finally{setBusy(false)}
+  };
+  const share=async()=>{if(active)await navigator.clipboard.writeText(grantShareUrl(active.evidence.publicSlug))};
+  const download=()=>{if(!active)return;const url=URL.createObjectURL(new Blob([JSON.stringify(active,null,2)],{type:'application/json'}));const anchor=document.createElement('a');anchor.href=url;anchor.download='current-cofi-circle-grant-review.json';anchor.click();URL.revokeObjectURL(url)};
+  return <><PageHero eyebrow="CIRCLE GRANT REVIEW ROOM" title="One room. Every claim is verifiable." copy="A reviewer-ready application package connecting Current CoFi’s product thesis, Arc and Circle architecture, shipped infrastructure, live proof, security posture, honest gaps, and measurable grant milestones." mode="branches">
+    {active&&<><Button tone="cyan" onClick={()=>void share()}>Copy reviewer link <Share2/></Button><Button tone="light" onClick={download}>Export package <Download/></Button></>}
+  </PageHero>
+  {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+  {loading&&<div className="evidence-loading"><RefreshCw className="spin"/><div><b>Assembling the review current</b><small>Verifying the evidence digest and reviewer-safe application package.</small></div></div>}
+  {!loading&&!auth.account&&!publicMode&&!active&&<section className="grant-locked"><BadgeCheck/><div><Eyebrow>REVIEWER-SAFE BY DESIGN</Eyebrow><h2>Create the canonical Circle review package.</h2><p>Sign in to freeze current product proof into a public package without exposing recipient identities or private project data.</p><Button tone="blue" onClick={()=>go('claim')}>Open account <ArrowRight/></Button></div></section>}
+  {auth.account&&!publicMode&&<section className="grant-create"><div><Eyebrow>CANONICAL APPLICATION PACKAGE</Eyebrow><h2>Freeze the complete review room.</h2><p>Each package creates a new immutable evidence snapshot, then maps it to Circle’s published selection criteria and Current CoFi’s proposed milestones.</p></div><Button tone="blue" disabled={busy} onClick={()=>void create()}>{busy?'Building package…':'Create review package'} <BadgeCheck/></Button></section>}
+  {active&&<>
+    <section className="grant-cover"><div><Status tone={active.evidence.integrity.valid?'green':'red'}>{active.evidence.integrity.valid?'Evidence integrity verified':'Integrity check failed'}</Status><Eyebrow>{active.application.project.toUpperCase()} · {active.proof.network.toUpperCase()}</Eyebrow><h1>{active.application.oneLiner}</h1><p>{active.application.solution}</p><div className="grant-cover-actions"><Button tone="light" onClick={()=>void share()}>Share review room <Share2/></Button><a href={active.application.website} target="_blank" rel="noreferrer">Open product <ArrowUpRight/></a></div></div><aside><small>GRANT READINESS</small><strong>{active.proof.readinessScore}</strong><span>/ 100 verified</span><code>{active.digest.slice(0,24)}…</code></aside></section>
+    <div className="grant-proof-grid"><MetricCard label="Campaigns" value={active.proof.campaigns.toLocaleString()} icon={Layers3}/><MetricCard label="Recipients targeted" value={active.proof.targetedRecipients.toLocaleString()} icon={Users}/><MetricCard label="Claims settled" value={active.proof.claims.toLocaleString()} icon={Gift}/><MetricCard label="Wallets created" value={active.proof.walletsCreated.toLocaleString()} icon={Wallet}/><MetricCard label="Activations" value={active.proof.activations.toLocaleString()} icon={Target}/></div>
+    <section className="grant-thesis"><article><span>01</span><Eyebrow>THE PROBLEM</Eyebrow><h3>Projects have audiences, not wallets.</h3><p>{active.application.problem}</p></article><article><span>02</span><Eyebrow>WHY ARC</Eyebrow><h3>Settlement is the product.</h3><p>{active.application.whyArc}</p></article><article><span>03</span><Eyebrow>ECOSYSTEM VALUE</Eyebrow><h3>One integration for every builder.</h3><p>{active.application.ecosystemValue}</p></article></section>
+    <section className="data-panel grant-criteria"><div className="panel-head"><div><h3>Circle selection criteria</h3><p>Direct mapping to Circle’s published grant review framework</p></div><Status tone="green">4 / 4 addressed</Status></div><div>{active.officialCriteria.map((item,index)=><article key={item.id}><span>{String(index+1).padStart(2,'0')}</span><div><h4>{item.label}</h4><p>{item.summary}</p></div><CheckCircle2/></article>)}</div></section>
+    <div className="grant-two-col"><section className="data-panel"><div className="panel-head"><div><h3>Circle architecture</h3><p>Every integration has one necessary role</p></div><Network/></div><div className="grant-architecture">{active.architecture.map(item=><article key={item.product}><span>{item.product.slice(0,2).toUpperCase()}</span><div><b>{item.product}</b><p>{item.role}</p></div></article>)}</div></section><section className="data-panel"><div className="panel-head"><div><h3>What is already shipped</h3><p>Production-style infrastructure available for review</p></div><Rocket/></div><div className="grant-shipped">{active.shipped.map(item=><div key={item}><Check/><span>{item}</span></div>)}</div></section></div>
+    <section className="grant-milestones"><div className="grant-section-intro"><Eyebrow>PROPOSED GRANT MILESTONES</Eyebrow><h2>Funding tied to outcomes Circle can verify.</h2><p>Each milestone names its measurement and the external dependency the team cannot self-attest.</p></div><div>{active.proposedMilestones.map((item,index)=><article key={item.id}><span>{String(index+1).padStart(2,'0')}</span><h3>{item.title}</h3><p>{item.measurement}</p><small>{item.dependsOn}</small></article>)}</div></section>
+    <section className="grant-gaps"><ShieldAlert/><div><Eyebrow>HONEST GAP REGISTER</Eyebrow><h2>No simulated traction presented as real.</h2><p>Current CoFi separates internally verifiable testnet readiness from proof that requires outside teams, an auditor, or Arc mainnet.</p></div><div>{active.honestGaps.map(item=><article key={item.id}><Clock3/><span><b>{item.label}</b><small>{item.evidence}</small></span></article>)}</div></section>
+    <section className="grant-review-links"><div><Eyebrow>TECHNICAL REVIEW</Eyebrow><h2>Inspect the product, not the pitch.</h2><p>{active.privacy}</p><code>SHA-256 · {active.evidence.digest}</code></div><div>{Object.entries(active.reviewerLinks).map(([key,url])=><a href={url} target="_blank" rel="noreferrer" key={key}><span><small>{key.replace(/([A-Z])/g,' $1')}</small><b>{new URL(url).hostname}</b></span><ArrowUpRight/></a>)}</div></section>
+  </>}
+  {!publicMode&&history.length>1&&<section className="data-panel evidence-history"><div className="panel-head"><div><h3>Review history</h3><p>Prior immutable packages remain independently verifiable</p></div><Status tone="cyan">{history.length} packages</Status></div>{history.map(item=><div className="evidence-report-row" key={item.id}><span><BadgeCheck/></span><div><b>{item.project.name}</b><code>{item.digest.slice(0,20)}…</code></div><strong>{item.readinessScore}<small>/100</small></strong><time>{new Date(item.createdAt).toLocaleDateString()}</time><button aria-label="Open grant review" onClick={()=>void loadPublic(item.publicSlug)}><Eye/></button><button aria-label="Copy grant review URL" onClick={()=>navigator.clipboard.writeText(grantShareUrl(item.publicSlug))}><Copy/></button></div>)}</section>}
+  </>;
+}
+
 function VenueRegistryDashboard({go}:{go:(v:View)=>void}) {
   const [snapshot,setSnapshot]=useState<VenueRegistryState|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
   useEffect(()=>{currentApi.get<VenueRegistryState>("/venues").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Venue qualification could not be read.")).finally(()=>setLoading(false))},[]);
@@ -2602,6 +2676,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "analytics":page=<Analytics auth={auth} go={go}/>;break;
     case "pilots":page=<PilotOperations auth={auth} go={go}/>;break;
     case "evidence":page=<Evidence auth={auth} go={go}/>;break;
+    case "grant":page=<GrantReviewRoom auth={auth} go={go}/>;break;
     case "token":page=<TokenDashboard auth={auth} go={go}/>;break;
     case "partners":page=<PartnerVaultDashboard go={go}/>;break;
     case "venues":page=<VenueRegistryDashboard go={go}/>;break;

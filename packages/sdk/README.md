@@ -1,6 +1,6 @@
 # @currentcofi/sdk
 
-Server SDK for creating identity-bound walletless Arc distributions, proposing policy-bound agent actions, attesting project identities, submitting signed activation events, freezing grant-evidence reports, reading campaign analytics, and verifying Current CoFi webhooks.
+Server SDK for creating identity-bound walletless Arc distributions, proposing policy-bound agent actions, attesting project identities, submitting signed activation events, freezing grant evidence and Circle reviewer packages, reading campaign analytics, and verifying Current CoFi webhooks.
 
 ```ts
 import { Current } from "@currentcofi/sdk";
@@ -33,6 +33,9 @@ const evidence = await current.evidence.create({
 });
 
 console.log(evidence.digest, evidence.publicSlug);
+
+const grantReview = await current.grant.create();
+console.log(grantReview.digest, grantReview.evidence.publicSlug);
 
 const pilot = await current.pilots.create({
   partnerName: "Tidebreak Games",

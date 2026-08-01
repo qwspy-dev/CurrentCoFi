@@ -263,6 +263,21 @@ export type EvidenceReportSummary = Omit<EvidenceReport, "snapshot"> & {
   totals: { campaigns: number; recipients: number; claims: number; activations: number };
 };
 
+export type GrantReviewPackage = {
+  schemaVersion: string;
+  digest: string;
+  evidence: { id: string; publicSlug: string; schemaVersion: string; digest: string; integrity: { valid: boolean; recalculatedDigest: string }; generatedAt: string };
+  application: { project: string; website: string; oneLiner: string; problem: string; solution: string; whyArc: string; ecosystemValue: string };
+  officialCriteria: Array<{ id: string; label: string; summary: string }>;
+  architecture: Array<{ product: string; role: string }>;
+  proof: Record<string, string | number | boolean | null>;
+  shipped: string[];
+  proposedMilestones: Array<{ id: string; title: string; measurement: string; dependsOn: string }>;
+  honestGaps: Array<{ id: string; label: string; evidence: string }>;
+  reviewerLinks: Record<string, string>;
+  privacy: string;
+};
+
 export type CreatePilotInput = {
   partnerName: string;
   partnerWebsite?: string;
@@ -608,6 +623,14 @@ export class Current {
     list: () => this.get<{ reports: EvidenceReportSummary[] }>("/api/v1/developer/evidence"),
     create: (input: { distributionId?: string } = {}) => this.signedPost<EvidenceReport>(
       "/api/v1/developer/evidence",
+      input,
+    ),
+  };
+
+  readonly grant = {
+    list: () => this.get<{ packages: EvidenceReportSummary[] }>("/api/v1/developer/grant"),
+    create: (input: { distributionId?: string } = {}) => this.signedPost<GrantReviewPackage>(
+      "/api/v1/developer/grant",
       input,
     ),
   };

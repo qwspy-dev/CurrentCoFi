@@ -2,7 +2,7 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.9.0",
+  version: "1.10.0",
   network: "ARC-TESTNET",
   authentication: {
     type: "scoped-api-key",
@@ -196,6 +196,16 @@ export default withApi((request) => ok(request, {
       description: "Freeze campaign, settlement, wallet, identity, activation, and integration proof into a shareable report.",
       method: "POST",
       path: "/api/v1/developer/evidence",
+      permission: "evidence:write",
+      input: {
+        distributionId: "optional campaign uuid; omit for the complete project",
+      },
+    },
+    {
+      name: "create_grant_review",
+      description: "Create a public Circle reviewer room mapping immutable product evidence to platform alignment, traction, ecosystem impact, security gaps, and measurable milestones.",
+      method: "POST",
+      path: "/api/v1/developer/grant",
       permission: "evidence:write",
       input: {
         distributionId: "optional campaign uuid; omit for the complete project",

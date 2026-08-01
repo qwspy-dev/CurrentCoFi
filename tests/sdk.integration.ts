@@ -212,6 +212,20 @@ const mockFetch: typeof fetch = async (input, init) => {
       generatedAt: "2026-08-14T00:00:00.000Z",
     } });
   }
+  if (String(input).endsWith("/developer/grant") && init?.method === "POST") {
+    return Response.json({ ok: true, data: {
+      schemaVersion: "current-grant-review-v1", digest: "grant_digest_sdk",
+      evidence: { id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v14", digest: "digest_sdk", integrity: { valid: true, recalculatedDigest: "digest_sdk" }, generatedAt: "2026-08-14T00:00:00.000Z" },
+      application: { project: "Current CoFi", website: "https://current.test", oneLiner: "Walletless activation", problem: "Wallet friction", solution: "Embedded claims", whyArc: "Settlement", ecosystemValue: "Reusable infrastructure" },
+      officialCriteria: [], architecture: [], proof: { readinessScore: 80 }, shipped: [], proposedMilestones: [], honestGaps: [], reviewerLinks: {}, privacy: "Aggregate only",
+    } }, { status: 201 });
+  }
+  if (String(input).endsWith("/developer/grant")) {
+    return Response.json({ ok: true, data: { packages: [{
+      id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v14", digest: "digest_sdk", distributionId: null, readinessScore: 80,
+      project: { name: "Current CoFi", slug: "current-cofi" }, totals: { campaigns: 1, recipients: 10, claims: 8, activations: 4 }, createdAt: "2026-08-14T00:00:00.000Z",
+    }] } });
+  }
   if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
     return Response.json({
       ok: true,
@@ -444,6 +458,12 @@ assert.ok(evidenceRequest?.url.endsWith("/api/v1/developer/evidence"));
 assert.equal(JSON.parse(String(evidenceRequest?.init?.body)).distributionId, "dist_sdk");
 const evidenceList = await current.evidence.list();
 assert.equal(evidenceList.reports[0]?.digest, "digest_sdk");
+
+const grant = await current.grant.create();
+assert.equal(grant.evidence.publicSlug, "proof_sdk");
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/grant");
+const grantList = await current.grant.list();
+assert.equal(grantList.packages[0]?.readinessScore, 80);
 
 const pilot = await current.pilots.create({
   partnerName: "SDK partner",
