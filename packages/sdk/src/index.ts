@@ -57,6 +57,17 @@ export type CampaignProofExplorer = {
   }>;
 };
 
+export type ReviewerDemo = {
+  schemaVersion:string; product:string; environment:string; generatedAt:string; replayId:string;
+  mode:"non-mutating-verified-replay"; boundary:string; digest:string; privacy:string;
+  story:{headline:string;recipient:string;project:string;asset:string;amountAtomic:string;decimals:number;proofRef:string|null};
+  readiness:{stages:number;verifiedStages:number;complete:boolean};
+  stages:Array<{id:string;index:number;label:string;actor:string;status:string;explanation:string;evidence:Record<string,unknown>}>;
+  liveContext:{campaigns:number;confirmedClaims:number;fundedWallets:number;activatedUsers:number;networkDigest:string;integrationDigest:string};
+  reviewerActions:Array<{id:string;label:string;url:string|null}>;
+  developerRecipe:{package:string;sequence:string[];integrationPaths:Array<{id:string;label:string}>};
+};
+
 export type PublicGrantDossier = {
   schemaVersion: string; product: string; environment: string; generatedAt: string; boundary: string; digest: string;
   application: { oneLiner: string; problem: string; solution: string; ecosystemValue: string };
@@ -635,6 +646,7 @@ export class Current {
 
   readonly proofs = {
     campaigns: () => this.publicGet<CampaignProofExplorer>("/api/v1/campaign-proofs"),
+    reviewerDemo: () => this.publicGet<ReviewerDemo>("/api/v1/reviewer-demo"),
   };
 
   readonly quality = {

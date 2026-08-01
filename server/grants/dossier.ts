@@ -42,6 +42,8 @@ const links = {
   networkProofApi: "https://www.currentco.finance/api/v1/network-proof",
   campaignProofs: "https://www.currentco.finance/#/proof-explorer",
   campaignProofsApi: "https://www.currentco.finance/api/v1/campaign-proofs",
+  reviewerDemo: "https://www.currentco.finance/#/reviewer-demo",
+  reviewerDemoApi: "https://www.currentco.finance/api/v1/reviewer-demo",
   developers: "https://www.currentco.finance/#/developers",
   integrationManifest: "https://www.currentco.finance/api/v1/integration-manifest",
   openapi: "https://www.currentco.finance/api/v1/openapi",

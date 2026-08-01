@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "proof-explorer" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "proof-explorer" | "reviewer-demo" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -115,6 +115,16 @@ type CampaignProofState = {
   schemaVersion:string; product:string; network:string; explorerUrl:string; configured:boolean; valueStatus:string; generatedAt:string; digest:string; privacy:string;
   totals:{campaigns:number;recipients:number;confirmedClaims:number;settlementTransactions:number;activationEvents:number;identityAttestations:number;fundedCampaigns:number};
   campaigns:Array<{proofRef:string;label:string;network:string;status:string;kind:string;digest:string;asset:{symbol:string;name:string;decimals:number;contractAddress:string;verified:boolean;amountAtomic:string;claimedAmountAtomic:string};targeting:{claimMode:string;recipients:number;allocationStates:Record<string,number>};settlement:{confirmedClaims:number;remainingAtomic:string;claimTransactions:Array<{hash:string;confirmedAt:string|null}>};activation:{events:number;distinctUsers:number;eventTypes:Record<string,number>};identity:{attestations:number;consumed:number;types:Record<string,number>};referrals:{total:number;states:Record<string,number>};anchors:{merkleRoot:string|null;vaultAddress:string|null;fundingTransactionHash:string|null;refundTransactionHash:string|null;crosschainFunding:Array<Record<string,unknown>>;gatewayFunding:Array<Record<string,unknown>>};recovery:{expiresAt:string|null;refundable:boolean;refunded:boolean};timeline:{createdAt:string;startsAt:string|null;expiresAt:string|null}}>;
+};
+
+type ReviewerDemoState = {
+  schemaVersion:string;product:string;environment:string;generatedAt:string;replayId:string;mode:string;boundary:string;digest:string;privacy:string;
+  story:{headline:string;recipient:string;project:string;asset:string;amountAtomic:string;decimals:number;proofRef:string|null};
+  readiness:{stages:number;verifiedStages:number;complete:boolean};
+  stages:Array<{id:string;index:number;label:string;actor:string;status:string;explanation:string;evidence:Record<string,unknown>}>;
+  liveContext:{campaigns:number;confirmedClaims:number;fundedWallets:number;activatedUsers:number;networkDigest:string;integrationDigest:string};
+  reviewerActions:Array<{id:string;label:string;url:string|null}>;
+  developerRecipe:{package:string;sequence:string[];integrationPaths:Array<{id:string;label:string}>};
 };
 
 const securityPreview: SecurityPostureState = {
@@ -903,7 +913,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "proof-explorer", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "proof-explorer", "reviewer-demo", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -1136,6 +1146,45 @@ function CampaignProofExplorerView({go}:{go:(v:View)=>void}) {
   </div>;
 }
 
+function ReviewerDemoView({go}:{go:(v:View)=>void}) {
+  const [demo,setDemo]=useState<ReviewerDemoState|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const [activeStage,setActiveStage]=useState(-1);
+  const [running,setRunning]=useState(false);
+  const timers=useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  useEffect(()=>{let active=true;currentApi.get<ReviewerDemoState>("/reviewer-demo").then(value=>{if(active)setDemo(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"The verified replay is temporarily unavailable.")});return()=>{active=false;timers.current.forEach(clearTimeout)}},[]);
+  const replay=()=>{
+    if(!demo||running)return;
+    timers.current.forEach(clearTimeout);timers.current=[];setActiveStage(-1);setRunning(true);
+    demo.stages.forEach((_,index)=>timers.current.push(setTimeout(()=>{setActiveStage(index);if(index===demo.stages.length-1)setRunning(false)},450+index*820)));
+  };
+  const currentStage=demo?.stages[Math.max(0,activeStage)]??null;
+  const amount=demo?(Number(demo.story.amountAtomic)/10**demo.story.decimals).toLocaleString(undefined,{maximumFractionDigits:6}):"—";
+  return <div className="reviewer-demo-page">
+    <header><Brand light onClick={()=>go("home")}/><nav><button onClick={()=>go("grant-dossier")}>Grant dossier</button><button onClick={()=>go("proof-explorer")}>Campaign proofs</button></nav><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
+    <main>
+      <section className="reviewer-demo-hero"><FluidCanvas mode="network"/><div><Eyebrow light><Play/> VERIFIED PRODUCT REPLAY</Eyebrow><h1>Watch one user<br/><em>enter the current.</em></h1><p>A guided, account-free replay of Current CoFi’s complete Arc testnet loop. Every completed stage points to persisted evidence; the replay itself never changes production data.</p><div><Button tone="cyan" onClick={replay}>{running?"Replay running":"Run the verified replay"} {running?<RefreshCw className="spin"/>:<Play/>}</Button><button onClick={()=>go("proof-explorer")}>Inspect source evidence <ArrowUpRight/></button></div></div><aside><small>REPLAY ID</small><strong>{demo?.replayId??"Assembling…"}</strong><span><i/>{demo?.readiness.complete?"Complete live evidence chain":"Evidence chain loading"}</span><small>MODE</small><code>NON-MUTATING</code><p>{demo?.boundary??"Loading the public evidence boundary…"}</p></aside></section>
+      {error?<section className="reviewer-demo-error"><ShieldAlert/><div><h2>Replay unavailable</h2><p>{error}</p></div></section>:null}
+      <section className="reviewer-demo-context"><article><small>VERIFIED STAGES</small><strong>{demo?`${demo.readiness.verifiedStages}/${demo.readiness.stages}`:"—"}</strong><span>Persisted or digest-verified</span></article><article><small>LIVE CAMPAIGNS</small><strong>{demo?.liveContext.campaigns??"—"}</strong><span>Arc testnet records</span></article><article><small>CONFIRMED CLAIMS</small><strong>{demo?.liveContext.confirmedClaims??"—"}</strong><span>Not replay interactions</span></article><article><small>ACTIVATED USERS</small><strong>{demo?.liveContext.activatedUsers??"—"}</strong><span>Distinct linked records</span></article></section>
+      <section className="reviewer-demo-stage">
+        <div className="replay-stage-copy"><Eyebrow>THE CORE PRODUCT LOOP</Eyebrow><h2>{demo?.story.headline??"Loading the verified story…"}</h2><p>Press replay to follow the same evidence chain a Circle reviewer can independently inspect.</p><div className="replay-progress" aria-label="Replay progress">{(demo?.stages??Array.from({length:5},(_,index)=>({id:String(index),index:index+1,label:"Loading",actor:"",status:"",explanation:"",evidence:{}}))).map((stage,index)=><button key={stage.id} className={index<activeStage?"complete":index===activeStage?"active":""} onClick={()=>demo&&setActiveStage(index)} disabled={!demo}><span>{index<activeStage?<Check/>:String(stage.index).padStart(2,"0")}</span><div><b>{stage.label}</b><small>{stage.actor}</small></div><i/></button>)}</div></div>
+        <div className={`replay-visual ${running?"running":""} stage-${Math.max(0,activeStage)}`}>
+          <FluidCanvas mode="branches"/>
+          <div className="replay-project"><span>C</span><small>ARC PROJECT</small><b>{demo?.story.asset??"USDC"} campaign</b></div>
+          <div className="replay-current-line"><i/><i/><i/></div>
+          <div className="replay-phone"><span className="phone-sensor"/><small>{activeStage<1?"Audience member":"Current account"}</small><div className="replay-avatar">{activeStage<1?<Users/>:<Wallet/>}</div><p>{activeStage<1?"No wallet. No gas. No crypto setup.":activeStage<2?"Embedded wallet created privately.":`${amount} ${demo?.story.asset??"USDC"} received.`}</p><strong className={activeStage>=2?"visible":""}><CheckCircle2/>Funded on Arc</strong></div>
+          <div className="replay-event"><span>{currentStage?String(currentStage.index).padStart(2,"0"):"00"}</span><small>{currentStage?.status.replaceAll("-"," ")??"READY"}</small><h3>{currentStage?.label??"Run the replay"}</h3><p>{currentStage?.explanation??"The product story will advance through five independently inspectable stages."}</p></div>
+          {activeStage>=3?<div className="replay-activation"><Target/><span><b>User activated</b><small>Project-signed event attributed</small></span></div>:null}
+          {activeStage>=4?<div className="replay-seal"><Fingerprint/><span><b>Evidence sealed</b><code>{demo?.digest.slice(0,16)}…</code></span></div>:null}
+        </div>
+      </section>
+      <section className="reviewer-demo-evidence"><div><Eyebrow light>STAGE-BY-STAGE EVIDENCE</Eyebrow><h2>Nothing hidden<br/>behind the animation.</h2><p>Every visual step maps to a public anchor, privacy-safe aggregate, or canonical digest. Capability-only states remain labeled honestly.</p></div><div>{(demo?.stages??[]).map((stage,index)=><article key={stage.id}><span>{String(index+1).padStart(2,"0")}</span><div><small>{stage.status.replaceAll("-"," ")}</small><h3>{stage.label}</h3><p>{stage.explanation}</p><code>{JSON.stringify(stage.evidence)}</code></div>{stage.status==="capability-verified"?<Clock3/>:<BadgeCheck/>}</article>)}</div></section>
+      <section className="reviewer-demo-links"><div><Eyebrow>OPEN THE SOURCE</Eyebrow><h2>Verify the replay yourself.</h2><p>{demo?.privacy??"Public evidence excludes every private recipient and project identifier."}</p><code>SHA-256 · {demo?.digest??"Verifying…"}</code></div><div>{(demo?.reviewerActions??[]).map(action=>action.url?<a href={action.url} target="_blank" rel="noreferrer" key={action.id}><span><small>{action.id.replaceAll("-"," ")}</small><b>{action.label}</b></span><ArrowUpRight/></a>:<span className="unavailable" key={action.id}><span><small>{action.id.replaceAll("-"," ")}</small><b>{action.label}</b></span><Clock3/></span>)}</div></section>
+      <section className="reviewer-demo-recipe"><div><Eyebrow>BUILDER RECIPE</Eyebrow><h2>The same loop,<br/>one integration.</h2><p>Games, communities, token projects, and agents can use hosted claims, the SDK, React embeds, or signed REST calls.</p></div><pre><code>{(demo?.developerRecipe.sequence??[]).map((line,index)=><span key={line}><i>{String(index+1).padStart(2,"0")}</i>{line}</span>)}</code></pre></section>
+    </main>
+  </div>;
+}
+
 function GrantDossierView({go}:{go:(v:View)=>void}) {
   const [dossier,setDossier]=useState<GrantDossierState|null>(null);
   const [error,setError]=useState<string|null>(null);
@@ -1150,7 +1199,7 @@ function GrantDossierView({go}:{go:(v:View)=>void}) {
     <main>
       <section className="dossier-hero">
         <FluidCanvas mode="network"/>
-        <div className="dossier-hero-copy"><Eyebrow light><BadgeCheck/> CIRCLE GRANT REVIEW DOSSIER</Eyebrow><h1>Inspect the<br/><em>product,</em><br/>not the pitch.</h1><p>{dossier?.application.oneLiner??"Assembling Current CoFi’s public Arc testnet record, security boundary, and builder infrastructure."}</p><div><Button tone="cyan" onClick={()=>go("claim")}>Experience a walletless claim <ArrowRight/></Button><button onClick={copy}><Share2/>Copy reviewer URL</button></div></div>
+        <div className="dossier-hero-copy"><Eyebrow light><BadgeCheck/> CIRCLE GRANT REVIEW DOSSIER</Eyebrow><h1>Inspect the<br/><em>product,</em><br/>not the pitch.</h1><p>{dossier?.application.oneLiner??"Assembling Current CoFi’s public Arc testnet record, security boundary, and builder infrastructure."}</p><div><Button tone="cyan" onClick={()=>go("reviewer-demo")}>Run the verified product replay <Play/></Button><button onClick={copy}><Share2/>Copy reviewer URL</button></div></div>
         <aside><small>PUBLIC REVIEW BOUNDARY</small><p>{dossier?.boundary??"Loading reviewer-safe evidence…"}</p><div><span><ShieldCheck/>Aggregate proof</span><span><TestTube2/>Arc testnet</span><span><Fingerprint/>SHA-256 integrity</span></div><code>{dossier?.digest??"Verifying dossier digest…"}</code></aside>
       </section>
 
@@ -1295,7 +1344,7 @@ function Marketing({ go }: { go: (v: View) => void }) {
             <div><b>{proofNumber(proof?.totals.campaigns)}</b><span>recorded testnet campaigns</span></div>
             <div><b>0</b><span>gas required to claim</span></div>
           </div>
-          <div className="network-proof-cta" data-reveal><div><BadgeCheck/><span><b>Verified-records-only</b><small>Inspect the source rules, privacy boundary, and complete Circle reviewer dossier.</small></span></div><div className="network-proof-cta-actions"><Button tone="ghost" onClick={()=>go("grant-dossier")}>Grant dossier <BadgeCheck/></Button><Button tone="blue" onClick={()=>go("network-proof")}>Verify network proof <ArrowUpRight/></Button></div></div>
+          <div className="network-proof-cta" data-reveal><div><BadgeCheck/><span><b>Verified-records-only</b><small>Replay the product loop, inspect the source rules, or open the complete Circle reviewer dossier.</small></span></div><div className="network-proof-cta-actions"><Button tone="ghost" onClick={()=>go("reviewer-demo")}>Verified replay <Play/></Button><Button tone="ghost" onClick={()=>go("grant-dossier")}>Grant dossier <BadgeCheck/></Button><Button tone="blue" onClick={()=>go("network-proof")}>Network proof <ArrowUpRight/></Button></div></div>
         </section>
 
         <section className="story-scroll" id="product">
@@ -2983,5 +3032,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }
