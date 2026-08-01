@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { pad, type Address } from "viem";
+import { padHex, type Address } from "viem";
 import type { CurrentSession } from "../auth/session.js";
 import {
   createUserContractExecutionChallenge,
@@ -249,7 +249,7 @@ export async function prepareBridgeChallenge(
     }
     return { ...result, intent: serialize(updated) };
   }
-  const destinationBytes32 = pad(intent.destinationAddress as Address, { size: 32 });
+  const destinationBytes32 = padHex(intent.destinationAddress as Address, { size: 32 });
   const parameters = action === "approve"
     ? {
       contractAddress: intent.sourceUsdcAddress,
@@ -264,7 +264,7 @@ export async function prepareBridgeChallenge(
         intent.destinationDomain,
         destinationBytes32,
         intent.sourceUsdcAddress,
-        pad("0x", { size: 32 }),
+        padHex("0x", { size: 32 }),
         (BigInt(intent.protocolFeeAtomic) + BigInt(intent.forwardFeeAtomic)).toString(),
         2000,
         CCTP_FORWARD_HOOK,
