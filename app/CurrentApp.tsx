@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "proof-explorer" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -109,6 +109,12 @@ type NetworkProofState = {
   sources: Array<{ metric: string; record: string; rule: string }>;
   privacy: string;
   digest: string;
+};
+
+type CampaignProofState = {
+  schemaVersion:string; product:string; network:string; explorerUrl:string; configured:boolean; valueStatus:string; generatedAt:string; digest:string; privacy:string;
+  totals:{campaigns:number;recipients:number;confirmedClaims:number;settlementTransactions:number;activationEvents:number;identityAttestations:number;fundedCampaigns:number};
+  campaigns:Array<{proofRef:string;label:string;network:string;status:string;kind:string;digest:string;asset:{symbol:string;name:string;decimals:number;contractAddress:string;verified:boolean;amountAtomic:string;claimedAmountAtomic:string};targeting:{claimMode:string;recipients:number;allocationStates:Record<string,number>};settlement:{confirmedClaims:number;remainingAtomic:string;claimTransactions:Array<{hash:string;confirmedAt:string|null}>};activation:{events:number;distinctUsers:number;eventTypes:Record<string,number>};identity:{attestations:number;consumed:number;types:Record<string,number>};referrals:{total:number;states:Record<string,number>};anchors:{merkleRoot:string|null;vaultAddress:string|null;fundingTransactionHash:string|null;refundTransactionHash:string|null;crosschainFunding:Array<Record<string,unknown>>;gatewayFunding:Array<Record<string,unknown>>};recovery:{expiresAt:string|null;refundable:boolean;refunded:boolean};timeline:{createdAt:string;startsAt:string|null;expiresAt:string|null}}>;
 };
 
 const securityPreview: SecurityPostureState = {
@@ -897,7 +903,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "proof-explorer", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -1089,6 +1095,43 @@ function NetworkProofView({go}:{go:(v:View)=>void}) {
         <div className="proof-source-list">{(proof?.sources??[]).map((source,index)=><article key={source.metric}><small>0{index+1}</small><div><h3>{source.metric}</h3><code>{source.record}</code><p>{source.rule}</p></div><CheckCircle2/></article>)}</div>
         <footer><div><small>SHA-256 SNAPSHOT DIGEST</small><code>{proof?.digest??"Waiting for verified snapshot…"}</code></div><div><small>SNAPSHOT TIME</small><strong>{proof?new Date(proof.asOf).toLocaleString():"Verifying…"}</strong></div><button onClick={refresh}><RefreshCw/>Refresh proof</button><p>{proof?.privacy??"Only aggregate records are published."}</p></footer>
       </section>
+    </main>
+  </div>;
+}
+
+function CampaignProofExplorerView({go}:{go:(v:View)=>void}) {
+  const [proof,setProof]=useState<CampaignProofState|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const [selected,setSelected]=useState<string|null>(null);
+  const load=useCallback(()=>currentApi.get<CampaignProofState>("/campaign-proofs").then(value=>{setProof(value);setError(null)}).catch(reason=>setError(reason instanceof Error?reason.message:"Campaign proof is temporarily unavailable.")),[]);
+  useEffect(()=>{let active=true;currentApi.get<CampaignProofState>("/campaign-proofs").then(value=>{if(active)setProof(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Campaign proof is temporarily unavailable.")});return()=>{active=false}},[]);
+  const campaign=proof?.campaigns.find(item=>item.proofRef===selected)??proof?.campaigns[0];
+  const amount=(atomic:string|undefined,decimals=6)=>atomic===undefined?"—":(Number(atomic)/10**decimals).toLocaleString(undefined,{maximumFractionDigits:6});
+  const tx=(hash:string)=>`${proof?.explorerUrl??"https://testnet.arcscan.app"}/tx/${hash}`;
+  const anchors=campaign?[campaign.anchors.fundingTransactionHash,...campaign.settlement.claimTransactions.map(item=>item.hash),campaign.anchors.refundTransactionHash].filter((value):value is string=>Boolean(value)):[];
+  return <div className="campaign-proof-page">
+    <header><Brand light onClick={()=>go("home")}/><nav><button onClick={()=>go("grant-dossier")}>Grant dossier</button><button onClick={()=>go("network-proof")}>Network proof</button></nav><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
+    <main>
+      <section className="campaign-proof-hero"><FluidCanvas mode="branches"/><div><Eyebrow light><Fingerprint/> PUBLIC CAMPAIGN PROOF</Eyebrow><h1>Follow every<br/><em>current.</em></h1><p>Inspect campaign funding, allocation state, Arc settlement, activation, and recovery—without exposing a recipient or private project record.</p></div><aside><span><i/>{proof?.configured?"Live records connected":"Waiting for records"}</span><small>PRIVACY MODE</small><strong>One-way campaign aliases</strong><small>INTEGRITY</small><strong>Per-campaign SHA-256</strong><code>{proof?.digest.slice(0,24)??"Verifying…"}</code></aside></section>
+      {error?<section className="campaign-proof-error"><ShieldAlert/><div><h2>Proof service unavailable</h2><p>{error}</p></div><Button tone="blue" onClick={()=>void load()}>Try again <RefreshCw/></Button></section>:null}
+      <section className="campaign-proof-metrics">{[["CAMPAIGNS",proof?.totals.campaigns],["RECIPIENTS",proof?.totals.recipients],["ARC SETTLEMENTS",proof?.totals.settlementTransactions],["ACTIVATION EVENTS",proof?.totals.activationEvents],["FUNDED CAMPAIGNS",proof?.totals.fundedCampaigns]].map(([label,value])=><article key={String(label)}><small>{label}</small><strong>{value===undefined?"—":Number(value).toLocaleString()}</strong></article>)}</section>
+      <section className="campaign-proof-workbench">
+        <aside><div><Eyebrow>PROOF INDEX</Eyebrow><h2>Recorded campaigns</h2><p>Names and internal IDs are replaced with stable one-way references.</p></div>{!proof&&!error?<div className="proof-list-loading"><RefreshCw className="spin"/>Reading campaign ledger…</div>:proof?.campaigns.map(item=><button className={item.proofRef===campaign?.proofRef?"active":""} onClick={()=>setSelected(item.proofRef)} key={item.proofRef}><span><b>{item.proofRef}</b><small>{item.kind.replaceAll("-"," ")} · {item.status}</small></span><strong>{item.asset.symbol}</strong><i>{item.settlement.confirmedClaims}/{item.targeting.recipients} claims</i><ArrowRight/></button>)}</aside>
+        <div className="campaign-proof-detail">{campaign?<>
+          <div className="proof-detail-head"><div><small>ANONYMOUS PUBLIC REFERENCE</small><h2>{campaign.proofRef}</h2><p>{campaign.kind.replaceAll("-"," ")} · {campaign.targeting.claimMode}</p></div><span className={campaign.anchors.fundingTransactionHash?"funded":""}><BadgeCheck/>{campaign.anchors.fundingTransactionHash?"Funding anchored":"Record created"}</span></div>
+          <div className="proof-detail-funnel"><article><Users/><strong>{campaign.targeting.recipients.toLocaleString()}</strong><small>Targeted</small></article><article><Gift/><strong>{campaign.settlement.confirmedClaims.toLocaleString()}</strong><small>Claimed</small></article><article><Target/><strong>{campaign.activation.distinctUsers.toLocaleString()}</strong><small>Activated</small></article><article><Fingerprint/><strong>{campaign.identity.attestations.toLocaleString()}</strong><small>Attested</small></article></div>
+          <div className="proof-detail-grid">
+            <article><small>ASSET</small><h3>{campaign.asset.name} <em>{campaign.asset.symbol}</em></h3><p>{amount(campaign.asset.claimedAmountAtomic,campaign.asset.decimals)} of {amount(campaign.asset.amountAtomic,campaign.asset.decimals)} claimed</p><code>{campaign.asset.contractAddress}</code></article>
+            <article><small>RECOVERY</small><h3>{campaign.recovery.refunded?"Refund settled":campaign.recovery.refundable?"Funds recoverable":"Campaign protected"}</h3><p>{amount(campaign.settlement.remainingAtomic,campaign.asset.decimals)} {campaign.asset.symbol} remains in campaign accounting.</p><code>{campaign.recovery.expiresAt?new Date(campaign.recovery.expiresAt).toLocaleString():"No public expiry"}</code></article>
+            <article><small>ALLOCATION STATES</small><h3>{Object.values(campaign.targeting.allocationStates).reduce((a,b)=>a+b,0)} verified records</h3><div className="proof-chips">{Object.entries(campaign.targeting.allocationStates).map(([key,value])=><span key={key}>{key} · {value}</span>)}</div></article>
+            <article><small>ACTIVATION + IDENTITY</small><h3>{campaign.activation.events} activation events</h3><div className="proof-chips">{Object.entries({...campaign.activation.eventTypes,...campaign.identity.types}).map(([key,value])=><span key={key}>{key.replaceAll("_"," ")} · {value}</span>)}</div></article>
+          </div>
+          <section className="proof-anchor-ledger"><div><small>PUBLIC ARC ANCHORS</small><h3>{anchors.length} transaction proofs</h3></div>{anchors.length?anchors.map((hash,index)=><a href={tx(hash)} target="_blank" rel="noreferrer" key={`${hash}-${index}`}><span><small>{index===0?"CAMPAIGN FUNDING":"SETTLEMENT"}</small><code>{hash}</code></span><ArrowUpRight/></a>):<p>No transaction hash is recorded for this campaign yet.</p>}
+          {campaign.anchors.merkleRoot?<div className="proof-root"><span><small>MERKLE COMMITMENT</small><code>{campaign.anchors.merkleRoot}</code></span><ShieldCheck/></div>:null}</section>
+          <footer><span><small>CAMPAIGN DIGEST</small><code>{campaign.digest}</code></span><span><small>CREATED</small><b>{new Date(campaign.timeline.createdAt).toLocaleString()}</b></span></footer>
+        </>:<div className="proof-empty"><Radio/><h2>No campaign records yet</h2><p>The explorer will populate from persisted Current CoFi campaigns.</p></div>}</div>
+      </section>
+      <section className="campaign-proof-privacy"><ShieldCheck/><div><Eyebrow>PUBLIC BY DESIGN</Eyebrow><h2>Evidence without exposure.</h2><p>{proof?.privacy??"Recipient identities and private project records remain outside the public proof boundary."}</p></div><a href="/api/v1/campaign-proofs" target="_blank" rel="noreferrer">Machine-readable API <ArrowUpRight/></a></section>
     </main>
   </div>;
 }
@@ -2940,5 +2983,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

@@ -39,6 +39,24 @@ export type NetworkProof = {
   privacy: string;
 };
 
+export type CampaignProofExplorer = {
+  schemaVersion: string; product: string; network: string; explorerUrl: string; configured: boolean;
+  valueStatus: string; generatedAt: string; digest: string; privacy: string;
+  totals: { campaigns: number; recipients: number; confirmedClaims: number; settlementTransactions: number; activationEvents: number; identityAttestations: number; fundedCampaigns: number };
+  campaigns: Array<{
+    proofRef: string; label: string; status: string; kind: string; digest: string;
+    asset: { symbol: string; name: string; decimals: number; contractAddress: string; verified: boolean; amountAtomic: string; claimedAmountAtomic: string };
+    targeting: { claimMode: string; recipients: number; allocationStates: Record<string, number> };
+    settlement: { confirmedClaims: number; remainingAtomic: string; claimTransactions: Array<{ hash: string; confirmedAt: string|null }> };
+    activation: { events: number; distinctUsers: number; eventTypes: Record<string, number> };
+    identity: { attestations: number; consumed: number; types: Record<string, number> };
+    referrals: { total: number; states: Record<string, number> };
+    anchors: { merkleRoot: string|null; vaultAddress: string|null; fundingTransactionHash: string|null; refundTransactionHash: string|null; crosschainFunding: Array<Record<string, unknown>>; gatewayFunding: Array<Record<string, unknown>> };
+    recovery: { expiresAt: string|null; refundable: boolean; refunded: boolean };
+    timeline: { createdAt: string; startsAt: string|null; expiresAt: string|null };
+  }>;
+};
+
 export type PublicGrantDossier = {
   schemaVersion: string; product: string; environment: string; generatedAt: string; boundary: string; digest: string;
   application: { oneLiner: string; problem: string; solution: string; ecosystemValue: string };
@@ -613,6 +631,10 @@ export class Current {
 
   readonly dossier = {
     get: () => this.publicGet<PublicGrantDossier>("/api/v1/grant-dossier"),
+  };
+
+  readonly proofs = {
+    campaigns: () => this.publicGet<CampaignProofExplorer>("/api/v1/campaign-proofs"),
   };
 
   readonly quality = {

@@ -50,6 +50,8 @@ export default withApi((request) => ok(request, {
       "embedded-claim-components",
       "builder-integration-manifest",
       "public-network-proof",
+      "public-campaign-proof-explorer",
+      "privacy-safe-campaign-evidence",
       "verified-testnet-traction",
       "public-grant-dossier",
       "project-integration-readiness",

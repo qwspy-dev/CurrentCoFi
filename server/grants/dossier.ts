@@ -40,6 +40,8 @@ const links = {
   product: "https://www.currentco.finance",
   networkProof: "https://www.currentco.finance/#/network-proof",
   networkProofApi: "https://www.currentco.finance/api/v1/network-proof",
+  campaignProofs: "https://www.currentco.finance/#/proof-explorer",
+  campaignProofsApi: "https://www.currentco.finance/api/v1/campaign-proofs",
   developers: "https://www.currentco.finance/#/developers",
   integrationManifest: "https://www.currentco.finance/api/v1/integration-manifest",
   openapi: "https://www.currentco.finance/api/v1/openapi",
