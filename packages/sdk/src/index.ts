@@ -29,6 +29,16 @@ export type IntegrationCertificate = {
   };
 };
 
+export type NetworkProof = {
+  schemaVersion: string; product: string; network: string; configured: boolean;
+  valueStatus: string; dataMode: string; asOf: string; digest: string;
+  totals: { projects: number; campaigns: number; recipientsTargeted: number; confirmedClaims: number; fundedWallets: number; activatedUsers: number; activationEvents: number; usdcClaimedAtomic: string; projectTokenCampaigns: number };
+  rates: { claimRate: number; activationRate: number };
+  activity: Array<{ date: string; campaigns: number; claims: number; activations: number }>;
+  sources: Array<{ metric: string; record: string; rule: string }>;
+  privacy: string;
+};
+
 export type CreateDistributionInput = {
   name: string;
   tokenAddress?: string;
@@ -583,6 +593,10 @@ export class Current {
     manifest: () => this.publicGet<IntegrationManifest>("/api/v1/integration-manifest"),
     readiness: () => this.get<IntegrationReadiness>("/api/v1/developer/integration-readiness"),
     certify: () => this.signedPost<IntegrationCertificate>("/api/v1/developer/integration-certification", {}),
+  };
+
+  readonly network = {
+    proof: () => this.publicGet<NetworkProof>("/api/v1/network-proof"),
   };
 
   readonly quality = {

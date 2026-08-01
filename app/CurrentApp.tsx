@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -89,6 +89,26 @@ type SecurityPostureState = {
   fundFlows: Array<{ flow: string; custody: string; release: string }>;
   reviewPackage: { scope: string; threatModel: string; invariants: string; auditorGuide: string; disclosure: string; repository: string; commit: string | null };
   generatedAt: string;
+};
+
+type NetworkProofState = {
+  schemaVersion: string;
+  product: string;
+  network: string;
+  configured: boolean;
+  valueStatus: string;
+  dataMode: string;
+  asOf: string;
+  totals: {
+    projects: number; campaigns: number; recipientsTargeted: number; confirmedClaims: number;
+    fundedWallets: number; activatedUsers: number; activationEvents: number;
+    usdcClaimedAtomic: string; projectTokenCampaigns: number;
+  };
+  rates: { claimRate: number; activationRate: number };
+  activity: Array<{ date: string; campaigns: number; claims: number; activations: number }>;
+  sources: Array<{ metric: string; record: string; rule: string }>;
+  privacy: string;
+  digest: string;
 };
 
 const securityPreview: SecurityPostureState = {
@@ -859,7 +879,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -996,10 +1016,71 @@ function FluidCanvas({ mode = "network", className = "" }: { mode?: "network" | 
   return <canvas className={`fluid-canvas ${className}`} ref={canvasRef} aria-hidden="true"/>;
 }
 
+function useNetworkProof() {
+  const [proof,setProof]=useState<NetworkProofState|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(()=>currentApi.get<NetworkProofState>("/network-proof").then(setProof).catch(reason=>setError(reason instanceof Error?reason.message:"Network proof is temporarily unavailable.")),[]);
+  useEffect(()=>{let active=true;currentApi.get<NetworkProofState>("/network-proof").then(value=>{if(active)setProof(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Network proof is temporarily unavailable.")});return()=>{active=false}},[]);
+  return {proof,error,refresh};
+}
+
+function NetworkProofView({go}:{go:(v:View)=>void}) {
+  const {proof,error,refresh}=useNetworkProof();
+  const totals=proof?.totals;
+  const maxActivity=Math.max(1,...(proof?.activity??[]).map(day=>day.campaigns+day.claims+day.activations));
+  const number=(value:number|undefined)=>value===undefined?"—":value.toLocaleString();
+  return <div className="network-proof-page">
+    <header><Brand onClick={()=>go("home")}/><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
+    <main>
+      <section className="network-proof-hero">
+        <FluidCanvas mode="branches"/>
+        <div><Eyebrow light><BadgeCheck/> PUBLIC NETWORK PROOF</Eyebrow><h1>Every number<br/><em>has a source.</em></h1><p>Privacy-safe, database-backed Arc testnet activity. No projected traction, token valuations, or mainnet claims.</p></div>
+        <aside><span className={proof?.configured?"verified":"unconfigured"}><i/>{proof?.configured?"Live records connected":"Proof source unavailable"}</span><small>ENVIRONMENT</small><strong>{proof?.network??"Arc testnet"}</strong><small>VALUE STATUS</small><strong>{proof?.valueStatus??"Test assets have no monetary value"}</strong></aside>
+      </section>
+
+      {error?<section className="network-proof-error"><ShieldAlert/><div><h2>Proof service unavailable</h2><p>{error}</p></div><Button tone="blue" onClick={refresh}>Try again <RefreshCw/></Button></section>:null}
+
+      <section className="network-proof-totals">
+        <article><small>USDC TEST CLAIMED</small><strong>{proof?`${formatAtomic(totals?.usdcClaimedAtomic??"0")} USDC`:"—"}</strong><span>Confirmed accounting only · no monetary-value claim</span></article>
+        <article><small>CONFIRMED CLAIMS</small><strong>{number(totals?.confirmedClaims)}</strong><span>{proof?`${proof.rates.claimRate}% of ${number(totals?.recipientsTargeted)} recipients targeted`:"Verifying network records"}</span></article>
+        <article><small>FUNDED WALLETS</small><strong>{number(totals?.fundedWallets)}</strong><span>Distinct confirmed destination wallets</span></article>
+        <article><small>ACTIVATED USERS</small><strong>{number(totals?.activatedUsers)}</strong><span>{proof?`${proof.rates.activationRate}% of confirmed claimants`:"Verifying activation events"}</span></article>
+      </section>
+
+      <section className="network-proof-flow">
+        <div className="proof-flow-copy"><Eyebrow>VERIFIED FUNNEL</Eyebrow><h2>From audience<br/>to active user.</h2><p>The funnel only advances when a corresponding Current record exists. It never estimates reach from social followers or campaign budget.</p></div>
+        <div className="proof-flow-track">
+          {[
+            {label:"Recipients targeted",value:totals?.recipientsTargeted,Icon:Users},
+            {label:"Claims confirmed",value:totals?.confirmedClaims,Icon:Gift},
+            {label:"Wallets funded",value:totals?.fundedWallets,Icon:Wallet},
+            {label:"Users activated",value:totals?.activatedUsers,Icon:Target},
+          ].map(({label,value,Icon},index)=><div key={label}><span><Icon/></span><small>0{index+1}</small><strong>{number(value)}</strong><b>{label}</b></div>)}
+        </div>
+      </section>
+
+      <section className="network-proof-activity">
+        <div><Eyebrow>14-DAY RECORD</Eyebrow><h2>Activity, not projections.</h2><p>Campaign creation, confirmed claims, and activation events recorded during the latest fourteen UTC days.</p></div>
+        <div className="proof-bars" aria-label="Fourteen-day testnet activity">
+          {(proof?.activity??Array.from({length:14},(_,index)=>({date:String(index),campaigns:0,claims:0,activations:0}))).map(day=><span key={day.date} title={`${day.date}: ${day.campaigns} campaigns, ${day.claims} claims, ${day.activations} activations`}><i style={{height:`${Math.max(3,((day.campaigns+day.claims+day.activations)/maxActivity)*100)}%`}}/><small>{day.date.slice(5)||"—"}</small></span>)}
+        </div>
+      </section>
+
+      <section className="network-proof-ledger">
+        <div className="proof-ledger-head"><div><Eyebrow>SOURCE LEDGER</Eyebrow><h2>What each metric proves.</h2></div><span><ShieldCheck/> Aggregate-only output<br/><small>No identities or wallet addresses</small></span></div>
+        <div className="proof-source-list">{(proof?.sources??[]).map((source,index)=><article key={source.metric}><small>0{index+1}</small><div><h3>{source.metric}</h3><code>{source.record}</code><p>{source.rule}</p></div><CheckCircle2/></article>)}</div>
+        <footer><div><small>SHA-256 SNAPSHOT DIGEST</small><code>{proof?.digest??"Waiting for verified snapshot…"}</code></div><div><small>SNAPSHOT TIME</small><strong>{proof?new Date(proof.asOf).toLocaleString():"Verifying…"}</strong></div><button onClick={refresh}><RefreshCw/>Refresh proof</button><p>{proof?.privacy??"Only aggregate records are published."}</p></footer>
+      </section>
+    </main>
+  </div>;
+}
+
 function Marketing({ go }: { go: (v: View) => void }) {
   const root = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState(false);
   const [motionPaused, setMotionPaused] = useState(false);
+  const {proof}=useNetworkProof();
+  const proofNumber=(value:number|undefined)=>value===undefined?"—":value.toLocaleString();
 
   useLayoutEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -1070,25 +1151,23 @@ function Marketing({ go }: { go: (v: View) => void }) {
             </div>
           </div>
           <div className="hero-bottom" data-hero-rest>
-            <div><strong>8,241</strong><span>wallets funded</span></div>
-            <div><strong>18</strong><span>project currents</span></div>
-            <div><strong>63.8%</strong><span>activated users</span></div>
+            <div><strong>{proofNumber(proof?.totals.fundedWallets)}</strong><span>verified wallets funded</span></div>
+            <div><strong>{proofNumber(proof?.totals.campaigns)}</strong><span>testnet currents</span></div>
+            <div><strong>{proof?`${proof.rates.activationRate}%`:"—"}</strong><span>verified activation rate</span></div>
             <button aria-label={motionPaused ? "Play hero animation" : "Pause hero animation"} onClick={() => setMotionPaused(!motionPaused)}>{motionPaused ? <Play/> : <Pause/>}</button>
           </div>
         </section>
 
         <section className="proof-section" id="network">
-          <Eyebrow>LIVE NETWORK</Eyebrow>
-          <div className="proof-number" data-reveal><small>Assets distributed</small><strong>$128,604,218</strong></div>
+          <Eyebrow>VERIFIED ARC TESTNET</Eyebrow>
+          <div className="proof-number" data-reveal><small>Confirmed test USDC claimed · no monetary value</small><strong>{proof?`${formatAtomic(proof.totals.usdcClaimedAtomic)} USDC`:"Verifying…"}</strong></div>
           <div className="proof-grid" data-reveal>
-            <div><b>42,814</b><span>funded wallets</span></div>
-            <div><b>31,207</b><span>activated users</span></div>
-            <div><b>184</b><span>live campaigns</span></div>
+            <div><b>{proofNumber(proof?.totals.fundedWallets)}</b><span>confirmed funded wallets</span></div>
+            <div><b>{proofNumber(proof?.totals.activatedUsers)}</b><span>distinct activated users</span></div>
+            <div><b>{proofNumber(proof?.totals.campaigns)}</b><span>recorded testnet campaigns</span></div>
             <div><b>0</b><span>gas required to claim</span></div>
           </div>
-          <div className="partner-current" aria-label="Built for projects, games, communities, creators, and agents">
-            {[["T","Tidebreak"],["O","Openplay"],["N","Noma"],["K","Kairo"],["V","Vessel"],["A","Axiom"],["F","Flux"]].map(([mark,name]) => <span key={name}><i>{mark}</i>{name}</span>)}
-          </div>
+          <div className="network-proof-cta" data-reveal><div><BadgeCheck/><span><b>Verified-records-only</b><small>Inspect the source rules, privacy boundary, and SHA-256 snapshot digest.</small></span></div><Button tone="blue" onClick={()=>go("network-proof")}>Verify network proof <ArrowUpRight/></Button></div>
         </section>
 
         <section className="story-scroll" id="product">
@@ -2776,5 +2855,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }
