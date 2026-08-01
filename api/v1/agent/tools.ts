@@ -2,7 +2,7 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.5.0",
+  version: "1.6.0",
   network: "ARC-TESTNET",
   authentication: {
     type: "scoped-api-key",
@@ -96,6 +96,24 @@ export default withApi((request) => ok(request, {
       method: "GET",
       path: "/api/v1/developer/analytics",
       permission: "analytics:read",
+    },
+    {
+      name: "campaign_quality",
+      description: "Read explainable participant-risk signals, referral-review queues, and age-eligible retention cohorts without blocking claims.",
+      method: "GET",
+      path: "/api/v1/developer/quality",
+      permission: "analytics:read",
+    },
+    {
+      name: "evaluate_campaign_quality",
+      description: "Evaluate one campaign under its configured quality policy and emit auditable, explainable decisions.",
+      method: "POST",
+      path: "/api/v1/developer/quality",
+      permission: "campaigns:write",
+      input: {
+        action: "evaluate",
+        distributionId: "campaign uuid",
+      },
     },
     {
       name: "create_pilot",

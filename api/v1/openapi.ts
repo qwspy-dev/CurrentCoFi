@@ -101,6 +101,14 @@ export default withApi((request) => ok(request, {
     "/developer/funding": {
       get: { summary: "Read project CCTP routes and their source, Arc, and campaign-vault proofs" },
     },
+    "/quality": {
+      get: { summary: "Read explainable campaign-quality decisions and eligible retention cohorts" },
+      post: { summary: "Configure a quality policy or evaluate a campaign" },
+    },
+    "/developer/quality": {
+      get: { summary: "Read campaign quality and retention with a scoped API key" },
+      post: { summary: "Configure or execute explainable quality evaluation with an HMAC-signed request" },
+    },
     "/developer/gateway": {
       get: { summary: "Read project Gateway deposits, burn intents, Arc mints, and campaign-vault proofs" },
     },
@@ -146,6 +154,7 @@ export default withApi((request) => ok(request, {
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
       "grant-evidence-reports", "public-evidence-verification", "evidence-digests", "protocol-owned-liquidity", "partner-token-vaults", "partner-funded-campaigns", "liquidity-venue-registry", "adapter-bytecode-attestation", "venue-risk-policy",
       "pilot-operations", "partner-attestations", "pilot-readiness", "partner-intake-links", "encrypted-pilot-applications", "pilot-application-review", "automatic-pilot-handoff",
+      "campaign-quality-policies", "explainable-referral-risk", "manual-review-queues", "eligible-retention-cohorts",
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
       "crosschain-funding-intents", "cctp-v2-forwarding", "crosschain-settlement-proof",
       "agent-settlement-handoffs", "agent-wallet-approval", "agent-vault-funding-proof",

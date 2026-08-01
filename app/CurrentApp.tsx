@@ -440,6 +440,22 @@ type ReferralState = {
   }>;
 };
 
+type CampaignQualityState = {
+  totals: { evaluated: number; allowed: number; review: number; held: number };
+  retention: { day1: number; day7: number; day30: number; returning: number };
+  cohorts: Array<{ week: string; claimed: number; eligibleDay7: number; retainedDay7: number; day7Rate: number }>;
+  policies: Array<{
+    distributionId: string; campaignName: string; configured: boolean; reviewThreshold: number;
+    holdThreshold: number; burstWindowMinutes: number; burstReferralCount: number;
+    minimumAccountAgeMinutes: number; minimumActivationDelaySeconds: number;
+    action: "monitor" | "review" | "hold-referral-reward";
+  }>;
+  reviewQueue: Array<{
+    id: string; distributionId: string; campaignName: string; score: number; band: string;
+    decision: string; signals: Array<{ id: string; weight: number; evidence: string }>; evaluatedAt: string;
+  }>;
+};
+
 type DeveloperKeyRecord = {
   id: string;
   name: string;
@@ -1689,12 +1705,15 @@ function Recipients({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
 function Referrals({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const network=useCampaignNetwork(Boolean(auth.account));
   const [state,setState]=useState<ReferralState|null>(null);
+  const [quality,setQuality]=useState<CampaignQualityState|null>(null);
   const [campaignId,setCampaignId]=useState("");
   const [creating,setCreating]=useState(false);
+  const [qualityBusy,setQualityBusy]=useState(false);
+  const [qualityAction,setQualityAction]=useState<"monitor"|"review"|"hold-referral-reward">("review");
   const [error,setError]=useState<string|null>(null);
   const refresh=useCallback(async()=>{
     if(!auth.account)return;
-    try{setState(await currentApi.get<ReferralState>("/referrals"));setError(null)}
+    try{const [referralsResult,qualityResult]=await Promise.all([currentApi.get<ReferralState>("/referrals"),currentApi.get<CampaignQualityState>("/quality")]);setState(referralsResult);setQuality(qualityResult);setError(null)}
     catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"Referral data is unavailable.")}
   },[auth.account]);
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
@@ -1706,12 +1725,25 @@ function Referrals({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     catch(createError){setError(createError instanceof Error?createError.message:"Referral code creation failed.")}
     finally{setCreating(false)}
   };
+  const evaluateQuality=async()=>{
+    if(!selectedCampaignId)return;
+    setQualityBusy(true);setError(null);
+    try{
+      await currentApi.post("/quality",{action:"update-policy",distributionId:selectedCampaignId,reviewThreshold:45,holdThreshold:70,burstWindowMinutes:10,burstReferralCount:8,minimumAccountAgeMinutes:60,minimumActivationDelaySeconds:30,enforcementAction:qualityAction});
+      await currentApi.post("/quality",{action:"evaluate",distributionId:selectedCampaignId});
+      await refresh();
+    }catch(qualityError){setError(qualityError instanceof Error?qualityError.message:"Campaign quality evaluation failed.")}
+    finally{setQualityBusy(false)}
+  };
   const totals=state?.totals??{referrals:0,claimed:0,activated:0,activationRate:0};
   return <><PageHero eyebrow="ATTRIBUTION NETWORK" title="See which currents create active users." copy="Every referral keeps its source. Every signed activation moves credit through a measurable onchain campaign." mode="branches"/>
     {!auth.account&&<div className="campaign-empty"><Lock/><h3>Sign in to open attribution</h3><p>Referral links and campaign conversion data belong to your Current workspace.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
     {auth.account&&<><div className="referral-top"><div><small>ATTRIBUTED ACTIVATIONS</small><strong>{totals.activated.toLocaleString()}</strong><em><TrendingUp/>{totals.activationRate.toFixed(1)}% activation rate</em></div><div><small>REFERRALS CLAIMED</small><strong>{totals.claimed.toLocaleString()}</strong><span>{totals.referrals.toLocaleString()} live referral codes</span></div><div className="referral-visual"><FluidCanvas mode="branches"/><span className="ref-root">C</span>{(state?.sources.slice(0,5)??[]).map((source,i)=><span className={`ref-node r-${i}`} key={source.referrerUserId}>{source.name.slice(0,2).toUpperCase()}</span>)}</div></div>
     <div className="integration-create"><div><Eyebrow>CREATE A REFERRAL CURRENT</Eyebrow><h3>Give a campaign its own attributable path.</h3><p>Claims carrying this code remain tied to the referrer through signed project activation events.</p></div><label>Campaign<select value={selectedCampaignId} onChange={event=>setCampaignId(event.target.value)}><option value="">Choose campaign</option>{network.campaigns.map(campaign=><option value={campaign.id} key={campaign.id}>{campaign.name}</option>)}</select></label><Button tone="blue" disabled={!selectedCampaignId||creating} onClick={()=>void createCode()}>{creating?"Creating…":"Create code"} <Plus/></Button></div>
+    <div className="quality-control"><div><ShieldCheck/><span><Eyebrow>QUALITY ENGINE</Eyebrow><h3>Measure retained humans, not empty claims.</h3><p>Explainable signals flag suspicious referral rewards without blocking walletless token delivery.</p></span></div><label>Enforcement<select value={qualityAction} onChange={event=>setQualityAction(event.target.value as typeof qualityAction)}><option value="monitor">Monitor only</option><option value="review">Manual review</option><option value="hold-referral-reward">Hold referral reward</option></select></label><Button tone="cyan" disabled={!selectedCampaignId||qualityBusy} onClick={()=>void evaluateQuality()}>{qualityBusy?"Evaluating…":"Evaluate campaign"} <Radar/></Button></div>
     {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    <div className="quality-metrics"><MetricCard label="Day 1 retention" value={`${(quality?.retention.day1??0).toFixed(1)}%`} icon={Activity}/><MetricCard label="Day 7 retention" value={`${(quality?.retention.day7??0).toFixed(1)}%`} icon={TrendingUp}/><MetricCard label="Returning users" value={(quality?.retention.returning??0).toLocaleString()} icon={Users}/><MetricCard label="Needs review" value={((quality?.totals.review??0)+(quality?.totals.held??0)).toLocaleString()} icon={ShieldAlert}/></div>
+    <div className="analysis-grid quality-grid"><div className="data-panel"><div className="panel-head"><div><h3>Retention cohorts</h3><p>Day-7 return activity from verified project events</p></div><Status tone="green">Signed events</Status></div><div className="retention-cohorts">{quality?.cohorts.map(cohort=><div key={cohort.week}><span><b>{new Date(`${cohort.week}T00:00:00Z`).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</b><small>{cohort.claimed} claimed · {cohort.eligibleDay7} eligible</small></span><i><b style={{width:`${cohort.day7Rate}%`}}/></i><strong>{cohort.day7Rate.toFixed(1)}%</strong></div>)}{!quality?.cohorts.length&&<div className="campaign-empty compact"><Activity/><b>Cohorts begin after settled claims</b><p>Only users old enough for the selected window enter its denominator.</p></div>}</div></div><div className="data-panel"><div className="panel-head"><div><h3>Explainable review queue</h3><p>No opaque score—every decision includes its signals</p></div><Status tone={quality?.reviewQueue.length?"cyan":"green"}>{quality?.reviewQueue.length??0} flagged</Status></div><div className="quality-review-list">{quality?.reviewQueue.map(item=><article key={item.id}><span className={`risk-score ${item.band}`}><b>{item.score}</b><small>RISK</small></span><div><b>{item.campaignName}</b><p>{item.signals.map(signal=>signal.evidence).join(" ")}</p><small>{item.decision.replaceAll("-"," ")} · {new Date(item.evaluatedAt).toLocaleString()}</small></div></article>)}{!quality?.reviewQueue.length&&<div className="campaign-empty compact"><ShieldCheck/><b>No participants need review</b><p>Run an evaluation after referral claims arrive.</p></div>}</div></div></div>
     <div className="analysis-grid"><div className="data-panel"><div className="panel-head"><div><h3>Referral codes</h3><p>Append a code as <code>?ref=code</code> to its campaign claim link.</p></div><Status tone="green">Live data</Status></div>{state?.codes.map(code=><div className="key-row-new referral-code-row" key={code.id}><span className="key-symbol"><Link2/></span><div><b>{code.campaignName}</b><code>{code.code}</code></div><span>{code.referrerName}</span><time>{new Date(code.createdAt).toLocaleDateString()}</time><button aria-label="Copy referral code" onClick={()=>void navigator.clipboard.writeText(code.code)}><Copy/></button></div>)}{!state?.codes.length&&<div className="campaign-empty compact"><Network/><b>No referral paths yet</b><p>Create one for a funded campaign above.</p></div>}</div>
       <div className="data-panel"><div className="panel-head"><div><h3>Top referral sources</h3><p>Ranked by verified activations</p></div></div>{state?.sources.map((source,index)=><div className="leader-row" key={source.referrerUserId}><b>{index+1}</b><i>{source.name[0]?.toUpperCase()??"C"}</i><span><strong>{source.name}</strong><small>{source.code}</small></span><em>{source.activated} active</em><Status tone="green">{source.activationRate.toFixed(1)}%</Status></div>)}{!state?.sources.length&&<div className="campaign-empty compact"><Target/><b>Activation sources will appear here</b></div>}</div></div></>}</>;
 }
@@ -2319,7 +2351,7 @@ function WebhooksView({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
   const create=async()=>{
     setBusy(true);setError(null);
-    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","crosschain.funding.created","crosschain.funding.source-confirmed","crosschain.funding.arc-arrived","crosschain.funding.campaign-funded","gateway.funding.created","gateway.funding.deposited","gateway.funding.attested","gateway.funding.arc-arrived","gateway.funding.campaign-funded","agent.settlement-ready","agent.settlement-approved","agent.settled","identity.verified","claim.completed","activation.completed","referral.attributed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
+    try{const created=await currentApi.post<{secret:string}>("/developer/webhooks",{url,events:["campaign.created","campaign.funded","crosschain.funding.created","crosschain.funding.source-confirmed","crosschain.funding.arc-arrived","crosschain.funding.campaign-funded","gateway.funding.created","gateway.funding.deposited","gateway.funding.attested","gateway.funding.arc-arrived","gateway.funding.campaign-funded","agent.settlement-ready","agent.settlement-approved","agent.settled","identity.verified","claim.completed","activation.completed","referral.attributed","quality.assessed","campaign.cancelled","campaign.refunded","current.locked","fee.routed","integration.test"]});setCreatedSecret(created.secret);setUrl("");await refresh()}
     catch(createError){setError(createError instanceof Error?createError.message:"Webhook creation failed.")}
     finally{setBusy(false)}
   };

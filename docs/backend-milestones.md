@@ -16,7 +16,7 @@ Each group ends with automated checks, a Vercel production deployment, browser v
 2. **Accounts** — social/email authentication, embedded Circle wallet provisioning, recovery, profile.
 3. **Claims** — funded USDC links, Arc testnet contracts, sponsored claiming, expiration, refunds.
 4. **Project distribution** — arbitrary Arc tokens, bulk recipients, allowlists, identity-bound claims.
-5. **Growth system** — referrals, signed activation events, attribution, retention, fraud controls. Core attribution is live; advanced retention and fraud scoring remain.
+5. **Growth system** — referrals, signed activation events, attribution, eligible retention cohorts, explainable referral-risk signals, campaign policies, and review queues are live.
 6. **Developer platform** — API keys, SDK, webhooks, components, AI-agent permissions. Keys, webhooks, and agent policies are live; the SDK and embedded components are next.
 7. **$CURRENT economy** — locks, fee routing, buyback accounting, transparent public metrics.
 8. **Readiness** — external review, pilots, grant evidence, mainnet deployment controls.

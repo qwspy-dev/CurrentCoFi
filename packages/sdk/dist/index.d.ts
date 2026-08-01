@@ -450,6 +450,53 @@ export type PilotApplication = {
     createdAt: string;
     updatedAt: string;
 };
+export type CampaignQualitySnapshot = {
+    totals: {
+        evaluated: number;
+        allowed: number;
+        review: number;
+        held: number;
+    };
+    retention: {
+        day1: number;
+        day7: number;
+        day30: number;
+        returning: number;
+    };
+    cohorts: Array<{
+        week: string;
+        claimed: number;
+        eligibleDay7: number;
+        retainedDay7: number;
+        day7Rate: number;
+    }>;
+    policies: Array<{
+        distributionId: string;
+        campaignName: string;
+        configured: boolean;
+        reviewThreshold: number;
+        holdThreshold: number;
+        burstWindowMinutes: number;
+        burstReferralCount: number;
+        minimumAccountAgeMinutes: number;
+        minimumActivationDelaySeconds: number;
+        action: "monitor" | "review" | "hold-referral-reward";
+    }>;
+    reviewQueue: Array<{
+        id: string;
+        distributionId: string;
+        campaignName: string;
+        score: number;
+        band: string;
+        decision: string;
+        signals: Array<{
+            id: string;
+            weight: number;
+            evidence: string;
+        }>;
+        evaluatedAt: string;
+    }>;
+};
 export type AgentAction = {
     id: string;
     agentName: string;
@@ -560,6 +607,35 @@ export declare class Current {
     };
     readonly analytics: {
         get: () => Promise<DeveloperAnalytics>;
+    };
+    readonly quality: {
+        get: () => Promise<CampaignQualitySnapshot>;
+        evaluate: (distributionId: string) => Promise<{
+            evaluated: number;
+            allowed: number;
+            review: number;
+            held: number;
+        }>;
+        updatePolicy: (distributionId: string, input: {
+            reviewThreshold?: number;
+            holdThreshold?: number;
+            burstWindowMinutes?: number;
+            burstReferralCount?: number;
+            minimumAccountAgeMinutes?: number;
+            minimumActivationDelaySeconds?: number;
+            enforcementAction?: "monitor" | "review" | "hold-referral-reward";
+        }) => Promise<{
+            distributionId: string;
+            campaignName: string;
+            configured: boolean;
+            reviewThreshold: number;
+            holdThreshold: number;
+            burstWindowMinutes: number;
+            burstReferralCount: number;
+            minimumAccountAgeMinutes: number;
+            minimumActivationDelaySeconds: number;
+            action: "monitor" | "review" | "hold-referral-reward";
+        }>;
     };
     readonly funding: {
         list: () => Promise<{

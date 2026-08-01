@@ -11,6 +11,7 @@ export const webhookEventTypes = [
   "claim.completed",
   "activation.completed",
   "referral.attributed",
+  "quality.assessed",
   "campaign.cancelled",
   "campaign.refunded",
   "crosschain.funding.created",

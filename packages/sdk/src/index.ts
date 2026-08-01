@@ -266,6 +266,22 @@ export type PilotApplication = {
   pilotId: string | null; createdAt: string; updatedAt: string;
 };
 
+export type CampaignQualitySnapshot = {
+  totals: { evaluated: number; allowed: number; review: number; held: number };
+  retention: { day1: number; day7: number; day30: number; returning: number };
+  cohorts: Array<{ week: string; claimed: number; eligibleDay7: number; retainedDay7: number; day7Rate: number }>;
+  policies: Array<{
+    distributionId: string; campaignName: string; configured: boolean; reviewThreshold: number;
+    holdThreshold: number; burstWindowMinutes: number; burstReferralCount: number;
+    minimumAccountAgeMinutes: number; minimumActivationDelaySeconds: number;
+    action: "monitor" | "review" | "hold-referral-reward";
+  }>;
+  reviewQueue: Array<{
+    id: string; distributionId: string; campaignName: string; score: number; band: string;
+    decision: string; signals: Array<{ id: string; weight: number; evidence: string }>; evaluatedAt: string;
+  }>;
+};
+
 export type AgentAction = {
   id: string;
   agentName: string;
@@ -435,6 +451,23 @@ export class Current {
 
   readonly analytics = {
     get: () => this.get<DeveloperAnalytics>("/api/v1/developer/analytics"),
+  };
+
+  readonly quality = {
+    get: () => this.get<CampaignQualitySnapshot>("/api/v1/developer/quality"),
+    evaluate: (distributionId: string) => this.signedPost<{ evaluated: number; allowed: number; review: number; held: number }>(
+      "/api/v1/developer/quality",
+      { action: "evaluate", distributionId },
+    ),
+    updatePolicy: (distributionId: string, input: {
+      reviewThreshold?: number; holdThreshold?: number; burstWindowMinutes?: number;
+      burstReferralCount?: number; minimumAccountAgeMinutes?: number;
+      minimumActivationDelaySeconds?: number;
+      enforcementAction?: "monitor" | "review" | "hold-referral-reward";
+    }) => this.signedPost<CampaignQualitySnapshot["policies"][number]>(
+      "/api/v1/developer/quality",
+      { action: "update-policy", distributionId, ...input },
+    ),
   };
 
   readonly funding = {

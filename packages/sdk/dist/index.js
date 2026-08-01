@@ -53,6 +53,11 @@ export class Current {
     analytics = {
         get: () => this.get("/api/v1/developer/analytics"),
     };
+    quality = {
+        get: () => this.get("/api/v1/developer/quality"),
+        evaluate: (distributionId) => this.signedPost("/api/v1/developer/quality", { action: "evaluate", distributionId }),
+        updatePolicy: (distributionId, input) => this.signedPost("/api/v1/developer/quality", { action: "update-policy", distributionId, ...input }),
+    };
     funding = {
         list: () => this.get("/api/v1/developer/funding"),
     };

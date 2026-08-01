@@ -9,12 +9,14 @@ import {
   apiKeys,
   auditEvents,
   claims,
+  campaignQualityPolicies,
   crosschainFundingIntents,
   distributions,
   evidenceReports,
   gatewayFundingIntents,
   identityAttestations,
   projectMembers,
+  participantQualityAssessments,
   projects,
   referrals,
   tokens,
@@ -24,7 +26,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v12";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v13";
 
 type Criterion = {
   id: string;
@@ -133,6 +135,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     agentSettlementRows,
     crosschainFundingRows,
     gatewayFundingRows,
+    qualityPolicyRows,
+    qualityAssessmentRows,
   ] = await Promise.all([
     campaignIds.length
       ? db.select({
@@ -276,6 +280,12 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       }).from(gatewayFundingIntents)
         .where(inArray(gatewayFundingIntents.distributionId, campaignIds))
         .orderBy(desc(gatewayFundingIntents.createdAt))
+      : [],
+    campaignIds.length
+      ? db.select().from(campaignQualityPolicies).where(inArray(campaignQualityPolicies.distributionId, campaignIds))
+      : [],
+    campaignIds.length
+      ? db.select().from(participantQualityAssessments).where(inArray(participantQualityAssessments.distributionId, campaignIds))
       : [],
   ]);
 
@@ -432,6 +442,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const reviewedAgentActions = agentActionRows.filter((action) => Boolean(action.reviewedAt)).length;
   const settledAgentActions = agentSettlementRows.filter((settlement) => settlement.status === "settled").length;
   const gatewayMintedRoutes = gatewayFundingRows.filter((route) => Boolean(route.mintTransactionHash)).length;
+  const reviewedParticipants = qualityAssessmentRows.filter((row) => row.decision !== "allow").length;
   const criteria: Criterion[] = [
     {
       id: "working-product",
@@ -558,6 +569,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       passed: Boolean(config.CURRENT_RELEASE_REGISTRY_ADDRESS && config.CURRENT_GOVERNANCE_GUARDIAN_ADDRESS),
       evidence: "A public threat model, protocol invariants, privileged-role and fund-flow maps, adversarial checks, disclosure policy, and auditor handoff are published. Independent review remains pending.",
     },
+    {
+      id: "campaign-quality-controls",
+      label: "Explainable campaign quality",
+      weight: 10,
+      passed: qualityPolicyRows.length > 0,
+      evidence: `${qualityPolicyRows.length} campaign quality polic${qualityPolicyRows.length === 1 ? "y" : "ies"} and ${qualityAssessmentRows.length} persisted participant assessment${qualityAssessmentRows.length === 1 ? "" : "s"}; ${reviewedParticipants} require review.`,
+    },
   ];
   const generatedAt = new Date().toISOString();
   return {
@@ -612,6 +630,9 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       settledAgentActions,
       gatewayFundingRoutes: gatewayFundingRows.length,
       gatewayMintedRoutes,
+      qualityPolicies: qualityPolicyRows.length,
+      qualityAssessments: qualityAssessmentRows.length,
+      qualityReviewQueue: reviewedParticipants,
     },
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({

@@ -188,6 +188,44 @@ export const referrals = pgTable("referrals", {
   index("referrals_referrer_idx").on(table.referrerUserId),
 ]);
 
+export const campaignQualityPolicies = pgTable("campaign_quality_policies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  reviewThreshold: integer("review_threshold").default(45).notNull(),
+  holdThreshold: integer("hold_threshold").default(70).notNull(),
+  burstWindowMinutes: integer("burst_window_minutes").default(10).notNull(),
+  burstReferralCount: integer("burst_referral_count").default(8).notNull(),
+  minimumAccountAgeMinutes: integer("minimum_account_age_minutes").default(60).notNull(),
+  minimumActivationDelaySeconds: integer("minimum_activation_delay_seconds").default(30).notNull(),
+  action: text("action").default("review").notNull(),
+  updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("campaign_quality_policies_distribution_unique").on(table.distributionId),
+  index("campaign_quality_policies_project_idx").on(table.projectId, table.updatedAt),
+]);
+
+export const participantQualityAssessments = pgTable("participant_quality_assessments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  referralId: uuid("referral_id").references(() => referrals.id, { onDelete: "cascade" }).notNull(),
+  subjectUserId: uuid("subject_user_id").references(() => users.id, { onDelete: "set null" }),
+  score: integer("score").notNull(),
+  band: text("band").notNull(),
+  decision: text("decision").notNull(),
+  signals: jsonb("signals").$type<Array<{ id: string; weight: number; evidence: string }>>().default([]).notNull(),
+  policySnapshot: jsonb("policy_snapshot").$type<Record<string, unknown>>().default({}).notNull(),
+  evaluatedAt: timestamp("evaluated_at", { withTimezone: true }).defaultNow().notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("participant_quality_referral_unique").on(table.referralId),
+  index("participant_quality_project_decision_idx").on(table.projectId, table.decision, table.evaluatedAt),
+  index("participant_quality_distribution_idx").on(table.distributionId, table.evaluatedAt),
+]);
+
 export const activationEvents = pgTable("activation_events", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

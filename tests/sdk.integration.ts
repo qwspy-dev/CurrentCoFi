@@ -48,6 +48,30 @@ const mockFetch: typeof fetch = async (input, init) => {
       data: { totals: { campaigns: 1, recipients: 1, claims: 0, activations: 0 }, campaigns: [] },
     });
   }
+  if (String(input).endsWith("/developer/quality")) {
+    const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : null;
+    if (body?.action === "evaluate") {
+      return Response.json({ ok: true, data: { evaluated: 4, allowed: 3, review: 1, held: 0 } });
+    }
+    if (body?.action === "update-policy") {
+      return Response.json({ ok: true, data: {
+        distributionId: "dist_sdk", campaignName: "SDK proof", configured: true,
+        action: body.enforcementAction ?? "review", reviewThreshold: body.reviewThreshold ?? 45,
+        holdThreshold: 70, burstWindowMinutes: 10, burstReferralCount: 8,
+        minimumAccountAgeMinutes: 60, minimumActivationDelaySeconds: 30,
+      } });
+    }
+    return Response.json({
+      ok: true,
+      data: {
+        policies: [{ distributionId: "dist_sdk", enabled: true, action: body?.enforcementAction ?? "review", reviewThreshold: 45, holdThreshold: 70 }],
+        reviewQueue: [],
+        retention: { day1: 60, day7: 0, day30: 0, returning: 5 },
+        cohorts: [{ week: "2026-08-10", claimed: 10, eligibleDay7: 0, retainedDay7: 0, day7Rate: 0 }],
+        totals: { evaluated: 0, allowed: 3, review: 1, held: 0 },
+      },
+    });
+  }
   if (String(input).endsWith("/developer/funding")) {
     return Response.json({
       ok: true,
@@ -309,6 +333,13 @@ assert.equal(JSON.parse(String(attestationRequest?.init?.body)).identityType, "x
 
 const analytics = await current.analytics.get();
 assert.equal(analytics.totals.campaigns, 1);
+const quality = await current.quality.get();
+assert.equal(quality.retention.day1, 60);
+await current.quality.updatePolicy("dist_sdk", { enforcementAction: "hold-referral-reward", reviewThreshold: 40 });
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).enforcementAction, "hold-referral-reward");
+const evaluatedQuality = await current.quality.evaluate("dist_sdk");
+assert.equal(evaluatedQuality.evaluated, 4);
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).action, "evaluate");
 const funding = await current.funding.list();
 assert.equal(funding.catalog.destination.code, "ARC-TESTNET");
 assert.equal(funding.intents[0]?.destinationTransactionHash, "0xmint");
