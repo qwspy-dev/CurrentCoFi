@@ -39,6 +39,18 @@ export type NetworkProof = {
   privacy: string;
 };
 
+export type PublicGrantDossier = {
+  schemaVersion: string; product: string; environment: string; generatedAt: string; boundary: string; digest: string;
+  application: { oneLiner: string; problem: string; solution: string; ecosystemValue: string };
+  criteria: Array<{ id: string; label: string; statement: string; proof: readonly string[] }>;
+  architecture: Array<{ product: string; role: string }>;
+  shipped: Array<{ id: string; label: string; detail: string }>;
+  liveProof: { network: NetworkProof; release: Record<string, unknown>; security: Record<string, unknown>; integration: Record<string, unknown> };
+  externalGates: Array<{ id: string; label: string; status: string; target: string }>;
+  proposedGrantMilestones: Array<{ id: string; title: string; measurement: string }>;
+  reviewerLinks: Record<string, string>; privacy: string;
+};
+
 export type CreateDistributionInput = {
   name: string;
   tokenAddress?: string;
@@ -597,6 +609,10 @@ export class Current {
 
   readonly network = {
     proof: () => this.publicGet<NetworkProof>("/api/v1/network-proof"),
+  };
+
+  readonly dossier = {
+    get: () => this.publicGet<PublicGrantDossier>("/api/v1/grant-dossier"),
   };
 
   readonly quality = {

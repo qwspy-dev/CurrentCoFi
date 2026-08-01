@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -376,6 +376,24 @@ type GrantReviewPackage = {
   proposedMilestones: Array<{ id: string; title: string; measurement: string; dependsOn: string }>;
   honestGaps: Array<{ id: string; label: string; evidence: string }>;
   reviewerLinks: Record<string, string>;
+  privacy: string;
+};
+
+type GrantDossierState = {
+  schemaVersion: string; product: string; environment: string; generatedAt: string; boundary: string; digest: string;
+  application: { oneLiner: string; problem: string; solution: string; ecosystemValue: string };
+  criteria: Array<{ id: string; label: string; statement: string; proof: readonly string[] }>;
+  architecture: Array<{ product: string; role: string }>;
+  shipped: Array<{ id: string; label: string; detail: string }>;
+  liveProof: {
+    network: NetworkProofState;
+    release: { available: boolean; configured: boolean; readinessScore: number; active: boolean; verifiedComponents: number; componentCount: number; proofMode: string };
+    security: { internalReadinessScore: number; implementedControls: number; externalAuditStatus: string; mainnetApproved: boolean; commit: string|null };
+    integration: { digest: string; paths: number; endpoints: number; circleStack: readonly string[] };
+  };
+  externalGates: Array<{ id: string; label: string; status: string; target: string }>;
+  proposedGrantMilestones: Array<{ id: string; title: string; measurement: string }>;
+  reviewerLinks: Record<string,string>;
   privacy: string;
 };
 
@@ -879,7 +897,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -1075,6 +1093,73 @@ function NetworkProofView({go}:{go:(v:View)=>void}) {
   </div>;
 }
 
+function GrantDossierView({go}:{go:(v:View)=>void}) {
+  const [dossier,setDossier]=useState<GrantDossierState|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const load=useCallback(()=>currentApi.get<GrantDossierState>("/grant-dossier").then(setDossier).catch(reason=>setError(reason instanceof Error?reason.message:"The public dossier is temporarily unavailable.")),[]);
+  useEffect(()=>{let active=true;currentApi.get<GrantDossierState>("/grant-dossier").then(value=>{if(active)setDossier(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"The public dossier is temporarily unavailable.")});return()=>{active=false}},[]);
+  const totals=dossier?.liveProof.network.totals;
+  const save=()=>{if(!dossier)return;const url=URL.createObjectURL(new Blob([JSON.stringify(dossier,null,2)],{type:"application/json"}));const anchor=document.createElement("a");anchor.href=url;anchor.download="current-cofi-public-grant-dossier.json";anchor.click();URL.revokeObjectURL(url)};
+  const copy=()=>navigator.clipboard.writeText(location.href);
+  const compact=(value:number|undefined)=>value===undefined?"—":value.toLocaleString();
+  return <div className="dossier-page">
+    <header><Brand light onClick={()=>go("home")}/><nav><button onClick={()=>go("network-proof")}>Network proof</button><button onClick={()=>go("developers")}>Developers</button><button onClick={()=>go("security")}>Security</button></nav><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
+    <main>
+      <section className="dossier-hero">
+        <FluidCanvas mode="network"/>
+        <div className="dossier-hero-copy"><Eyebrow light><BadgeCheck/> CIRCLE GRANT REVIEW DOSSIER</Eyebrow><h1>Inspect the<br/><em>product,</em><br/>not the pitch.</h1><p>{dossier?.application.oneLiner??"Assembling Current CoFi’s public Arc testnet record, security boundary, and builder infrastructure."}</p><div><Button tone="cyan" onClick={()=>go("claim")}>Experience a walletless claim <ArrowRight/></Button><button onClick={copy}><Share2/>Copy reviewer URL</button></div></div>
+        <aside><small>PUBLIC REVIEW BOUNDARY</small><p>{dossier?.boundary??"Loading reviewer-safe evidence…"}</p><div><span><ShieldCheck/>Aggregate proof</span><span><TestTube2/>Arc testnet</span><span><Fingerprint/>SHA-256 integrity</span></div><code>{dossier?.digest??"Verifying dossier digest…"}</code></aside>
+      </section>
+
+      {error?<section className="dossier-error"><ShieldAlert/><div><h2>Dossier service unavailable</h2><p>{error}</p></div><Button tone="blue" onClick={load}>Try again <RefreshCw/></Button></section>:null}
+
+      <section className="dossier-proof-strip">
+        <article><small>RECORDED PROJECTS</small><strong>{compact(totals?.projects)}</strong><span>Persisted testnet workspaces</span></article>
+        <article><small>TESTNET CAMPAIGNS</small><strong>{compact(totals?.campaigns)}</strong><span>{compact(totals?.recipientsTargeted)} recipients targeted</span></article>
+        <article><small>CONFIRMED CLAIMS</small><strong>{compact(totals?.confirmedClaims)}</strong><span>{dossier?`${dossier.liveProof.network.rates.claimRate}% claim rate`:"Verified records only"}</span></article>
+        <article><small>ACTIVATED USERS</small><strong>{compact(totals?.activatedUsers)}</strong><span>Distinct linked users</span></article>
+        <article><small>RELEASE READINESS</small><strong>{dossier?`${dossier.liveProof.release.readinessScore}%`:"—"}</strong><span>{dossier?.liveProof.release.available?`${dossier.liveProof.release.verifiedComponents}/${dossier.liveProof.release.componentCount} components verified`:"Proof temporarily unavailable"}</span></article>
+      </section>
+
+      <section className="dossier-thesis">
+        <div className="dossier-section-title"><Eyebrow>WHY CURRENT</Eyebrow><h2>Projects have audiences.<br/>They need active users.</h2></div>
+        <div className="dossier-thesis-grid"><article><span>01</span><h3>The onboarding gap</h3><p>{dossier?.application.problem??"Loading…"}</p></article><article><span>02</span><h3>The activation current</h3><p>{dossier?.application.solution??"Loading…"}</p></article><article><span>03</span><h3>The ecosystem layer</h3><p>{dossier?.application.ecosystemValue??"Loading…"}</p></article></div>
+      </section>
+
+      <section className="dossier-criteria">
+        <div className="dossier-section-title light"><Eyebrow light>CIRCLE REVIEW MAP</Eyebrow><h2>Four criteria.<br/>Direct evidence.</h2><p>Each claim points to a public product surface or machine-readable proof instead of relying on presentation language.</p></div>
+        <div>{(dossier?.criteria??[]).map((item,index)=><article key={item.id}><span>0{index+1}</span><div><h3>{item.label}</h3><p>{item.statement}</p><footer>{item.proof.map(proof=><code key={proof}>{proof}</code>)}</footer></div><CheckCircle2/></article>)}</div>
+      </section>
+
+      <section className="dossier-architecture">
+        <div className="dossier-section-title"><Eyebrow>ARC + CIRCLE ARCHITECTURE</Eyebrow><h2>Every dependency<br/>has one necessary role.</h2></div>
+        <div className="dossier-architecture-flow">{(dossier?.architecture??[]).map((item,index)=><article key={item.product}><span>{String(index+1).padStart(2,"0")}</span><div><b>{item.product}</b><p>{item.role}</p></div>{index<(dossier?.architecture.length??0)-1?<ArrowRight/>:null}</article>)}</div>
+      </section>
+
+      <section className="dossier-shipped">
+        <div className="dossier-section-title"><Eyebrow>ALREADY SHIPPED</Eyebrow><h2>A working platform<br/>before grant funding.</h2><p>Grant capital is framed around external validation and ecosystem scale—not finishing an unbuilt prototype.</p></div>
+        <div>{(dossier?.shipped??[]).map((item,index)=><article key={item.id}><small>0{index+1}</small><span><Check/></span><h3>{item.label}</h3><p>{item.detail}</p></article>)}</div>
+      </section>
+
+      <section className="dossier-gates">
+        <div><ShieldAlert/><Eyebrow light>HONEST GAP REGISTER</Eyebrow><h2>What we cannot<br/>self-attest.</h2><p>These gates require a real partner, independent specialist, or an official external network state. They remain visibly incomplete.</p></div>
+        <div>{(dossier?.externalGates??[]).map((gate,index)=><article key={gate.id}><span>0{index+1}</span><div><small>{gate.status.replaceAll("-"," ")}</small><h3>{gate.label}</h3><p>{gate.target}</p></div><Clock3/></article>)}</div>
+      </section>
+
+      <section className="dossier-milestones">
+        <div className="dossier-section-title"><Eyebrow>MEASURABLE GRANT MILESTONES</Eyebrow><h2>Funding tied to<br/>verifiable outcomes.</h2></div>
+        <div>{(dossier?.proposedGrantMilestones??[]).map((item,index)=><article key={item.id}><span>0{index+1}</span><h3>{item.title}</h3><p>{item.measurement}</p></article>)}</div>
+      </section>
+
+      <section className="dossier-links">
+        <div><Eyebrow light>TECHNICAL REVIEW</Eyebrow><h2>Open every layer.</h2><p>{dossier?.privacy??"Reviewer-safe public records only."}</p><div><Button tone="cyan" onClick={save}>Download JSON dossier <Download/></Button><Button tone="ghost" onClick={()=>go("network-proof")}>Verify network activity <ArrowUpRight/></Button></div></div>
+        <div>{Object.entries(dossier?.reviewerLinks??{}).map(([label,url])=><a key={label} href={url} target="_blank" rel="noreferrer"><span><small>{label.replace(/([A-Z])/g," $1")}</small><b>{new URL(url).hostname}</b></span><ArrowUpRight/></a>)}</div>
+        <footer><span><small>DOSSIER DIGEST</small><code>{dossier?.digest??"Verifying…"}</code></span><span><small>GENERATED</small><b>{dossier?new Date(dossier.generatedAt).toLocaleString():"Loading…"}</b></span></footer>
+      </section>
+    </main>
+  </div>;
+}
+
 function Marketing({ go }: { go: (v: View) => void }) {
   const root = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState(false);
@@ -1167,7 +1252,7 @@ function Marketing({ go }: { go: (v: View) => void }) {
             <div><b>{proofNumber(proof?.totals.campaigns)}</b><span>recorded testnet campaigns</span></div>
             <div><b>0</b><span>gas required to claim</span></div>
           </div>
-          <div className="network-proof-cta" data-reveal><div><BadgeCheck/><span><b>Verified-records-only</b><small>Inspect the source rules, privacy boundary, and SHA-256 snapshot digest.</small></span></div><Button tone="blue" onClick={()=>go("network-proof")}>Verify network proof <ArrowUpRight/></Button></div>
+          <div className="network-proof-cta" data-reveal><div><BadgeCheck/><span><b>Verified-records-only</b><small>Inspect the source rules, privacy boundary, and complete Circle reviewer dossier.</small></span></div><div className="network-proof-cta-actions"><Button tone="ghost" onClick={()=>go("grant-dossier")}>Grant dossier <BadgeCheck/></Button><Button tone="blue" onClick={()=>go("network-proof")}>Verify network proof <ArrowUpRight/></Button></div></div>
         </section>
 
         <section className="story-scroll" id="product">
@@ -2855,5 +2940,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

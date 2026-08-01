@@ -51,6 +51,7 @@ export default withApi((request) => ok(request, {
       "builder-integration-manifest",
       "public-network-proof",
       "verified-testnet-traction",
+      "public-grant-dossier",
       "project-integration-readiness",
       "guided-builder-integration-lab",
       "signed-partner-integration-certificates",
