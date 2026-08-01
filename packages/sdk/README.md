@@ -78,6 +78,12 @@ console.log(venues.venue?.codeHashMatches, venues.venue?.maxSlippageBps);
 
 const security = await current.security.get();
 console.log(security.assurance.internalReadinessScore, security.assurance.externalAuditStatus);
+
+// Discover every supported integration path, then measure this project's
+// progress from API key creation through a digest-verified evidence report.
+const manifest = await current.integrations.manifest();
+const readiness = await current.integrations.readiness();
+console.log(manifest.digest, readiness.score, readiness.next?.label);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.

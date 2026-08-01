@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -859,7 +859,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -884,7 +884,7 @@ const appNav = [
     ["evidence", "Grant evidence", FileCheck2], ["grant", "Grant review room", BadgeCheck],
   ]},
   { label: "Protocol", items: [
-    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["operations", "Operations", Activity], ["security", "Security", ShieldCheck], ["developers", "Developers", Code2],
+    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["operations", "Operations", Activity], ["security", "Security", ShieldCheck], ["developers", "Developers", Code2], ["integration-lab", "Integration lab", Braces],
     ["agents", "AI agents", Bot],
   ]},
 ] as const;
@@ -2407,13 +2407,54 @@ X-Current-Signature: <HMAC-SHA256>
 // The attestation is single-use and wallet-bound.`,
   };
   const copy=async()=>{await navigator.clipboard.writeText(snippets[sample]);setCopied(true);window.setTimeout(()=>setCopied(false),1800)};
-  return <><PageHero eyebrow="CURRENT COFI API" title="One integration. Every activation current." copy="Create real walletless distributions, embed the claim experience, attribute post-claim actions, and let agents move value inside explicit boundaries."><div className="hero-button-row"><Button tone="cyan" onClick={()=>go("api-keys")}>Create API key <ArrowRight/></Button><Button tone="ghost" onClick={()=>document.getElementById("sdk-quickstart")?.scrollIntoView({behavior:"smooth"})}>Read quickstart <ArrowUpRight/></Button></div></PageHero>
+  return <><PageHero eyebrow="CURRENT COFI API" title="One integration. Every activation current." copy="Create real walletless distributions, embed the claim experience, attribute post-claim actions, and let agents move value inside explicit boundaries."><div className="hero-button-row"><Button tone="cyan" onClick={()=>go("integration-lab")}>Open integration lab <ArrowRight/></Button><Button tone="ghost" onClick={()=>go("api-keys")}>Create API key <KeyRound/></Button></div></PageHero>
     <div className="developer-proof"><span><i/><b>LIVE ON ARC TESTNET</b></span><p>SDK · identity verifiers · React components · HMAC requests · durable webhooks · agent manifest</p><a href="/api/v1/openapi" target="_blank" rel="noreferrer">Open API spec <ArrowUpRight/></a></div>
     <div className="developer-grid"><article><Braces/><span>SERVER SDK</span><h3>Distribution API</h3><p>Create signed USDC and project-token campaigns from a backend or launchpad.</p><code>current.distributions.create()</code></article><article><Fingerprint/><span>IDENTITY NETWORK</span><h3>Verifier adapters</h3><p>Bind X, game, ticket, or community identities to a new Arc wallet without exposing the identity onchain.</p><code>current.identities.attest()</code></article><article><Webhook/><span>EVENT DELIVERY</span><h3>Signed webhooks</h3><p>Receive campaign, identity, claim, activation, referral, refund, and delivery events.</p><code>identity.verified</code></article><article><Bot/><span>MACHINE-READABLE</span><h3>Agent tools</h3><p>Let autonomous software create distributions and report activations within scoped policies.</p><code>create_distribution</code></article><article><Layers3/><span>REACT PACKAGE</span><h3>Embeddable claims</h3><p>Put Current’s walletless reward card and referral links directly inside another app.</p><code>&lt;CurrentClaimEmbed /&gt;</code></article><article><FileCheck2/><span>GRANT EVIDENCE</span><h3>Proof API</h3><p>Freeze campaign outcomes and public Arc anchors into a digest-verified reviewer report.</p><code>current.evidence.create()</code></article></div>
     <div className="quickstart-panel" id="sdk-quickstart"><div><Eyebrow>PRODUCTION QUICKSTART</Eyebrow><h2>Create a verified activation current.</h2><ol><li><span>1</span>Install the Current server SDK</li><li><span>2</span>Create a scoped project key</li><li><span>3</span>Generate identity-bound claim links</li><li><span>4</span>Attest external identities</li><li><span>5</span>Measure real activation</li></ol><div className="code-tabs">{(["sdk","verifier","react","curl"] as const).map(tab=><button className={sample===tab?"active":""} key={tab} onClick={()=>setSample(tab)}>{tab==="sdk"?"Distribution":tab==="verifier"?"Verifier adapter":tab==="react"?"React embed":"Raw API"}</button>)}</div></div><pre><button className="code-copy" onClick={()=>void copy()}>{copied?<Check/>:<Copy/>}{copied?"Copied":"Copy"}</button><code>{snippets[sample]}</code></pre></div>
     <div className="verifier-story"><div><Eyebrow>IDENTITY WITHOUT CUSTODY</Eyebrow><h2>Bring any community identity into an Arc wallet.</h2><p>The project verifies the account it already understands—an X profile, game account, ticket, Discord member, or internal customer—and signs a short-lived attestation to the recipient’s Current wallet. Current checks the campaign allocation, API-key scope, wallet binding, expiry, and replay state before signing the onchain claim.</p></div><div className="verifier-flow"><span><b>01</b>Project OAuth or account proof<small>Identity stays with the project</small></span><i/><span><b>02</b>HMAC-signed attestation<small>Hashed identity + exact wallet</small></span><i/><span><b>03</b>Gasless Arc settlement<small>Single-use claim authorization</small></span></div></div>
     <div className="integration-lab"><div className="integration-lab-copy"><Eyebrow>EMBED LAB</Eyebrow><h2>The claim experience travels with your product.</h2><p>Games, communities, launchpads, and AI agents can embed a branded reward without rebuilding wallet creation, claim resolution, or gasless onboarding.</p><div><span><CheckCircle2/> No wallet required</span><span><CheckCircle2/> Referral attribution preserved</span><span><CheckCircle2/> Hosted fallback included</span></div><Button tone="blue" onClick={()=>go("api-keys")}>Start integrating <ArrowRight/></Button></div><div className="integration-lab-preview"><div className="embed-browser"><header><i/><i/><i/><span>play.example/rewards</span></header><main><CurrentClaimEmbed compact accent="#22e4d5" onOpen={()=>go("claim")} preview={{amount:"250",asset:"TIDE",claimable:true,expiresAt:"2026-08-14T00:00:00.000Z",message:"Complete your first match to activate this reward.",project:{name:"Tidebreak",logoUrl:null},sender:"Tidebreak community",status:"claimable"}}/></main></div></div></div>
   </>;
+}
+
+type IntegrationReadinessState={score:number;level:string;completed:number;total:number;checks:Array<{id:string;label:string;detail:string;weight:number;complete:boolean;count:number}>;next:{label:string;detail:string}|null;generatedAt:string};
+type IntegrationManifestState={digest:string;circleStack:readonly string[];endpoints:Array<{method:string;path:string;purpose:string;permission:string;signed:boolean}>;webhookEvents:readonly string[]};
+
+function BuilderIntegrationLab({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [useCase,setUseCase]=useState<"token"|"game"|"community"|"agent">("token");
+  const [mode,setMode]=useState<"sdk"|"react"|"rest"|"agent">("sdk");
+  const [manifest,setManifest]=useState<IntegrationManifestState|null>(null);
+  const [readiness,setReadiness]=useState<IntegrationReadinessState|null>(null);
+  const [copied,setCopied]=useState(false);
+  const [loading,setLoading]=useState(true);
+  const snippets={
+    sdk:`const campaign = await current.distributions.create({\n  name: "Founding current",\n  tokenAddress: process.env.PROJECT_TOKEN,\n  mode: "identity-bound",\n  recipients: audience.map(member => ({\n    identityType: "email",\n    identity: member.email,\n    amount: "25"\n  })),\n  activationEvent: "community.first_action"\n});`,
+    react:`<CurrentClaimEmbed\n  claimUrl={reward.claimUrl}\n  referralCode={member.referralCode}\n  accent="#22e4d5"\n  onOpen={() => analytics.track("claim_opened")}\n/>`,
+    rest:`POST /api/v1/developer/distributions\nAuthorization: Bearer current_live_••••\nX-Current-Timestamp: 1785600000000\nX-Current-Signature: <HMAC-SHA256>\nIdempotency-Key: launch-current-001\n\n{ "name": "Founding current", "mode": "identity-bound" }`,
+    agent:`const action = await current.agentActions.proposeDistribution({\n  idempotencyKey: "daily-community-reward",\n  name: "Daily active member reward",\n  recipients: verifiedMembers,\n  activationEvent: "community.contributed"\n});\n// High-value actions pause for human approval.`,
+  };
+  useEffect(()=>{let active=true;Promise.all([
+    currentApi.get<IntegrationManifestState>("/integration-manifest").then(value=>{if(active)setManifest(value)}),
+    auth.account?currentApi.get<IntegrationReadinessState>("/integration-readiness").then(value=>{if(active)setReadiness(value)}).catch(()=>undefined):Promise.resolve(),
+  ]).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[auth.account]);
+  const copy=async()=>{await navigator.clipboard.writeText(snippets[mode]);setCopied(true);window.setTimeout(()=>setCopied(false),1600)};
+  const cases={token:["Token project","Launch allocations + retained holders","Project token + USDC"],game:["Game studio","Player rewards + first-match activation","Game identity + wallet"],community:["Community","Contributor payouts + referrals","Social identity + attribution"],agent:["AI agent","Policy-bound machine rewards","Agent key + approval limits"]} as const;
+  const score=readiness?.score??0;
+  return <div className="builder-lab">
+    <PageHero eyebrow="BUILDER INTEGRATION LAB" title="From first API call to an activated Arc user." copy="Choose your use case, wire one secure integration path, and prove the full loop: offchain identity, embedded wallet, gasless claim, activation, attribution, and grant evidence."><div className="hero-button-row"><Button tone="cyan" onClick={()=>go("api-keys")}>{auth.account?"Continue integration":"Create project key"} <ArrowRight/></Button><a className="cofi-button tone-ghost" href="/api/v1/integration-manifest" target="_blank" rel="noreferrer">Machine manifest <Download/></a></div></PageHero>
+    <section className="lab-proof-strip"><span><Radio/> LIVE BUILDER SURFACE</span><p>Arc testnet · Circle wallets · HMAC requests · signed webhooks · grant-grade evidence</p><code>{manifest?`${manifest.digest.slice(0,10)}…${manifest.digest.slice(-8)}`:"verifying manifest…"}</code></section>
+    <section className="lab-composer">
+      <div className="lab-choices"><Eyebrow>01 · CHOOSE THE CURRENT</Eyebrow><h2>What are you activating?</h2><div className="lab-choice-grid">{(Object.keys(cases) as Array<keyof typeof cases>).map(key=><button key={key} className={useCase===key?"active":""} onClick={()=>setUseCase(key)}><span>{cases[key][0]}</span><b>{cases[key][1]}</b><small>{cases[key][2]}</small><ArrowUpRight/></button>)}</div></div>
+      <div className="lab-current-map" aria-label="Current CoFi integration architecture"><div className="current-source"><small>SOURCE</small><strong>{cases[useCase][0]}</strong><span>Audience + reward rules</span></div><div className="current-flow"><i/><i/><i/><em>Current API</em></div><div className="current-core"><span className="cofi-glyph"><i/><i/><i/></span><small>CURRENT COFI</small><strong>Identity → wallet → claim</strong><span>Gasless Arc settlement</span></div><div className="current-flow activate"><i/><i/><i/><em>Activation event</em></div><div className="current-destination"><small>OUTCOME</small><strong>Active user</strong><span>Attributed + retained</span></div></div>
+    </section>
+    <section className="lab-build-grid">
+      <div className="lab-code"><header><div><Eyebrow>02 · INTEGRATION PATH</Eyebrow><h2>Ship through your stack.</h2></div><div className="lab-mode-tabs">{(["sdk","react","rest","agent"] as const).map(value=><button className={mode===value?"active":""} onClick={()=>setMode(value)} key={value}>{value==="sdk"?"Server SDK":value==="react"?"React embed":value==="rest"?"REST / HMAC":"Agent tools"}</button>)}</div></header><pre><button onClick={()=>void copy()}>{copied?<Check/>:<Copy/>}{copied?"Copied":"Copy"}</button><code>{snippets[mode]}</code></pre><footer><span><ShieldCheck/> Server-side credentials only</span><span><RefreshCw/> Idempotent writes</span><span><Webhook/> Durable events</span></footer></div>
+      <aside className="lab-readiness"><div className="readiness-head"><div className="readiness-ring" style={{"--score":`${score*3.6}deg`} as React.CSSProperties}><span>{loading?"…":score}<small>/100</small></span></div><div><Eyebrow>PROJECT READINESS</Eyebrow><h3>{readiness?.level.replace("-"," ")??(auth.account?"Checking workspace":"Preview mode")}</h3><p>{readiness?.next?.detail??"Sign in and connect a project key to measure your real integration."}</p></div></div><div className="readiness-checks">{(readiness?.checks??[
+        {id:"key",label:"Scoped project key",detail:"",weight:10,complete:false,count:0},{id:"webhook",label:"Signed webhook",detail:"",weight:10,complete:false,count:0},{id:"campaign",label:"Walletless distribution",detail:"",weight:15,complete:false,count:0},{id:"activation",label:"Activation event",detail:"",weight:10,complete:false,count:0},{id:"evidence",label:"Grant evidence",detail:"",weight:5,complete:false,count:0},
+      ]).map(check=><div key={check.id} className={check.complete?"complete":""}><span>{check.complete?<Check/>:<i/>}</span><b>{check.label}<small>{check.complete?`${check.count} verified`:"Not yet verified"}</small></b><em>+{check.weight}</em></div>)}</div><Button tone="blue" onClick={()=>go(readiness?.next?.label.includes("webhook")?"webhooks":readiness?.next?.label.includes("evidence")?"evidence":"api-keys")}>{auth.account?"Complete next proof":"Sign in to begin"} <ArrowRight/></Button></aside>
+    </section>
+    <section className="lab-contract"><div><Eyebrow>03 · COMPLETE CONTRACT</Eyebrow><h2>Everything another builder needs—without rebuilding the financial layer.</h2><p>Current owns wallet creation, identity-bound authorization, claim settlement, recovery, attribution, and signed evidence. Your product owns the user action that matters.</p></div><div className="lab-stack">{(manifest?.circleStack??["Arc settlement","USDC","Circle embedded wallets","Gas Station","CCTP V2","Gateway"]).map((item,index)=><span key={item}><b>0{index+1}</b>{item}</span>)}</div></section>
+    <section className="lab-endpoints"><div className="panel-head"><div><Eyebrow>VERIFIABLE INTERFACE</Eyebrow><h2>Small surface. Complete loop.</h2></div><a href="/api/v1/openapi" target="_blank" rel="noreferrer">Open API specification <ArrowUpRight/></a></div>{(manifest?.endpoints??[]).map(endpoint=><div className="endpoint-row" key={endpoint.path}><span className={endpoint.method.toLowerCase()}>{endpoint.method}</span><code>{endpoint.path}</code><p>{endpoint.purpose}</p><small>{endpoint.permission}</small><em>{endpoint.signed?"HMAC signed":"Bearer scoped"}</em></div>)}</section>
+  </div>;
 }
 
 function ApiKeys({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
@@ -2687,6 +2728,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "commerce":page=<MerchantCommerce auth={auth} go={go}/>;break;
     case "subscriptions":page=<SubscriptionsDashboard auth={auth} go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
+    case "integration-lab":page=<BuilderIntegrationLab auth={auth} go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;
     case "agents":page=<Agents auth={auth} go={go}/>;break;

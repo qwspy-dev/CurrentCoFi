@@ -316,6 +316,16 @@ const mockFetch: typeof fetch = async (input, init) => {
   if (String(input).endsWith("/developer/agent-actions")) {
     return Response.json({ ok: true, data: { totals: { actions: 1, approvalRequired: 1, awaitingSettlement: 0, completed: 0, blocked: 0 }, actions: [] } });
   }
+  if (String(input).endsWith("/integration-manifest")) return Response.json({ ok: true, data: {
+    schemaVersion: "current-integration-v1", product: "Current CoFi", network: "Arc testnet",
+    message: "Turn offchain audiences into funded wallets and active token users.", publishedAt: "2026-08-01T00:00:00.000Z", digest: "manifest_sdk",
+    paths: [], circleStack: ["Arc settlement", "USDC"], endpoints: [], webhookEvents: [], security: [],
+  } });
+  if (String(input).endsWith("/developer/integration-readiness")) return Response.json({ ok: true, data: {
+    schemaVersion: "current-readiness-v1", projectId: "project_sdk", score: 65, level: "pilot-ready",
+    completed: 6, total: 10, generatedAt: "2026-08-14T00:00:00.000Z", checks: [],
+    next: { id: "claim", label: "Confirm a walletless claim", detail: "Settle on Arc", weight: 15, complete: false, count: 0 },
+  } });
   return Response.json({
     ok: false,
     error: { code: "NOT_FOUND", message: "Missing test route." },
@@ -500,6 +510,13 @@ assert.ok(requests.at(-1)?.url.endsWith("/api/v1/developer/agent-actions"));
 assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).idempotencyKey, "reward-sdk-1");
 const agentActionList = await current.agentActions.list();
 assert.equal(agentActionList.totals.approvalRequired, 1);
+
+const integrationManifest = await current.integrations.manifest();
+assert.equal(integrationManifest.digest, "manifest_sdk");
+assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), null);
+const integrationReadiness = await current.integrations.readiness();
+assert.equal(integrationReadiness.score, 65);
+assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), `Bearer ${apiKey}`);
 
 const webhookBody = JSON.stringify({ type: "claim.completed", data: { id: "claim_1" } });
 const webhookTimestamp = Date.now().toString();

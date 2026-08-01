@@ -4,6 +4,21 @@ export type CurrentRecipient = {
   amount: string;
 };
 
+export type IntegrationManifest = {
+  schemaVersion: string; product: string; network: string; message: string; publishedAt: string; digest: string;
+  paths: Array<{ id: string; label: string; bestFor: string; package?: string; spec?: string; manifest?: string }>;
+  circleStack: readonly string[];
+  endpoints: Array<{ method: string; path: string; purpose: string; permission: string; signed: boolean }>;
+  webhookEvents: readonly string[]; security: readonly string[];
+};
+
+export type IntegrationReadiness = {
+  schemaVersion: string; projectId: string; score: number; level: "foundation" | "integrating" | "pilot-ready" | "grant-ready";
+  completed: number; total: number; generatedAt: string;
+  checks: Array<{ id: string; label: string; detail: string; weight: number; complete: boolean; count: number }>;
+  next: { id: string; label: string; detail: string; weight: number; complete: boolean; count: number } | null;
+};
+
 export type CreateDistributionInput = {
   name: string;
   tokenAddress?: string;
@@ -554,6 +569,11 @@ export class Current {
     get: () => this.get<DeveloperAnalytics>("/api/v1/developer/analytics"),
   };
 
+  readonly integrations = {
+    manifest: () => this.publicGet<IntegrationManifest>("/api/v1/integration-manifest"),
+    readiness: () => this.get<IntegrationReadiness>("/api/v1/developer/integration-readiness"),
+  };
+
   readonly quality = {
     get: () => this.get<CampaignQualitySnapshot>("/api/v1/developer/quality"),
     evaluate: (distributionId: string) => this.signedPost<{ evaluated: number; allowed: number; review: number; held: number }>(
@@ -692,6 +712,11 @@ export class Current {
         authorization: `Bearer ${this.apiKey}`,
       },
     });
+    return parseResponse<T>(response);
+  }
+
+  private async publicGet<T>(path: string) {
+    const response = await this.request(`${this.baseUrl}${path}`, { headers: { accept: "application/json" } });
     return parseResponse<T>(response);
   }
 
