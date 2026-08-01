@@ -87,6 +87,22 @@ export type MerchantCommerce = {
   totals: { checkouts: number; payments: number; volume: string; refunds: number };
 };
 
+export type CreateSubscriptionPlanInput = {
+  title: string;
+  description?: string;
+  amount: string;
+  intervalDays: 7 | 30 | 90 | 365;
+  successUrl?: string;
+};
+
+export type SubscriptionWorkspace = {
+  merchant: MerchantCommerce["merchant"];
+  plans: Array<{ id: string; slug: string; title: string; description: string | null; status: string; amount: string; amountAtomic: string; currency: string; intervalDays: number; subscribeUrl: string; createdAt: string }>;
+  merchantSubscriptions: Array<{ id: string; status: string; cycleCount: number; subscriberAddress: string; currentPeriodStart: string | null; currentPeriodEnd: string | null; renewalDue: boolean; pastDue: boolean }>;
+  subscriberSubscriptions: Array<{ id: string; status: string; cycleCount: number; currentPeriodEnd: string | null }>;
+  totals: { plans: number; activeSubscriptions: number; payments: number; collected: string };
+};
+
 export type ActivationResult = {
   id?: string;
   duplicate: boolean;
@@ -489,6 +505,14 @@ export class Current {
     ),
     create: (input: CreateCheckoutInput) => this.signedPost<MerchantCommerce["checkouts"][number]>(
       "/api/v1/developer/checkout",
+      input,
+    ),
+  };
+
+  readonly subscriptions = {
+    list: () => this.get<SubscriptionWorkspace>("/api/v1/developer/subscriptions"),
+    createPlan: (input: CreateSubscriptionPlanInput) => this.signedPost<SubscriptionWorkspace["plans"][number]>(
+      "/api/v1/developer/subscriptions",
       input,
     ),
   };

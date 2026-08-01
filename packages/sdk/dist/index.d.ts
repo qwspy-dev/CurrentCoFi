@@ -141,6 +141,51 @@ export type MerchantCommerce = {
         refunds: number;
     };
 };
+export type CreateSubscriptionPlanInput = {
+    title: string;
+    description?: string;
+    amount: string;
+    intervalDays: 7 | 30 | 90 | 365;
+    successUrl?: string;
+};
+export type SubscriptionWorkspace = {
+    merchant: MerchantCommerce["merchant"];
+    plans: Array<{
+        id: string;
+        slug: string;
+        title: string;
+        description: string | null;
+        status: string;
+        amount: string;
+        amountAtomic: string;
+        currency: string;
+        intervalDays: number;
+        subscribeUrl: string;
+        createdAt: string;
+    }>;
+    merchantSubscriptions: Array<{
+        id: string;
+        status: string;
+        cycleCount: number;
+        subscriberAddress: string;
+        currentPeriodStart: string | null;
+        currentPeriodEnd: string | null;
+        renewalDue: boolean;
+        pastDue: boolean;
+    }>;
+    subscriberSubscriptions: Array<{
+        id: string;
+        status: string;
+        cycleCount: number;
+        currentPeriodEnd: string | null;
+    }>;
+    totals: {
+        plans: number;
+        activeSubscriptions: number;
+        payments: number;
+        collected: string;
+    };
+};
 export type ActivationResult = {
     id?: string;
     duplicate: boolean;
@@ -726,6 +771,22 @@ export declare class Current {
             checkoutUrl: string;
             expiresAt: string | null;
             successUrl: string | null;
+            createdAt: string;
+        }>;
+    };
+    readonly subscriptions: {
+        list: () => Promise<SubscriptionWorkspace>;
+        createPlan: (input: CreateSubscriptionPlanInput) => Promise<{
+            id: string;
+            slug: string;
+            title: string;
+            description: string | null;
+            status: string;
+            amount: string;
+            amountAtomic: string;
+            currency: string;
+            intervalDays: number;
+            subscribeUrl: string;
             createdAt: string;
         }>;
     };

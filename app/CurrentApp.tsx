@@ -5,7 +5,7 @@ import {
   Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
   Copy, Download, Eye, ExternalLink, FileCheck2, Fingerprint, Gauge, Gift,
   Globe2, Handshake, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
-  MoreHorizontal, Network, Pause, Play, Plus, Radar, Radio, RefreshCw, Search,
+  MoreHorizontal, Network, Pause, Play, Plus, Radar, Radio, RefreshCw, Repeat2, Search,
   ReceiptText, Rocket, Settings, Share2, ShieldAlert, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -470,6 +470,9 @@ type EscrowState = { configured: boolean; network: string; agreements: EscrowAgr
 type CheckoutRecord = { id:string;slug:string;title:string;description:string|null;status:string;amount:string;amountAtomic:string;currency:string;expiresAt:string|null;successUrl:string|null;checkoutUrl?:string;merchant:{id:string;name:string;slug:string;description:string|null;logoUrl:string|null;settlementAddress:string};createdAt:string };
 type CheckoutPayment = { id:string;receiptNumber:string;status:string;amount:string;currency:string;customerAddress:string;merchantAddress:string;paymentTransactionHash:string|null;refundTransactionHash:string|null;paidAt:string|null;refundedAt:string|null;checkout:{id:string;title:string;slug:string};merchant:{name:string;slug:string};createdAt:string };
 type CommerceState = { merchant:null|{id:string;displayName:string;slug:string;description:string|null;logoUrl:string|null;settlementAddress:string;status:string};checkouts:CheckoutRecord[];payments:CheckoutPayment[];totals:{checkouts:number;payments:number;volume:string;refunds:number} };
+type SubscriptionPlan = {id:string;slug:string;title:string;description:string|null;status:string;amount:string;amountAtomic:string;currency:string;intervalDays:number;successUrl:string|null;subscribeUrl?:string;merchant:{id:string;name:string;slug:string;description:string|null;settlementAddress:string};createdAt:string};
+type SubscriptionRecord = {id:string;status:string;cycleCount:number;subscriberAddress:string;merchantAddress:string;currentPeriodStart:string|null;currentPeriodEnd:string|null;renewalDue:boolean;pastDue:boolean;cancelledAt:string|null;plan:SubscriptionPlan;payments:Array<{id:string;periodNumber:number;amount:string;status:string;receiptNumber:string;transactionHash:string|null;dueAt:string;paidAt:string|null}>;createdAt:string};
+type SubscriptionWorkspace = {merchant:CommerceState["merchant"];plans:SubscriptionPlan[];merchantSubscriptions:SubscriptionRecord[];subscriberSubscriptions:SubscriptionRecord[];totals:{plans:number;activeSubscriptions:number;payments:number;collected:string}};
 const escrowPlanningEpoch = new Date().getTime();
 function futureEscrowDate(days:number){const date=new Date(escrowPlanningEpoch+days*86_400_000);date.setMinutes(date.getMinutes()-date.getTimezoneOffset());return date.toISOString().slice(0,16)}
 
@@ -825,12 +828,13 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "developers", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
   if (hash.startsWith("#state=")) return "claim";
   if (hash.startsWith("#/checkout/")) return "checkout";
+  if (hash.startsWith("#/subscribe/")) return "subscribe";
   if (!hash.startsWith("#/")) return null;
   const value = hash.slice(2) as View;
   return validViews.has(value) ? value : null;
@@ -843,6 +847,7 @@ const appNav = [
     ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
     ["escrow", "Milestone escrow", Lock],
     ["commerce", "Merchant checkout", ShoppingBag],
+    ["subscriptions", "Subscriptions", Repeat2],
     ["referrals", "Referrals", Network], ["analytics", "Analytics", BarChart3],
     ["pilots", "Pilot operations", Handshake],
     ["evidence", "Grant evidence", FileCheck2],
@@ -1142,7 +1147,7 @@ function Marketing({ go }: { go: (v: View) => void }) {
         <section className="roadmap-scene">
           <div data-reveal><Eyebrow>THE CURRENT EXPANDS</Eyebrow><h2>One distribution layer.<br/>An entire community economy.</h2></div>
           <div className="roadmap-current" data-reveal>
-            {[["Live","Token + USDC distribution"],["Live","Merchant checkout"],["Live","Milestone escrow"],["Next","Subscriptions"],["Live","Cross-chain USDC"]].map(([time,title],i)=><article key={title}><span>{i+1}</span><small>{time}</small><h3>{title}</h3></article>)}
+            {[["Live","Token + USDC distribution"],["Live","Merchant checkout"],["Live","Milestone escrow"],["Live","Subscriptions"],["Live","Cross-chain USDC"]].map(([time,title],i)=><article key={title}><span>{i+1}</span><small>{time}</small><h3>{title}</h3></article>)}
           </div>
         </section>
 
@@ -2447,6 +2452,30 @@ function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     <div className="data-panel guardrail-panel"><div className="panel-head"><div><h3>Network guardrails</h3><p>Evaluated before an agent can create any reward campaign.</p></div><Status tone="green">Enforced</Status></div><div className="guardrail-grid">{[["Signature window","5 minutes",Clock3],["Policy ledger","Immutable decisions",ShieldCheck],["Idempotency","Agent scoped",Fingerprint],["Approval route","Human controlled",Braces]].map(([x,v,I])=>{const Icon=I as typeof Gauge;return <div key={String(x)}><span><Icon/></span><b>{String(v)}</b><small>{String(x)}</small></div>})}</div></div></>}</>;
 }
 
+function intervalLabel(days:number){return days===7?"week":days===30?"month":days===90?"quarter":"year"}
+
+function HostedSubscription({auth,go}:{auth:CircleAuth;go:(view:View)=>void}) {
+  const slug=typeof location==="undefined"?"":decodeURIComponent(location.hash.replace("#/subscribe/",""));
+  const [plan,setPlan]=useState<SubscriptionPlan|null>(null);const [subscription,setSubscription]=useState<SubscriptionRecord|null>(null);const [email,setEmail]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState<string|null>(null);
+  useEffect(()=>{let active=true;currentApi.get<SubscriptionPlan>(`/subscriptions/public?slug=${encodeURIComponent(slug)}`).then(value=>{if(active)setPlan(value)}).catch(loadError=>{if(active)setError(loadError instanceof Error?loadError.message:"Plan unavailable.")});return()=>{active=false}},[slug]);
+  const remember=()=>sessionStorage.setItem("current.auth.return",location.hash);
+  const start=async()=>{if(!auth.account)return;setBusy(true);setError(null);try{const prepared=await currentApi.post<{complete:boolean;subscriptionId?:string;paymentId?:string;challengeId?:string;subscription?:SubscriptionRecord}>("/subscriptions/start",{slug});if(prepared.subscription){setSubscription(prepared.subscription);return}if(!prepared.challengeId||!prepared.subscriptionId||!prepared.paymentId)throw new Error("Wallet approval could not be prepared.");await auth.executeChallenge(prepared.challengeId);const confirmed=await confirmWalletAction("/subscriptions/start",{slug,subscriptionId:prepared.subscriptionId,paymentId:prepared.paymentId},prepared.challengeId) as WalletActionResult&{subscription?:SubscriptionRecord};if(confirmed.subscription)setSubscription(confirmed.subscription)}catch(startError){setError(startError instanceof Error?startError.message:"Subscription could not be started.")}finally{setBusy(false)}};
+  if(error&&!plan)return <div className="hosted-checkout-page"><div className="checkout-card checkout-unavailable"><X/><h1>Plan unavailable</h1><p>{error}</p><Button tone="dark" onClick={()=>go("home")}>Return to Current</Button></div></div>;
+  return <div className="hosted-checkout-page subscription-host"><header><Brand light onClick={()=>go("home")}/><span><ShieldCheck/>Explicit renewal on Arc testnet</span></header><main className="checkout-card">{!plan?<div className="checkout-loading"><RefreshCw className="spin"/><b>Reading plan…</b></div>:subscription?<div className="checkout-success"><span><Check/></span><Eyebrow>SUBSCRIPTION ACTIVE</Eyebrow><h1>You joined the current.</h1><p>Your first {plan.amount} USDC period reached {plan.merchant.name} directly.</p><div><small>NEXT RENEWAL</small><code>{subscription.currentPeriodEnd?new Date(subscription.currentPeriodEnd).toLocaleDateString():"Pending"}</code><small>PAYMENT MODEL</small><b>Explicit wallet approval each cycle</b></div><Button tone="dark" onClick={()=>go("subscriptions")}>Manage subscription <ArrowRight/></Button></div>:<><div className="checkout-merchant"><span>{plan.merchant.name.slice(0,1)}</span><div><small>MEMBERSHIP BY</small><b>{plan.merchant.name}</b></div><Status tone="cyan">Recurring</Status></div><div className="checkout-product"><Eyebrow>USDC SUBSCRIPTION</Eyebrow><h1>{plan.title}</h1><p>{plan.description||"A recurring membership settled directly on Arc."}</p><strong>{plan.amount}<small> USDC / {intervalLabel(plan.intervalDays)}</small></strong></div><div className="checkout-assurance"><span><ShieldCheck/><b>No silent charges</b><small>Approve each renewal</small></span><span><Wallet/><b>Walletless account</b><small>Circle embedded</small></span><span><ReceiptText/><b>Every cycle proven</b><small>Arc receipt</small></span></div>{!auth.account?<div className="checkout-auth"><h2>Start with an embedded wallet.</h2><p>No extension, seed phrase, or separate gas token required.</p><Button tone="blue" onClick={()=>{remember();void auth.startGoogle()}}>Continue with Google <ArrowRight/></Button><div><i/>or use email<i/></div><label>Email address<input type="email" value={email} onChange={event=>setEmail(event.target.value)} placeholder="you@example.com"/></label><Button tone="ghost" disabled={!email} onClick={()=>{remember();void auth.startEmail(email)}}>Continue with email</Button></div>:<div className="checkout-pay"><div><span>{auth.account.displayName.slice(0,1)}</span><p><small>SUBSCRIBING AS</small><b>{auth.account.displayName}</b></p><code>{auth.account.wallets.find(wallet=>wallet.blockchain==="ARC-TESTNET")?.address.slice(0,10)}…</code></div><Button tone="blue" disabled={busy} onClick={()=>void start()}>{busy?"Confirming on Arc…":`Start for ${plan.amount} USDC`} <ArrowRight/></Button><p>Current CoFi never receives the merchant’s funds and cannot renew without your wallet approval.</p></div>}{error&&<p className="auth-system-note is-error"><X/>{error}</p>}<footer><Lock/>Cancel anytime. No standing token allowance is created.</footer></>}</main></div>;
+}
+
+function SubscriptionsDashboard({auth,go}:{auth:CircleAuth;go:(view:View)=>void}) {
+  const [state,setState]=useState<SubscriptionWorkspace|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState<string|null>(null);const [copied,setCopied]=useState<string|null>(null);
+  const [title,setTitle]=useState("Current founding circle");const [description,setDescription]=useState("Recurring access, research, and community benefits.");const [amount,setAmount]=useState("15");const [intervalDays,setIntervalDays]=useState("30");
+  const refresh=useCallback(async()=>{if(!auth.account)return;try{setState(await currentApi.get<SubscriptionWorkspace>("/subscriptions"));setError(null)}catch(loadError){setError(loadError instanceof Error?loadError.message:"Subscription data is unavailable.")}},[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const create=async(event:React.FormEvent)=>{event.preventDefault();setBusy(true);try{await currentApi.post("/subscriptions",{action:"create-plan",title,description,amount,intervalDays:Number(intervalDays)});await refresh()}catch(createError){setError(createError instanceof Error?createError.message:"Plan creation failed.")}finally{setBusy(false)}};
+  const manage=async(subscription:SubscriptionRecord,action:"renew"|"cancel")=>{setBusy(true);setError(null);try{const prepared=await currentApi.post<{complete:boolean;paymentId?:string;challengeId?:string;subscription?:SubscriptionRecord}>("/subscriptions/actions",{action,subscriptionId:subscription.id});if(action==="renew"&&!prepared.complete&&prepared.challengeId&&prepared.paymentId){await auth.executeChallenge(prepared.challengeId);await confirmWalletAction("/subscriptions/actions",{action,subscriptionId:subscription.id,paymentId:prepared.paymentId},prepared.challengeId)}await refresh()}catch(actionError){setError(actionError instanceof Error?actionError.message:"Subscription action failed.")}finally{setBusy(false)}};
+  const copy=async(plan:SubscriptionPlan)=>{if(!plan.subscribeUrl)return;await navigator.clipboard.writeText(plan.subscribeUrl);setCopied(plan.id);window.setTimeout(()=>setCopied(null),1800)};
+  if(!auth.account)return <><PageHero eyebrow="RECURRING COMMERCE" title="Turn one claim into a lasting relationship." copy="Publish recurring USDC plans, onboard without wallets, and prove every explicitly approved renewal on Arc."/><div className="campaign-empty"><Repeat2/><h3>Connect your Current account</h3><p>Subscribers and merchants manage every recurring relationship from the same embedded wallet.</p><Button tone="blue" onClick={()=>go("claim")}>Sign in to continue <ArrowRight/></Button></div></>;
+  return <><PageHero eyebrow="USDC SUBSCRIPTIONS" title="Recurring value, without hidden pulls." copy="Current schedules every period, reminds the subscriber, and settles each explicitly approved renewal directly to the merchant wallet."/><div className="commerce-metrics subscription-metrics"><MetricCard label="Plans" value={String(state?.totals.plans??0)} icon={Repeat2}/><MetricCard label="Active subscribers" value={String(state?.totals.activeSubscriptions??0)} icon={Users}/><MetricCard label="Confirmed cycles" value={String(state?.totals.payments??0)} icon={CheckCircle2}/><MetricCard label="Collected" value={`${state?.totals.collected??"0"} USDC`} icon={CircleDollarSign}/></div>{!state?.merchant?<div className="campaign-empty"><ShoppingBag/><h3>Open a merchant profile first</h3><p>Your Arc settlement wallet anchors checkout and subscription payments.</p><Button tone="blue" onClick={()=>go("commerce")}>Set up merchant profile <ArrowRight/></Button></div>:<><div className="subscription-grid"><form className="data-panel subscription-builder" onSubmit={event=>void create(event)}><div className="panel-head"><div><h3>Publish a plan</h3><p>Fixed-price USDC with explicit renewal approval.</p></div><Repeat2/></div><label>Plan name<input value={title} onChange={event=>setTitle(event.target.value)} maxLength={100}/></label><label>Description<textarea value={description} onChange={event=>setDescription(event.target.value)} maxLength={500}/></label><div className="subscription-fields"><label>Price in USDC<input inputMode="decimal" value={amount} onChange={event=>setAmount(event.target.value)}/></label><label>Billing interval<select value={intervalDays} onChange={event=>setIntervalDays(event.target.value)}><option value="7">Weekly</option><option value="30">Monthly</option><option value="90">Quarterly</option><option value="365">Yearly</option></select></label></div><div className="subscription-safety"><ShieldCheck/><span><b>Mandate-free recurring payments</b><small>The subscriber approves the exact transfer each cycle. Current never receives custody or creates a standing allowance.</small></span></div><Button tone="blue" type="submit" disabled={busy||!title||!amount}>Publish subscription <ArrowRight/></Button></form><div className="data-panel subscription-plan-list"><div className="panel-head"><div><h3>Live plans</h3><p>Shareable walletless membership links.</p></div><Status tone="green">{state.plans.filter(plan=>plan.status==="active").length} active</Status></div>{state.plans.map(plan=><article key={plan.id}><span><Repeat2/></span><div><b>{plan.title}</b><small>{plan.amount} USDC / {intervalLabel(plan.intervalDays)}</small></div><Status tone={plan.status==="active"?"green":"grey"}>{plan.status}</Status><button onClick={()=>void copy(plan)}>{copied===plan.id?<Check/>:<Copy/>}{copied===plan.id?"Copied":"Copy"}</button><a href={`#/subscribe/${plan.slug}`} target="_blank" rel="noreferrer"><ExternalLink/></a></article>)}{!state.plans.length&&<div className="campaign-empty compact"><Repeat2/><b>No subscription plans yet</b><p>Publish the first recurring current.</p></div>}</div></div><div className="data-panel subscriber-ledger"><div className="panel-head"><div><h3>Subscriber ledger</h3><p>Active periods, renewal readiness, and confirmed cycles.</p></div><Users/></div><div className="subscription-table"><div><span>Plan</span><span>Subscriber</span><span>Cycles</span><span>Period ends</span><span>Status</span></div>{state.merchantSubscriptions.map(subscription=><div key={subscription.id}><b>{subscription.plan.title}</b><code>{subscription.subscriberAddress.slice(0,8)}…{subscription.subscriberAddress.slice(-5)}</code><span>{subscription.cycleCount}</span><span>{subscription.currentPeriodEnd?new Date(subscription.currentPeriodEnd).toLocaleDateString():"Awaiting payment"}</span><Status tone={subscription.pastDue?"red":subscription.status==="active"?"green":"grey"}>{subscription.pastDue?"renewal due":subscription.status}</Status></div>)}{!state.merchantSubscriptions.length&&<div className="campaign-empty compact"><Users/><b>No subscribers yet</b><p>Confirmed memberships will appear here.</p></div>}</div></div><div className="data-panel my-subscriptions"><div className="panel-head"><div><h3>My subscriptions</h3><p>Renew or cancel from the wallet that enrolled.</p></div><Wallet/></div>{state.subscriberSubscriptions.map(subscription=><article key={subscription.id}><span><b>{subscription.plan.title}</b><small>{subscription.plan.merchant.name} · {subscription.plan.amount} USDC / {intervalLabel(subscription.plan.intervalDays)}</small></span><span><small>CURRENT PERIOD</small><b>{subscription.currentPeriodEnd?new Date(subscription.currentPeriodEnd).toLocaleDateString():"Awaiting confirmation"}</b></span><Status tone={subscription.status==="active"?"green":"grey"}>{subscription.status}</Status><div>{subscription.renewalDue&&<Button tone="blue" disabled={busy} onClick={()=>void manage(subscription,"renew")}>Renew now</Button>}{subscription.status==="active"&&<button disabled={busy} onClick={()=>void manage(subscription,"cancel")}>Cancel</button>}</div></article>)}{!state.subscriberSubscriptions.length&&<div className="campaign-empty compact"><Wallet/><b>No personal subscriptions</b><p>Plans you join will remain manageable here.</p></div>}</div></>}{error&&<p className="auth-system-note is-error"><X/>{error}</p>}</>;
+}
+
 /* eslint-disable react-hooks/purity, @next/next/no-img-element */
 function HostedCheckout({auth,go}:{auth:CircleAuth;go:(view:View)=>void}) {
   const slug=typeof location==="undefined"?"":decodeURIComponent(location.hash.replace("#/checkout/",""));
@@ -2568,6 +2597,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "security":page=<SecurityDashboard go={go}/>;break;
     case "escrow":page=<MilestoneEscrow auth={auth} go={go}/>;break;
     case "commerce":page=<MerchantCommerce auth={auth} go={go}/>;break;
+    case "subscriptions":page=<SubscriptionsDashboard auth={auth} go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;
@@ -2590,7 +2620,7 @@ export default function CurrentApp() {
     if (!location.hash.startsWith("#state=")) return;
     if (!["verifying","creating-wallet","authenticated","error"].includes(auth.state)) return;
     const returnHash=sessionStorage.getItem("current.auth.return");
-    if(auth.state==="authenticated"&&returnHash?.startsWith("#/checkout/")){sessionStorage.removeItem("current.auth.return");history.replaceState(null,"",`${location.pathname}${location.search}${returnHash}`);const task=window.setTimeout(()=>setView("checkout"),0);return()=>window.clearTimeout(task)}
+    if(auth.state==="authenticated"&&(returnHash?.startsWith("#/checkout/")||returnHash?.startsWith("#/subscribe/"))){sessionStorage.removeItem("current.auth.return");history.replaceState(null,"",`${location.pathname}${location.search}${returnHash}`);const task=window.setTimeout(()=>setView(returnHash.startsWith("#/subscribe/")?"subscribe":"checkout"),0);return()=>window.clearTimeout(task)}
     history.replaceState(null, "", `${location.pathname}${location.search}#/claim`);
   },[auth.state]);
   const go=(next:View)=>{
@@ -2598,5 +2628,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

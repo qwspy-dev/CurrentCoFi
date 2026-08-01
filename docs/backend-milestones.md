@@ -20,4 +20,4 @@ Each group ends with automated checks, a Vercel production deployment, browser v
 6. **Developer platform** — API keys, SDK, webhooks, components, AI-agent permissions. Keys, webhooks, and agent policies are live; the SDK and embedded components are next.
 7. **$CURRENT economy** — locks, fee routing, buyback accounting, transparent public metrics.
 8. **Readiness** — external review, pilots, grant evidence, mainnet deployment controls.
-9. **Expansion** — subscriptions. Merchant checkout, milestone escrow, and cross-chain USDC funding are implemented on Arc testnet.
+9. **Expansion** — merchant checkout, milestone escrow, recurring USDC subscriptions, and cross-chain USDC funding are implemented on Arc testnet.

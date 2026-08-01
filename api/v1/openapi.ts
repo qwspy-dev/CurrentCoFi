@@ -53,6 +53,13 @@ export default withApi((request) => ok(request, {
     "/checkout/pay": { post: { summary: "Prepare or confirm an exact USDC transfer from a Current wallet to the merchant" } },
     "/checkout/refund": { post: { summary: "Prepare or confirm a refund from the merchant settlement wallet" } },
     "/checkout/receipt": { get: { summary: "Verify a confirmed or refunded Arc checkout receipt" } },
+    "/subscriptions": {
+      get: { summary: "Read merchant plans, subscriber relationships, renewal readiness, and confirmed recurring volume" },
+      post: { summary: "Publish or pause a fixed-price recurring USDC plan" },
+    },
+    "/subscriptions/public": { get: { summary: "Resolve a public walletless USDC subscription plan" } },
+    "/subscriptions/start": { post: { summary: "Prepare or confirm the first explicitly approved subscription payment" } },
+    "/subscriptions/actions": { post: { summary: "Explicitly approve a due renewal or cancel a subscription" } },
     "/funding": {
       get: { summary: "List CCTP V2 funding routes and their source, Arc, and vault proofs" },
       post: { summary: "Create, authorize, bridge, synchronize, or settle a crosschain USDC funding route" },
@@ -104,6 +111,10 @@ export default withApi((request) => ok(request, {
     "/developer/checkout": {
       get: { summary: "Read merchant checkout analytics with a scoped API key" },
       post: { summary: "Create a merchant profile or hosted checkout with an HMAC-signed request" },
+    },
+    "/developer/subscriptions": {
+      get: { summary: "Read subscription plans, subscribers, cycles, and recurring volume with a scoped API key" },
+      post: { summary: "Publish a recurring USDC plan with an HMAC-signed request" },
     },
     "/developer/agent-actions": {
       get: { summary: "List auditable policy decisions made for a scoped agent" },
@@ -167,7 +178,7 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "project-access-tiers", "buyback-governance",

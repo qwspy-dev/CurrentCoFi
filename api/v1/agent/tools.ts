@@ -2,7 +2,7 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.8.0",
+  version: "1.9.0",
   network: "ARC-TESTNET",
   authentication: {
     type: "scoped-api-key",
@@ -11,6 +11,21 @@ export default withApi((request) => ok(request, {
     signatureHeader: "x-current-signature",
   },
   tools: [
+    {
+      name: "create_usdc_subscription_plan",
+      description: "Publish a walletless recurring USDC plan with explicit subscriber approval for every Arc settlement cycle.",
+      method: "POST",
+      path: "/api/v1/developer/subscriptions",
+      permission: "campaigns:write",
+      input: { title: "plan title", description: "optional description", amount: "decimal USDC amount", intervalDays: "7 | 30 | 90 | 365", successUrl: "optional http or https redirect" },
+    },
+    {
+      name: "read_usdc_subscription_activity",
+      description: "Read plans, subscriber periods, renewal readiness, confirmed cycles, and recurring USDC volume.",
+      method: "GET",
+      path: "/api/v1/developer/subscriptions",
+      permission: "analytics:read",
+    },
     {
       name: "create_usdc_checkout",
       description: "Publish a fixed-price hosted USDC checkout that onboards walletless customers and settles directly to the merchant's Arc wallet.",

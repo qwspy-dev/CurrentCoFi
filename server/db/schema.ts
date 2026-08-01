@@ -232,6 +232,63 @@ export const checkoutPayments = pgTable("checkout_payments", {
   index("checkout_payments_customer_idx").on(table.customerUserId, table.createdAt),
 ]);
 
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  merchantId: uuid("merchant_id").references(() => merchantAccounts.id, { onDelete: "cascade" }).notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  slug: text("slug").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  currency: text("currency").default("USDC").notNull(),
+  intervalDays: integer("interval_days").notNull(),
+  status: text("status").default("active").notNull(),
+  successUrl: text("success_url"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("subscription_plans_slug_unique").on(table.slug),
+  index("subscription_plans_merchant_status_idx").on(table.merchantId, table.status, table.createdAt),
+]);
+
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  planId: uuid("plan_id").references(() => subscriptionPlans.id, { onDelete: "restrict" }).notNull(),
+  subscriberUserId: uuid("subscriber_user_id").references(() => users.id, { onDelete: "set null" }),
+  subscriberWalletId: text("subscriber_wallet_id"),
+  subscriberAddress: text("subscriber_address").notNull(),
+  merchantAddress: text("merchant_address").notNull(),
+  status: text("status").default("authorizing").notNull(),
+  cycleCount: integer("cycle_count").default(0).notNull(),
+  currentPeriodStart: timestamp("current_period_start", { withTimezone: true }),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("subscriptions_plan_subscriber_unique").on(table.planId, table.subscriberAddress),
+  index("subscriptions_plan_status_idx").on(table.planId, table.status, table.createdAt),
+  index("subscriptions_subscriber_idx").on(table.subscriberUserId, table.createdAt),
+]);
+
+export const subscriptionPayments = pgTable("subscription_payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  subscriptionId: uuid("subscription_id").references(() => subscriptions.id, { onDelete: "restrict" }).notNull(),
+  periodNumber: integer("period_number").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  status: text("status").default("created").notNull(),
+  challengeId: text("challenge_id"),
+  transactionHash: text("transaction_hash"),
+  receiptNumber: text("receipt_number").notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("subscription_payments_subscription_period_unique").on(table.subscriptionId, table.periodNumber),
+  uniqueIndex("subscription_payments_receipt_unique").on(table.receiptNumber),
+  index("subscription_payments_status_due_idx").on(table.status, table.dueAt),
+]);
+
 export const allocations = pgTable("allocations", {
   id: uuid("id").primaryKey().defaultRandom(),
   distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
