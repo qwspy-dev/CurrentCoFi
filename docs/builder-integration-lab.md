@@ -22,6 +22,12 @@ The score only awards credit for recorded proof:
 
 No check can be manually marked complete in the interface. The database and Arc-linked workflow remain the source of truth.
 
+## Portable certification
+
+The signed-in workspace or an HMAC-authorized server can issue a 30-day integration certificate. The payload contains a one-way project reference, project name, conformance score, completed checks, issuance and expiry timestamps, and the exact public integration-manifest digest. It excludes recipient identities, contact details, API credentials, and private campaign records.
+
+Public verification recomputes the signature, checks expiry, and compares the embedded manifest digest with the live integration contract. An altered payload is rejected. Certificates below 65 points are explicitly marked as progress proofs; 65 points earns `integration-verified`, and 90 points earns `grant-ready`.
+
 ## Integration paths
 
 - `@currentcofi/sdk` for trusted servers;

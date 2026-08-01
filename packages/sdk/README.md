@@ -84,6 +84,10 @@ console.log(security.assurance.internalReadinessScore, security.assurance.extern
 const manifest = await current.integrations.manifest();
 const readiness = await current.integrations.readiness();
 console.log(manifest.digest, readiness.score, readiness.next?.label);
+
+// Freeze the current project conformance state into a signed, 30-day proof.
+const certification = await current.integrations.certify();
+console.log(certification.certificate.status, certification.publicUrl);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.

@@ -19,6 +19,16 @@ export type IntegrationReadiness = {
   next: { id: string; label: string; detail: string; weight: number; complete: boolean; count: number } | null;
 };
 
+export type IntegrationCertificate = {
+  token: string; digest: string; publicUrl: string;
+  certificate: {
+    schemaVersion: string; subject: { projectRef: string; projectName: string };
+    issuer: { name: string; network: string }; status: "progress" | "integration-verified" | "grant-ready";
+    score: number; completed: number; total: number; manifestDigest: string; issuedAt: string; expiresAt: string;
+    checks: Array<{ id: string; label: string; weight: number; count: number; complete: boolean }>;
+  };
+};
+
 export type CreateDistributionInput = {
   name: string;
   tokenAddress?: string;
@@ -572,6 +582,7 @@ export class Current {
   readonly integrations = {
     manifest: () => this.publicGet<IntegrationManifest>("/api/v1/integration-manifest"),
     readiness: () => this.get<IntegrationReadiness>("/api/v1/developer/integration-readiness"),
+    certify: () => this.signedPost<IntegrationCertificate>("/api/v1/developer/integration-certification", {}),
   };
 
   readonly quality = {

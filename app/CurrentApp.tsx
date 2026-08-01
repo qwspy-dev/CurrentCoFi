@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -859,7 +859,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -2418,6 +2418,8 @@ X-Current-Signature: <HMAC-SHA256>
 
 type IntegrationReadinessState={score:number;level:string;completed:number;total:number;checks:Array<{id:string;label:string;detail:string;weight:number;complete:boolean;count:number}>;next:{label:string;detail:string}|null;generatedAt:string};
 type IntegrationManifestState={digest:string;circleStack:readonly string[];endpoints:Array<{method:string;path:string;purpose:string;permission:string;signed:boolean}>;webhookEvents:readonly string[]};
+type IntegrationCertificateState={token:string;digest:string;publicUrl:string;certificate:{schemaVersion:string;subject:{projectRef:string;projectName:string};issuer:{name:string;network:string};status:"progress"|"integration-verified"|"grant-ready";score:number;completed:number;total:number;manifestDigest:string;issuedAt:string;expiresAt:string;checks:Array<{id:string;label:string;weight:number;count:number;complete:boolean}>}};
+type VerifiedCertificateState={certificate:IntegrationCertificateState["certificate"];digest:string;verification:{signatureValid:boolean;expired:boolean;manifestCurrent:boolean;verifiedAt:string}};
 
 function BuilderIntegrationLab({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const [useCase,setUseCase]=useState<"token"|"game"|"community"|"agent">("token");
@@ -2426,6 +2428,9 @@ function BuilderIntegrationLab({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const [readiness,setReadiness]=useState<IntegrationReadinessState|null>(null);
   const [copied,setCopied]=useState(false);
   const [loading,setLoading]=useState(true);
+  const [certificate,setCertificate]=useState<IntegrationCertificateState|null>(null);
+  const [certifying,setCertifying]=useState(false);
+  const [certificateError,setCertificateError]=useState<string|null>(null);
   const snippets={
     sdk:`const campaign = await current.distributions.create({\n  name: "Founding current",\n  tokenAddress: process.env.PROJECT_TOKEN,\n  mode: "identity-bound",\n  recipients: audience.map(member => ({\n    identityType: "email",\n    identity: member.email,\n    amount: "25"\n  })),\n  activationEvent: "community.first_action"\n});`,
     react:`<CurrentClaimEmbed\n  claimUrl={reward.claimUrl}\n  referralCode={member.referralCode}\n  accent="#22e4d5"\n  onOpen={() => analytics.track("claim_opened")}\n/>`,
@@ -2437,6 +2442,8 @@ function BuilderIntegrationLab({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     auth.account?currentApi.get<IntegrationReadinessState>("/integration-readiness").then(value=>{if(active)setReadiness(value)}).catch(()=>undefined):Promise.resolve(),
   ]).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[auth.account]);
   const copy=async()=>{await navigator.clipboard.writeText(snippets[mode]);setCopied(true);window.setTimeout(()=>setCopied(false),1600)};
+  const certify=async()=>{if(!auth.account){go("claim");return}setCertifying(true);setCertificateError(null);try{setCertificate(await currentApi.post<IntegrationCertificateState>("/integration-certification",{}))}catch(error){setCertificateError(error instanceof Error?error.message:"The certificate could not be issued.")}finally{setCertifying(false)}};
+  const shareCertificate=async()=>{if(!certificate)return;await navigator.clipboard.writeText(certificate.publicUrl);setCopied(true);window.setTimeout(()=>setCopied(false),1600)};
   const cases={token:["Token project","Launch allocations + retained holders","Project token + USDC"],game:["Game studio","Player rewards + first-match activation","Game identity + wallet"],community:["Community","Contributor payouts + referrals","Social identity + attribution"],agent:["AI agent","Policy-bound machine rewards","Agent key + approval limits"]} as const;
   const score=readiness?.score??0;
   return <div className="builder-lab">
@@ -2454,7 +2461,18 @@ function BuilderIntegrationLab({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     </section>
     <section className="lab-contract"><div><Eyebrow>03 · COMPLETE CONTRACT</Eyebrow><h2>Everything another builder needs—without rebuilding the financial layer.</h2><p>Current owns wallet creation, identity-bound authorization, claim settlement, recovery, attribution, and signed evidence. Your product owns the user action that matters.</p></div><div className="lab-stack">{(manifest?.circleStack??["Arc settlement","USDC","Circle embedded wallets","Gas Station","CCTP V2","Gateway"]).map((item,index)=><span key={item}><b>0{index+1}</b>{item}</span>)}</div></section>
     <section className="lab-endpoints"><div className="panel-head"><div><Eyebrow>VERIFIABLE INTERFACE</Eyebrow><h2>Small surface. Complete loop.</h2></div><a href="/api/v1/openapi" target="_blank" rel="noreferrer">Open API specification <ArrowUpRight/></a></div>{(manifest?.endpoints??[]).map(endpoint=><div className="endpoint-row" key={endpoint.path}><span className={endpoint.method.toLowerCase()}>{endpoint.method}</span><code>{endpoint.path}</code><p>{endpoint.purpose}</p><small>{endpoint.permission}</small><em>{endpoint.signed?"HMAC signed":"Bearer scoped"}</em></div>)}</section>
+    <section className="lab-certificate"><div className="certificate-watermark"><BadgeCheck/><span>CURRENT</span></div><div className="certificate-copy"><Eyebrow>04 · PORTABLE PROOF</Eyebrow><h2>Make the integration verifiable anywhere.</h2><p>Issue a 30-day, tamper-evident certificate from the project’s current conformance records. The public verifier checks its signature, expiry, manifest version, score, and every completed requirement.</p><div className="certificate-trust"><span><ShieldCheck/> Server-signed</span><span><Fingerprint/> Manifest-bound</span><span><Clock3/> Explicit expiry</span></div>{certificateError&&<p className="form-error">{certificateError}</p>}<div className="hero-button-row">{certificate?<><Button tone="cyan" onClick={()=>void shareCertificate()}>{copied?"Proof link copied":"Copy proof link"} <Copy/></Button><Button tone="ghost" onClick={()=>{location.href=certificate.publicUrl}}>View public proof <ArrowUpRight/></Button></>:<Button tone="cyan" disabled={certifying} onClick={()=>void certify()}>{certifying?"Signing certificate…":auth.account?"Issue integration proof":"Sign in to issue proof"} <BadgeCheck/></Button>}</div></div><div className="certificate-preview"><small>CURRENT COFI · INTEGRATION CONFORMANCE</small><strong>{certificate?.certificate.subject.projectName??"Your project"}</strong><div><span><em>{certificate?.certificate.score??score}</em>/100<small>CONFORMANCE</small></span><span><em>{certificate?.certificate.completed??readiness?.completed??0}</em>/{certificate?.certificate.total??readiness?.total??10}<small>PROOFS</small></span></div><b className={`certificate-tier ${certificate?.certificate.status??readiness?.level??"progress"}`}>{(certificate?.certificate.status??readiness?.level??"progress").replace("-"," ")}</b><code>{certificate?`${certificate.digest.slice(0,12)}…${certificate.digest.slice(-10)}`:"Issued from verified workspace records"}</code></div></section>
   </div>;
+}
+
+function IntegrationCertificateView({go}:{go:(v:View)=>void}) {
+  const [token]=useState(()=>typeof window==="undefined"?"":new URLSearchParams(window.location.search).get("cert")??"");
+  const [result,setResult]=useState<VerifiedCertificateState|null>(null);
+  const [error,setError]=useState<string|null>(()=>token?null:"This certificate link is incomplete.");
+  useEffect(()=>{if(!token)return;let active=true;currentApi.get<VerifiedCertificateState>(`/integration-certification/public?token=${encodeURIComponent(token)}`).then(value=>{if(active)setResult(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Certificate verification failed.")});return()=>{active=false}},[token]);
+  const cert=result?.certificate;
+  const valid=Boolean(result?.verification.signatureValid&&!result?.verification.expired&&result?.verification.manifestCurrent);
+  return <main className="public-certificate"><header><Brand onClick={()=>go("home")}/><button onClick={()=>go("integration-lab")}>Builder integration lab <ArrowUpRight/></button></header><section className={`certificate-sheet ${valid?"verified":"unverified"}`}><div className="certificate-orbit"><i/><i/><i/><BadgeCheck/></div><Eyebrow>PORTABLE INTEGRATION PROOF</Eyebrow>{error?<div className="certificate-error"><ShieldAlert/><h1>Certificate not verified.</h1><p>{error}</p><Button tone="blue" onClick={()=>go("integration-lab")}>Return to integration lab</Button></div>:!cert?<div className="certificate-loading"><RefreshCw className="spin"/><h1>Verifying Current signature…</h1><p>Checking the certificate payload, expiry, and integration manifest.</p></div>:<><div className="certificate-title"><div><h1>{cert.subject.projectName}</h1><p>Current CoFi integration conformance on {cert.issuer.network}</p></div><span className={valid?"valid":"invalid"}><ShieldCheck/>{valid?"Cryptographically verified":"Needs renewal"}</span></div><div className="certificate-score"><span><strong>{cert.score}</strong>/100<small>CONFORMANCE SCORE</small></span><span><strong>{cert.completed}</strong>/{cert.total}<small>VERIFIED PROOFS</small></span><span><strong>{cert.status.replace("-"," ")}</strong><small>CERTIFICATION TIER</small></span></div><div className="certificate-checks">{cert.checks.map(check=><div className={check.complete?"complete":""} key={check.id}><span>{check.complete?<Check/>:<i/>}</span><b>{check.label}<small>{check.complete?`${check.count} recorded proof${check.count===1?"":"s"}`:"Not completed at issuance"}</small></b><em>{check.weight} pts</em></div>)}</div><div className="certificate-verification"><span><ShieldCheck/><b>Signature<small>{result.verification.signatureValid?"Valid":"Invalid"}</small></b></span><span><Clock3/><b>Expires<small>{new Date(cert.expiresAt).toLocaleDateString()}</small></b></span><span><Fingerprint/><b>Manifest<small>{result.verification.manifestCurrent?"Current":"Superseded"}</small></b></span></div><footer><div><small>CERTIFICATE DIGEST</small><code>{result.digest}</code></div><div><small>MANIFEST DIGEST</small><code>{cert.manifestDigest}</code></div><p>Issued {new Date(cert.issuedAt).toLocaleString()} · Verification contains no email, social identity, API secret, or recipient information.</p></footer></>}</section></main>;
 }
 
 function ApiKeys({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
@@ -2758,5 +2776,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

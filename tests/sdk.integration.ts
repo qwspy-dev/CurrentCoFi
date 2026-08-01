@@ -326,6 +326,10 @@ const mockFetch: typeof fetch = async (input, init) => {
     completed: 6, total: 10, generatedAt: "2026-08-14T00:00:00.000Z", checks: [],
     next: { id: "claim", label: "Confirm a walletless claim", detail: "Settle on Arc", weight: 15, complete: false, count: 0 },
   } });
+  if (String(input).endsWith("/developer/integration-certification")) return Response.json({ ok: true, data: {
+    token: "certificate_sdk.signature", digest: "digest_certificate_sdk", publicUrl: "https://current.test/?cert=certificate_sdk#/certification",
+    certificate: { schemaVersion: "current-integration-certificate-v1", subject: { projectRef: "project_ref", projectName: "SDK Project" }, issuer: { name: "Current CoFi", network: "Arc testnet" }, status: "integration-verified", score: 65, completed: 6, total: 10, manifestDigest: "manifest_sdk", issuedAt: "2026-08-14T00:00:00.000Z", expiresAt: "2026-09-13T00:00:00.000Z", checks: [] },
+  } }, { status: 201 });
   return Response.json({
     ok: false,
     error: { code: "NOT_FOUND", message: "Missing test route." },
@@ -517,6 +521,10 @@ assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), n
 const integrationReadiness = await current.integrations.readiness();
 assert.equal(integrationReadiness.score, 65);
 assert.equal(new Headers(requests.at(-1)?.init?.headers).get("authorization"), `Bearer ${apiKey}`);
+const integrationCertificate = await current.integrations.certify();
+assert.equal(integrationCertificate.certificate.status, "integration-verified");
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)) instanceof Object, true);
+assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
 
 const webhookBody = JSON.stringify({ type: "claim.completed", data: { id: "claim_1" } });
 const webhookTimestamp = Date.now().toString();

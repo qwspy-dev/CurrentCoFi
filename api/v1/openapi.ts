@@ -130,6 +130,12 @@ export default withApi((request) => ok(request, {
     "/developer/analytics": {
       get: { summary: "Read project analytics with a scoped API key" },
     },
+    "/integration-manifest": { get: { summary: "Read the digest-addressed public builder integration contract" } },
+    "/integration-readiness": { get: { summary: "Read the signed-in workspace integration conformance score" } },
+    "/integration-certification": { post: { summary: "Issue a portable signed integration conformance certificate" } },
+    "/integration-certification/public": { get: { summary: "Verify a portable integration certificate without an account" } },
+    "/developer/integration-readiness": { get: { summary: "Read project integration conformance with a scoped API key" } },
+    "/developer/integration-certification": { post: { summary: "Issue an HMAC-authorized portable integration certificate" } },
     "/developer/funding": {
       get: { summary: "Read project CCTP routes and their source, Arc, and campaign-vault proofs" },
     },
@@ -181,6 +187,7 @@ export default withApi((request) => ok(request, {
       "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
+      "builder-integration-manifest", "integration-conformance", "portable-integration-certificates",
       "project-access-tiers", "buyback-governance",
       "identity-bound-email-claims", "identity-bound-wallet-claims",
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
