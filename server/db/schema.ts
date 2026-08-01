@@ -475,6 +475,57 @@ export const pilotAttestations = pgTable("pilot_attestations", {
   uniqueIndex("pilot_attestations_digest_unique").on(table.digest),
 ]);
 
+export const pilotInvitations = pgTable("pilot_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  publicSlug: text("public_slug").notNull(),
+  name: text("name").notNull(),
+  summary: text("summary").notNull(),
+  status: text("status").default("active").notNull(),
+  integrationMode: text("integration_mode").default("hosted-links").notNull(),
+  requestedIntegrations: jsonb("requested_integrations").$type<string[]>().default([]).notNull(),
+  targetRecipients: integer("target_recipients").default(100).notNull(),
+  maxApplications: integer("max_applications").default(25).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("pilot_invitations_public_slug_unique").on(table.publicSlug),
+  index("pilot_invitations_project_status_idx").on(table.projectId, table.status, table.createdAt),
+]);
+
+export const pilotApplications = pgTable("pilot_applications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  invitationId: uuid("invitation_id").references(() => pilotInvitations.id, { onDelete: "cascade" }).notNull(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  pilotId: uuid("pilot_id").references(() => pilotEngagements.id, { onDelete: "set null" }),
+  publicSlug: text("public_slug").notNull(),
+  organizationName: text("organization_name").notNull(),
+  websiteUrl: text("website_url"),
+  applicantName: text("applicant_name").notNull(),
+  applicantRole: text("applicant_role").notNull(),
+  contactHash: text("contact_hash").notNull(),
+  contactCiphertext: text("contact_ciphertext").notNull(),
+  statusSecretHash: text("status_secret_hash").notNull(),
+  useCase: text("use_case").notNull(),
+  audienceDescription: text("audience_description").notNull(),
+  expectedRecipients: integer("expected_recipients").default(100).notNull(),
+  integrationMode: text("integration_mode").default("hosted-links").notNull(),
+  requestedIntegrations: jsonb("requested_integrations").$type<string[]>().default([]).notNull(),
+  readiness: jsonb("readiness").$type<Record<string, unknown>>().default({}).notNull(),
+  status: text("status").default("submitted").notNull(),
+  reviewNotes: text("review_notes"),
+  reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("pilot_applications_public_slug_unique").on(table.publicSlug),
+  uniqueIndex("pilot_applications_invite_contact_unique").on(table.invitationId, table.contactHash),
+  index("pilot_applications_project_status_idx").on(table.projectId, table.status, table.createdAt),
+  index("pilot_applications_invitation_idx").on(table.invitationId, table.createdAt),
+]);
+
 export const tokenEconomyActions = pgTable("token_economy_actions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),

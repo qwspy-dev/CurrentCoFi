@@ -412,6 +412,44 @@ export type PilotRecord = {
     createdAt: string;
     updatedAt: string;
 };
+export type PilotInvitation = {
+    id: string;
+    publicSlug: string;
+    name: string;
+    summary: string;
+    status: string;
+    integrationMode: string;
+    requestedIntegrations: string[];
+    targetRecipients: number;
+    maxApplications: number;
+    applicationCount: number;
+    expiresAt: string | null;
+    createdAt: string;
+};
+export type PilotApplication = {
+    id: string;
+    publicSlug: string;
+    organizationName: string;
+    websiteUrl: string | null;
+    applicantName: string;
+    applicantRole: string;
+    contact?: string;
+    useCase: string;
+    audienceDescription: string;
+    expectedRecipients: number;
+    integrationMode: string;
+    requestedIntegrations: string[];
+    readiness: {
+        completed?: number;
+        total?: number;
+        score?: number;
+    };
+    status: "submitted" | "accepted" | "declined";
+    reviewNotes: string | null;
+    pilotId: string | null;
+    createdAt: string;
+    updatedAt: string;
+};
 export type AgentAction = {
     id: string;
     agentName: string;
@@ -592,6 +630,8 @@ export declare class Current {
     readonly pilots: {
         list: () => Promise<{
             pilots: PilotRecord[];
+            invitations: PilotInvitation[];
+            applications: PilotApplication[];
         }>;
         create: (input: CreatePilotInput) => Promise<PilotRecord>;
         update: (pilotId: string, input: {
@@ -600,6 +640,16 @@ export declare class Current {
             dueAt?: string | null;
             requestedIntegrations?: string[];
         }) => Promise<PilotRecord>;
+        createInvitation: (input: {
+            name: string;
+            summary: string;
+            targetRecipients?: number;
+            maxApplications?: number;
+            expiresAt?: string;
+            integrationMode?: "hosted-links" | "react-embed" | "server-sdk" | "agent-api";
+            requestedIntegrations?: string[];
+        }) => Promise<PilotInvitation>;
+        reviewApplication: (applicationId: string, status: "accepted" | "declined", reviewNotes?: string) => Promise<PilotApplication>;
     };
     readonly agentActions: {
         list: () => Promise<{

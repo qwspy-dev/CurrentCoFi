@@ -5,8 +5,11 @@ import {
 } from "../../../server/developer/keys.js";
 import { ApiError, ok, withApi } from "../../../server/http.js";
 import {
+  createPilotInvitation,
   createPilot,
+  listProjectPilotPipeline,
   listProjectPilots,
+  reviewPilotApplication,
   updatePilot,
 } from "../../../server/pilots/operations.js";
 
@@ -28,6 +31,12 @@ async function mutate(request: Request) {
     throw new ApiError(400, "INVALID_BODY", "The pilot payload must be an object.");
   }
   const value = body as Record<string, unknown>;
+  if (value.action === "create-invitation") {
+    return ok(request, await createPilotInvitation({ projectId: key.projectId, actorKeyId: key.id, body: value }), 201);
+  }
+  if (value.action === "review-application" && typeof value.applicationId === "string" && typeof value.status === "string") {
+    return ok(request, await reviewPilotApplication({ projectId: key.projectId, actorKeyId: key.id, applicationId: value.applicationId, status: value.status, reviewNotes: value.reviewNotes }));
+  }
   if (value.action === "update" && typeof value.pilotId === "string") {
     return ok(request, await updatePilot({
       projectId: key.projectId,
@@ -46,7 +55,8 @@ async function mutate(request: Request) {
 async function list(request: Request) {
   const key = await authenticateDeveloperKey(request);
   requireDeveloperPermission(key, "analytics:read");
-  return ok(request, { pilots: await listProjectPilots(key.projectId) });
+  const [pilots, pipeline] = await Promise.all([listProjectPilots(key.projectId), listProjectPilotPipeline(key.projectId)]);
+  return ok(request, { pilots, ...pipeline });
 }
 
 export default withApi(

@@ -192,6 +192,21 @@ const mockFetch: typeof fetch = async (input, init) => {
   }
   if (String(input).endsWith("/developer/pilots") && init?.method === "POST") {
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    if (body.action === "create-invitation") return Response.json({ ok: true, data: {
+      id: "invite_sdk", publicSlug: "invite_sdk_public", name: body.name, summary: body.summary,
+      status: "active", integrationMode: "server-sdk", requestedIntegrations: body.requestedIntegrations ?? [],
+      targetRecipients: body.targetRecipients ?? 100, maxApplications: body.maxApplications ?? 25,
+      applicationCount: 0, expiresAt: null, createdAt: "2026-08-14T00:00:00.000Z",
+    } }, { status: 201 });
+    if (body.action === "review-application") return Response.json({ ok: true, data: {
+      id: body.applicationId, publicSlug: "application_sdk", organizationName: "SDK applicant",
+      websiteUrl: null, applicantName: "Ari", applicantRole: "Founder", useCase: "Activate game users",
+      audienceDescription: "Players in an existing community", expectedRecipients: 500,
+      integrationMode: "server-sdk", requestedIntegrations: ["usdc", "activation-webhooks"],
+      readiness: { completed: 5, total: 5, score: 100 }, status: body.status,
+      reviewNotes: body.reviewNotes ?? null, pilotId: "pilot_sdk", createdAt: "2026-08-14T00:00:00.000Z",
+      updatedAt: "2026-08-14T00:00:00.000Z",
+    } });
     return Response.json({
       ok: true,
       data: {
@@ -216,7 +231,7 @@ const mockFetch: typeof fetch = async (input, init) => {
     }, { status: 201 });
   }
   if (String(input).endsWith("/developer/pilots")) {
-    return Response.json({ ok: true, data: { pilots: [] } });
+    return Response.json({ ok: true, data: { pilots: [], invitations: [], applications: [] } });
   }
   if (String(input).endsWith("/developer/agent-actions") && init?.method === "POST") {
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
@@ -356,6 +371,15 @@ assert.ok(pilotRequest?.url.endsWith("/api/v1/developer/pilots"));
 assert.equal(JSON.parse(String(pilotRequest?.init?.body)).partnerName, "SDK partner");
 const pilotList = await current.pilots.list();
 assert.deepEqual(pilotList.pilots, []);
+const invitation = await current.pilots.createInvitation({
+  name: "SDK founding cohort", summary: "Launch a measurable walletless campaign.",
+  targetRecipients: 500, maxApplications: 20, requestedIntegrations: ["usdc", "activation-webhooks"],
+});
+assert.equal(invitation.publicSlug, "invite_sdk_public");
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).action, "create-invitation");
+const reviewedApplication = await current.pilots.reviewApplication("application_sdk", "accepted", "Strong activation plan");
+assert.equal(reviewedApplication.status, "accepted");
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).action, "review-application");
 
 const agentAction = await current.agentActions.proposeDistribution({
   idempotencyKey: "reward-sdk-1",

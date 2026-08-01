@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { pilotReadiness } from "../server/pilots/operations.js";
+import { pilotApplicationReadiness, pilotReadiness } from "../server/pilots/operations.js";
 
 const onboarding = pilotReadiness({
   brief: true,
@@ -38,4 +38,22 @@ const complete = pilotReadiness({
 assert.equal(complete.score, 100);
 assert.equal(complete.lifecycle, "complete");
 
-console.log("Pilot lifecycle and grant-readiness scoring passed.");
+const qualifiedApplication = pilotApplicationReadiness({
+  website: true,
+  audience: true,
+  recipients: 500,
+  integrations: 4,
+  activationMeasurement: true,
+});
+assert.deepEqual(qualifiedApplication, { completed: 5, total: 5, score: 100 });
+
+const earlyApplication = pilotApplicationReadiness({
+  website: false,
+  audience: true,
+  recipients: 10,
+  integrations: 1,
+  activationMeasurement: false,
+});
+assert.deepEqual(earlyApplication, { completed: 1, total: 5, score: 20 });
+
+console.log("Pilot lifecycle, intake readiness, and grant-readiness scoring passed.");

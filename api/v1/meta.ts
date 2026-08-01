@@ -84,8 +84,8 @@ export default withApi((request) => ok(request, {
       "responsible-vulnerability-disclosure",
       "external-audit-review-package",
     ],
-    nextModules: ["independent-external-audit-and-remediation"],
-    laterModules: ["external-pilot-activation", "partner-self-service-onboarding", "production-venue-selection"],
+    nextModules: ["first-external-pilot-activation", "independent-external-audit-and-remediation"],
+    laterModules: ["production-venue-selection"],
     roadmapModules: ["merchant-checkout", "escrow", "subscriptions"],
   },
 }), ["GET"]);

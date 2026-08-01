@@ -1,7 +1,10 @@
 import { developerSession } from "../../server/developer/session.js";
 import {
   createUserPilot,
+  createPilotInvitation,
+  listPilotPipeline,
   listUserPilots,
+  reviewPilotApplication,
   updateUserPilot,
 } from "../../server/pilots/operations.js";
 import { ApiError, ok, readJsonObject, withApi } from "../../server/http.js";
@@ -25,12 +28,25 @@ async function createOrUpdate(request: Request) {
       body,
     }));
   }
-  throw new ApiError(400, "INVALID_PILOT_ACTION", "Use create or update with a pilotId.");
+  if (action === "create-invitation") {
+    return ok(request, await createPilotInvitation({ userId: account.userId, projectId: project.id, body }), 201);
+  }
+  if (action === "review-application" && typeof body.applicationId === "string" && typeof body.status === "string") {
+    return ok(request, await reviewPilotApplication({
+      userId: account.userId, projectId: project.id, applicationId: body.applicationId,
+      status: body.status, reviewNotes: body.reviewNotes,
+    }));
+  }
+  throw new ApiError(400, "INVALID_PILOT_ACTION", "Use create, update, create-invitation, or review-application.");
 }
 
 async function list(request: Request) {
-  const { account } = await developerSession(request);
-  return ok(request, { pilots: await listUserPilots(account.userId) });
+  const { account, project } = await developerSession(request);
+  const [pilots, pipeline] = await Promise.all([
+    listUserPilots(account.userId),
+    listPilotPipeline(account.userId, project.id),
+  ]);
+  return ok(request, { pilots, ...pipeline });
 }
 
 export default withApi(

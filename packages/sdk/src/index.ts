@@ -251,6 +251,21 @@ export type PilotRecord = {
   updatedAt: string;
 };
 
+export type PilotInvitation = {
+  id: string; publicSlug: string; name: string; summary: string; status: string;
+  integrationMode: string; requestedIntegrations: string[]; targetRecipients: number;
+  maxApplications: number; applicationCount: number; expiresAt: string | null; createdAt: string;
+};
+
+export type PilotApplication = {
+  id: string; publicSlug: string; organizationName: string; websiteUrl: string | null;
+  applicantName: string; applicantRole: string; contact?: string; useCase: string;
+  audienceDescription: string; expectedRecipients: number; integrationMode: string;
+  requestedIntegrations: string[]; readiness: { completed?: number; total?: number; score?: number };
+  status: "submitted" | "accepted" | "declined"; reviewNotes: string | null;
+  pilotId: string | null; createdAt: string; updatedAt: string;
+};
+
 export type AgentAction = {
   id: string;
   agentName: string;
@@ -479,7 +494,7 @@ export class Current {
   };
 
   readonly pilots = {
-    list: () => this.get<{ pilots: PilotRecord[] }>("/api/v1/developer/pilots"),
+    list: () => this.get<{ pilots: PilotRecord[]; invitations: PilotInvitation[]; applications: PilotApplication[] }>("/api/v1/developer/pilots"),
     create: (input: CreatePilotInput) => this.signedPost<PilotRecord>(
       "/api/v1/developer/pilots",
       input,
@@ -492,6 +507,18 @@ export class Current {
     }) => this.signedPost<PilotRecord>(
       "/api/v1/developer/pilots",
       { action: "update", pilotId, ...input },
+    ),
+    createInvitation: (input: {
+      name: string; summary: string; targetRecipients?: number; maxApplications?: number;
+      expiresAt?: string; integrationMode?: "hosted-links" | "react-embed" | "server-sdk" | "agent-api";
+      requestedIntegrations?: string[];
+    }) => this.signedPost<PilotInvitation>(
+      "/api/v1/developer/pilots",
+      { action: "create-invitation", ...input },
+    ),
+    reviewApplication: (applicationId: string, status: "accepted" | "declined", reviewNotes?: string) => this.signedPost<PilotApplication>(
+      "/api/v1/developer/pilots",
+      { action: "review-application", applicationId, status, reviewNotes },
     ),
   };
 

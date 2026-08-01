@@ -7,13 +7,15 @@ import {
   claims,
   distributions,
   pilotAttestations,
+  pilotApplications,
   pilotEngagements,
+  pilotInvitations,
   projectMembers,
   projects,
   tokens,
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
-import { randomSecret, sha256 } from "../security/crypto.js";
+import { constantTimeEqual, openSecret, randomSecret, sealSecret, sha256 } from "../security/crypto.js";
 
 const PILOT_STATEMENT =
   "I confirm that this organization is participating in the described Current CoFi pilot and that the reported goals and results are accurate to the best of my knowledge.";
@@ -22,6 +24,7 @@ const INTEGRATIONS = new Set([
   "circle-wallets", "gas-sponsorship", "project-token", "usdc",
   "identity-attestations", "referrals", "activation-webhooks", "agent-api",
 ]);
+const APPLICATION_STATUSES = new Set(["submitted", "accepted", "declined"]);
 
 export function pilotReadiness(input: {
   brief: boolean;
@@ -47,6 +50,18 @@ export function pilotReadiness(input: {
             ? "ready"
             : "onboarding",
   } as const;
+}
+
+export function pilotApplicationReadiness(input: {
+  website: boolean;
+  audience: boolean;
+  recipients: number;
+  integrations: number;
+  activationMeasurement: boolean;
+}) {
+  const checks = [input.website, input.audience, input.recipients >= 25, input.integrations >= 2, input.activationMeasurement];
+  const completed = checks.filter(Boolean).length;
+  return { completed, total: checks.length, score: Math.round((completed / checks.length) * 100) };
 }
 
 function stable(value: unknown): unknown {
@@ -121,6 +136,54 @@ async function pilotRow(projectId: string, pilotId: string) {
   });
   if (!row) throw new ApiError(404, "PILOT_NOT_FOUND", "This pilot is unavailable.");
   return row;
+}
+
+function invitationExpired(row: typeof pilotInvitations.$inferSelect) {
+  return row.status !== "active" || Boolean(row.expiresAt && row.expiresAt.getTime() <= Date.now());
+}
+
+function presentInvitation(row: typeof pilotInvitations.$inferSelect, applicationCount = 0) {
+  return {
+    id: row.id,
+    publicSlug: row.publicSlug,
+    name: row.name,
+    summary: row.summary,
+    status: invitationExpired(row) ? "closed" : row.status,
+    integrationMode: row.integrationMode,
+    requestedIntegrations: row.requestedIntegrations as string[],
+    targetRecipients: row.targetRecipients,
+    maxApplications: row.maxApplications,
+    applicationCount,
+    expiresAt: row.expiresAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+async function presentApplication(row: typeof pilotApplications.$inferSelect, includeContact = false) {
+  const invitation = await getDb().query.pilotInvitations.findFirst({ where: eq(pilotInvitations.id, row.invitationId) });
+  return {
+    id: row.id,
+    publicSlug: row.publicSlug,
+    invitation: invitation ? { publicSlug: invitation.publicSlug, name: invitation.name } : null,
+    organizationName: row.organizationName,
+    websiteUrl: row.websiteUrl,
+    applicantName: row.applicantName,
+    applicantRole: row.applicantRole,
+    contact: includeContact ? await openSecret(row.contactCiphertext) : undefined,
+    useCase: row.useCase,
+    audienceDescription: row.audienceDescription,
+    expectedRecipients: row.expectedRecipients,
+    integrationMode: row.integrationMode,
+    requestedIntegrations: row.requestedIntegrations as string[],
+    readiness: row.readiness,
+    status: row.status,
+    reviewNotes: row.reviewNotes,
+    pilotId: row.pilotId,
+    reviewedAt: row.reviewedAt?.toISOString() ?? null,
+    acceptedAt: row.acceptedAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
 async function campaignProof(distributionId: string | null) {
@@ -348,6 +411,159 @@ export async function updateUserPilot(input: {
 }) {
   await requireProjectAccess(input.userId, input.projectId);
   return updatePilot({ ...input });
+}
+
+export async function createPilotInvitation(input: {
+  userId?: string;
+  actorKeyId?: string;
+  projectId: string;
+  body: Record<string, unknown>;
+}) {
+  if (input.userId) await requireProjectAccess(input.userId, input.projectId);
+  if (!input.userId && !input.actorKeyId) throw new ApiError(401, "PILOT_ACTOR_REQUIRED", "A user or developer key is required.");
+  const integrationMode = String(input.body.integrationMode ?? "hosted-links");
+  if (!INTEGRATION_MODES.has(integrationMode)) throw new ApiError(400, "INVALID_INVITATION", "integrationMode is unsupported.");
+  const maxApplications = Number(input.body.maxApplications ?? 25);
+  if (!Number.isInteger(maxApplications) || maxApplications < 1 || maxApplications > 1_000) {
+    throw new ApiError(400, "INVALID_INVITATION", "maxApplications must be between 1 and 1,000.");
+  }
+  const expiresAt = dateValue(input.body.expiresAt, "expiresAt");
+  if (expiresAt && expiresAt.getTime() <= Date.now()) throw new ApiError(400, "INVALID_INVITATION", "expiresAt must be in the future.");
+  const [row] = await getDb().insert(pilotInvitations).values({
+    projectId: input.projectId,
+    createdByUserId: input.userId,
+    publicSlug: `invite_${randomSecret(18)}`,
+    name: text(input.body.name, "name", 120),
+    summary: text(input.body.summary, "summary", 1_500),
+    integrationMode,
+    requestedIntegrations: integrationList(input.body.requestedIntegrations),
+    targetRecipients: recipientTarget(input.body.targetRecipients),
+    maxApplications,
+    expiresAt,
+  }).returning();
+  await getDb().insert(auditEvents).values({
+    actorType: input.actorKeyId ? "api-key" : "user", actorId: input.actorKeyId ?? input.userId, projectId: input.projectId,
+    action: "pilot.invitation-created", resourceType: "pilot-invitation", resourceId: row.id,
+    metadata: { publicSlug: row.publicSlug, maxApplications },
+  });
+  return presentInvitation(row, 0);
+}
+
+export async function listPilotPipeline(userId: string, projectId: string) {
+  await requireProjectAccess(userId, projectId);
+  return listProjectPilotPipeline(projectId);
+}
+
+export async function listProjectPilotPipeline(projectId: string) {
+  const [invites, applications] = await Promise.all([
+    getDb().select().from(pilotInvitations).where(eq(pilotInvitations.projectId, projectId)).orderBy(desc(pilotInvitations.createdAt)).limit(100),
+    getDb().select().from(pilotApplications).where(eq(pilotApplications.projectId, projectId)).orderBy(desc(pilotApplications.createdAt)).limit(200),
+  ]);
+  const counts = new Map<string, number>();
+  for (const application of applications) counts.set(application.invitationId, (counts.get(application.invitationId) ?? 0) + 1);
+  return {
+    invitations: invites.map((row) => presentInvitation(row, counts.get(row.id) ?? 0)),
+    applications: await Promise.all(applications.map((row) => presentApplication(row, true))),
+  };
+}
+
+export async function getPublicPilotInvitation(publicSlug: string) {
+  const row = await getDb().query.pilotInvitations.findFirst({ where: eq(pilotInvitations.publicSlug, publicSlug) });
+  if (!row || invitationExpired(row)) throw new ApiError(404, "PILOT_INVITATION_NOT_FOUND", "This pilot application is closed or unavailable.");
+  const [project, applications] = await Promise.all([
+    getDb().query.projects.findFirst({ where: eq(projects.id, row.projectId) }),
+    getDb().select({ total: count() }).from(pilotApplications).where(eq(pilotApplications.invitationId, row.id)),
+  ]);
+  const applicationCount = Number(applications[0]?.total ?? 0);
+  if (applicationCount >= row.maxApplications) throw new ApiError(409, "PILOT_INVITATION_FULL", "This pilot intake has reached its application limit.");
+  return { project: { name: project?.name ?? "Current CoFi", websiteUrl: project?.websiteUrl ?? null }, invitation: presentInvitation(row, applicationCount) };
+}
+
+export async function submitPilotApplication(publicSlug: string, body: Record<string, unknown>) {
+  const invitation = await getDb().query.pilotInvitations.findFirst({ where: eq(pilotInvitations.publicSlug, publicSlug) });
+  if (!invitation || invitationExpired(invitation)) throw new ApiError(404, "PILOT_INVITATION_NOT_FOUND", "This pilot application is closed or unavailable.");
+  if (body.website === "current-cofi-pilot") throw new ApiError(400, "AUTOMATED_SUBMISSION_REJECTED", "The application could not be accepted.");
+  const [{ total }] = await getDb().select({ total: count() }).from(pilotApplications).where(eq(pilotApplications.invitationId, invitation.id));
+  if (Number(total) >= invitation.maxApplications) throw new ApiError(409, "PILOT_INVITATION_FULL", "This pilot intake has reached its application limit.");
+  const contact = text(body.contact, "contact", 320).toLowerCase();
+  const contactHash = await sha256(`${invitation.id}:${contact}`);
+  const websiteUrl = optionalText(body.websiteUrl, "websiteUrl", 500);
+  if (websiteUrl) {
+    try { const url = new URL(websiteUrl); if (!['https:', 'http:'].includes(url.protocol)) throw new Error(); }
+    catch { throw new ApiError(400, "INVALID_APPLICATION", "websiteUrl must be a valid HTTP URL."); }
+  }
+  const requestedIntegrations = integrationList(body.requestedIntegrations ?? invitation.requestedIntegrations);
+  const expectedRecipients = recipientTarget(body.expectedRecipients ?? invitation.targetRecipients);
+  const useCase = text(body.useCase, "useCase", 2_000);
+  const audienceDescription = text(body.audienceDescription, "audienceDescription", 1_500);
+  const readiness = pilotApplicationReadiness({
+    website: Boolean(websiteUrl), audience: audienceDescription.length >= 40,
+    recipients: expectedRecipients, integrations: requestedIntegrations.length,
+    activationMeasurement: /activat|retain|return|conversion|event|purchase|play/i.test(useCase),
+  });
+  const statusSecret = randomSecret(32);
+  try {
+    const [row] = await getDb().insert(pilotApplications).values({
+      invitationId: invitation.id, projectId: invitation.projectId,
+      publicSlug: `application_${randomSecret(18)}`,
+      organizationName: text(body.organizationName, "organizationName", 120),
+      websiteUrl,
+      applicantName: text(body.applicantName, "applicantName", 120),
+      applicantRole: text(body.applicantRole, "applicantRole", 120),
+      contactHash, contactCiphertext: await sealSecret(contact), statusSecretHash: await sha256(statusSecret),
+      useCase, audienceDescription, expectedRecipients,
+      integrationMode: invitation.integrationMode,
+      requestedIntegrations, readiness,
+    }).returning();
+    await getDb().insert(auditEvents).values({
+      actorType: "pilot-applicant", actorId: contactHash.slice(0, 20), projectId: invitation.projectId,
+      action: "pilot.application-submitted", resourceType: "pilot-application", resourceId: row.id,
+      metadata: { invitationId: invitation.id, readinessScore: readiness.score },
+    });
+    return { application: await presentApplication(row), statusSecret };
+  } catch (error) {
+    if (error instanceof Error && /unique|duplicate/i.test(error.message)) throw new ApiError(409, "APPLICATION_ALREADY_EXISTS", "This contact already submitted an application for the pilot.");
+    throw error;
+  }
+}
+
+export async function getPilotApplicationStatus(publicSlug: string, secret: string) {
+  const row = await getDb().query.pilotApplications.findFirst({ where: eq(pilotApplications.publicSlug, publicSlug) });
+  if (!row || !constantTimeEqual(await sha256(secret), row.statusSecretHash)) throw new ApiError(404, "APPLICATION_NOT_FOUND", "The application reference or secret is invalid.");
+  return presentApplication(row);
+}
+
+export async function reviewPilotApplication(input: {
+  userId?: string; actorKeyId?: string; projectId: string; applicationId: string; status: string; reviewNotes?: unknown;
+}) {
+  if (input.userId) await requireProjectAccess(input.userId, input.projectId);
+  if (!input.userId && !input.actorKeyId) throw new ApiError(401, "PILOT_ACTOR_REQUIRED", "A user or developer key is required.");
+  if (!APPLICATION_STATUSES.has(input.status) || input.status === "submitted") throw new ApiError(400, "INVALID_REVIEW", "Use accepted or declined.");
+  const row = await getDb().query.pilotApplications.findFirst({ where: and(eq(pilotApplications.id, input.applicationId), eq(pilotApplications.projectId, input.projectId)) });
+  if (!row) throw new ApiError(404, "APPLICATION_NOT_FOUND", "This pilot application is unavailable.");
+  if (row.status !== "submitted") throw new ApiError(409, "APPLICATION_ALREADY_REVIEWED", "This application has already been reviewed.");
+  let pilotId: string | null = null;
+  if (input.status === "accepted") {
+    const pilot = await createPilot({ projectId: input.projectId, ownerUserId: input.userId, actorKeyId: input.actorKeyId, body: {
+      partnerName: row.organizationName, partnerWebsite: row.websiteUrl ?? undefined, useCase: row.useCase,
+      integrationMode: row.integrationMode, targetRecipients: row.expectedRecipients,
+      requestedIntegrations: row.requestedIntegrations,
+      successCriteria: { audience: row.audienceDescription, applicationReadiness: row.readiness },
+    }});
+    pilotId = pilot.id;
+  }
+  const now = new Date();
+  const [updated] = await getDb().update(pilotApplications).set({
+    status: input.status, pilotId, reviewNotes: optionalText(input.reviewNotes, "reviewNotes", 2_000),
+    reviewedByUserId: input.userId, reviewedAt: now,
+    acceptedAt: input.status === "accepted" ? now : null, updatedAt: now,
+  }).where(eq(pilotApplications.id, row.id)).returning();
+  await getDb().insert(auditEvents).values({
+    actorType: input.actorKeyId ? "api-key" : "user", actorId: input.actorKeyId ?? input.userId, projectId: input.projectId,
+    action: `pilot.application-${input.status}`, resourceType: "pilot-application", resourceId: row.id,
+    metadata: { pilotId },
+  });
+  return presentApplication(updated, true);
 }
 
 export async function getPublicPilot(publicSlug: string) {

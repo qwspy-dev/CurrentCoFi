@@ -120,8 +120,12 @@ export default withApi((request) => ok(request, {
       post: { summary: "Generate an HMAC-signed grant-evidence snapshot" },
     },
     "/developer/pilots": {
-      get: { summary: "List project pilots with a scoped API key" },
-      post: { summary: "Create or update an HMAC-signed pilot engagement" },
+      get: { summary: "List project pilots, intake links, and applications with a scoped API key" },
+      post: { summary: "Create pilots or intake links and review applications with an HMAC-signed request" },
+    },
+    "/pilots/apply": {
+      get: { summary: "Read a scoped public pilot intake invitation" },
+      post: { summary: "Submit a pilot application or read its private status" },
     },
     "/token/economy": {
       get: { summary: "Read the public $CURRENT economy, access tiers, and governed buyback proof" },
@@ -141,7 +145,7 @@ export default withApi((request) => ok(request, {
       "identity-bound-email-claims", "identity-bound-wallet-claims",
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
       "grant-evidence-reports", "public-evidence-verification", "evidence-digests", "protocol-owned-liquidity", "partner-token-vaults", "partner-funded-campaigns", "liquidity-venue-registry", "adapter-bytecode-attestation", "venue-risk-policy",
-      "pilot-operations", "partner-attestations", "pilot-readiness",
+      "pilot-operations", "partner-attestations", "pilot-readiness", "partner-intake-links", "encrypted-pilot-applications", "pilot-application-review", "automatic-pilot-handoff",
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
       "crosschain-funding-intents", "cctp-v2-forwarding", "crosschain-settlement-proof",
       "agent-settlement-handoffs", "agent-wallet-approval", "agent-vault-funding-proof",

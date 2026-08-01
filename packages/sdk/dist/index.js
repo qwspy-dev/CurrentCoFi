@@ -85,6 +85,8 @@ export class Current {
         list: () => this.get("/api/v1/developer/pilots"),
         create: (input) => this.signedPost("/api/v1/developer/pilots", input),
         update: (pilotId, input) => this.signedPost("/api/v1/developer/pilots", { action: "update", pilotId, ...input }),
+        createInvitation: (input) => this.signedPost("/api/v1/developer/pilots", { action: "create-invitation", ...input }),
+        reviewApplication: (applicationId, status, reviewNotes) => this.signedPost("/api/v1/developer/pilots", { action: "review-application", applicationId, status, reviewNotes }),
     };
     agentActions = {
         list: () => this.get("/api/v1/developer/agent-actions"),
