@@ -98,9 +98,9 @@ export type CreateSubscriptionPlanInput = {
 export type SubscriptionWorkspace = {
   merchant: MerchantCommerce["merchant"];
   plans: Array<{ id: string; slug: string; title: string; description: string | null; status: string; amount: string; amountAtomic: string; currency: string; intervalDays: number; subscribeUrl: string; createdAt: string }>;
-  merchantSubscriptions: Array<{ id: string; status: string; cycleCount: number; subscriberAddress: string; currentPeriodStart: string | null; currentPeriodEnd: string | null; renewalDue: boolean; pastDue: boolean }>;
-  subscriberSubscriptions: Array<{ id: string; status: string; cycleCount: number; currentPeriodEnd: string | null }>;
-  totals: { plans: number; activeSubscriptions: number; payments: number; collected: string };
+  merchantSubscriptions: Array<{ id: string; status: string; cycleCount: number; subscriberAddress: string; currentPeriodStart: string | null; currentPeriodEnd: string | null; renewalDue: boolean; pastDue: boolean; notices: Array<{ id: string; kind: string; status: string; periodNumber: number; dueAt: string; acknowledgedAt: string | null }> }>;
+  subscriberSubscriptions: Array<{ id: string; status: string; cycleCount: number; currentPeriodEnd: string | null; renewalDue: boolean; pastDue: boolean; notices: Array<{ id: string; kind: string; status: string; periodNumber: number; dueAt: string; acknowledgedAt: string | null }> }>;
+  totals: { plans: number; activeSubscriptions: number; payments: number; collected: string; openRenewals: number; pastDue: number };
 };
 
 export type ActivationResult = {

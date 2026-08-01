@@ -2,11 +2,12 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { CurrentSession } from "../auth/session.js";
 import { createUserContractExecutionChallenge } from "../circle/client.js";
 import { getDb } from "../db/client.js";
-import { auditEvents, merchantAccounts, subscriptionPayments, subscriptionPlans, subscriptions } from "../db/schema.js";
+import { auditEvents, merchantAccounts, subscriptionNotices, subscriptionPayments, subscriptionPlans, subscriptions } from "../db/schema.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
 import { ApiError } from "../http.js";
 import { formatAtomic, projectAccess, resolveToken, toAtomic } from "../campaigns/repository.js";
 import { arcWallet, circleChallengeResult } from "../campaigns/settlement.js";
+import { resolveSubscriptionNotices } from "./subscription-lifecycle.js";
 
 const ALLOWED_INTERVALS = new Set([7, 30, 90, 365]);
 const renewalWindowMs = 3 * 86_400_000;
@@ -47,7 +48,11 @@ function formatPayment(payment: typeof subscriptionPayments.$inferSelect) {
   return { id: payment.id, periodNumber: payment.periodNumber, amount: formatAtomic(payment.amountAtomic, 6), amountAtomic: payment.amountAtomic, status: payment.status, receiptNumber: payment.receiptNumber, transactionHash: payment.transactionHash, dueAt: payment.dueAt.toISOString(), paidAt: payment.paidAt?.toISOString() ?? null };
 }
 
-function formatSubscription(subscription: typeof subscriptions.$inferSelect, plan: typeof subscriptionPlans.$inferSelect, merchant: typeof merchantAccounts.$inferSelect, payments: Array<typeof subscriptionPayments.$inferSelect> = []) {
+function formatNotice(notice: typeof subscriptionNotices.$inferSelect) {
+  return { id: notice.id, kind: notice.kind, status: notice.status, periodNumber: notice.periodNumber, dueAt: notice.dueAt.toISOString(), acknowledgedAt: notice.acknowledgedAt?.toISOString() ?? null, createdAt: notice.createdAt.toISOString() };
+}
+
+function formatSubscription(subscription: typeof subscriptions.$inferSelect, plan: typeof subscriptionPlans.$inferSelect, merchant: typeof merchantAccounts.$inferSelect, payments: Array<typeof subscriptionPayments.$inferSelect> = [], notices: Array<typeof subscriptionNotices.$inferSelect> = []) {
   const periodEnd = subscription.currentPeriodEnd?.getTime() ?? null;
   return {
     id: subscription.id, status: subscription.status, cycleCount: subscription.cycleCount,
@@ -57,7 +62,7 @@ function formatSubscription(subscription: typeof subscriptions.$inferSelect, pla
     renewalDue: subscription.status === "active" && Boolean(periodEnd && Date.now() >= periodEnd - renewalWindowMs),
     pastDue: subscription.status === "active" && Boolean(periodEnd && Date.now() > periodEnd),
     cancelledAt: subscription.cancelledAt?.toISOString() ?? null,
-    plan: formatPlan(plan, merchant), payments: payments.map(formatPayment), createdAt: subscription.createdAt.toISOString(),
+    plan: formatPlan(plan, merchant), payments: payments.map(formatPayment), notices: notices.map(formatNotice), createdAt: subscription.createdAt.toISOString(),
   };
 }
 
@@ -85,16 +90,19 @@ export async function listSubscriptionWorkspace(input: { userId?: string; projec
   const subscriberRows = input.userId ? await db.select({ subscription: subscriptions, plan: subscriptionPlans, merchant: merchantAccounts }).from(subscriptions).innerJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId)).innerJoin(merchantAccounts, eq(merchantAccounts.id, subscriptionPlans.merchantId)).where(eq(subscriptions.subscriberUserId, input.userId)).orderBy(desc(subscriptions.createdAt)).limit(100) : [];
   const allIds = [...new Set([...merchantSubscriptions.map(row => row.subscription.id), ...subscriberRows.map(row => row.subscription.id)])];
   const paymentRows = allIds.length ? await db.select().from(subscriptionPayments).where(inArray(subscriptionPayments.subscriptionId, allIds)).orderBy(desc(subscriptionPayments.createdAt)).limit(500) : [];
+  const noticeRows = allIds.length ? await db.select().from(subscriptionNotices).where(inArray(subscriptionNotices.subscriptionId, allIds)).orderBy(desc(subscriptionNotices.createdAt)).limit(500) : [];
   const bySubscription = new Map<string, Array<typeof subscriptionPayments.$inferSelect>>();
   for (const payment of paymentRows) if (allIds.includes(payment.subscriptionId)) bySubscription.set(payment.subscriptionId, [...(bySubscription.get(payment.subscriptionId) ?? []), payment]);
-  const merchantFormatted = merchantSubscriptions.map(row => formatSubscription(row.subscription, row.plan, merchant!, bySubscription.get(row.subscription.id)));
+  const noticesBySubscription = new Map<string, Array<typeof subscriptionNotices.$inferSelect>>();
+  for (const notice of noticeRows) noticesBySubscription.set(notice.subscriptionId, [...(noticesBySubscription.get(notice.subscriptionId) ?? []), notice]);
+  const merchantFormatted = merchantSubscriptions.map(row => formatSubscription(row.subscription, row.plan, merchant!, bySubscription.get(row.subscription.id), noticesBySubscription.get(row.subscription.id)));
   const merchantSubscriptionIds = new Set(merchantSubscriptions.map(row => row.subscription.id));
   const confirmed = paymentRows.filter(payment => merchantSubscriptionIds.has(payment.subscriptionId) && payment.status === "confirmed");
   const collectedAtomic = confirmed.reduce((sum, payment) => sum + BigInt(payment.amountAtomic), BigInt(0));
   return {
     merchant, plans: merchant ? plans.map(plan => formatPlan(plan, merchant!, input.origin)) : [], merchantSubscriptions: merchantFormatted,
-    subscriberSubscriptions: subscriberRows.map(row => formatSubscription(row.subscription, row.plan, row.merchant, bySubscription.get(row.subscription.id))),
-    totals: { plans: plans.length, activeSubscriptions: merchantFormatted.filter(item => item.status === "active").length, payments: confirmed.length, collected: formatAtomic(collectedAtomic.toString(), 6) },
+    subscriberSubscriptions: subscriberRows.map(row => formatSubscription(row.subscription, row.plan, row.merchant, bySubscription.get(row.subscription.id), noticesBySubscription.get(row.subscription.id))),
+    totals: { plans: plans.length, activeSubscriptions: merchantFormatted.filter(item => item.status === "active").length, payments: confirmed.length, collected: formatAtomic(collectedAtomic.toString(), 6), openRenewals: noticeRows.filter(notice => notice.status === "open" && notice.kind === "renewal_due").length, pastDue: noticeRows.filter(notice => notice.status === "open" && notice.kind === "past_due").length },
   };
 }
 
@@ -121,6 +129,7 @@ export async function startSubscriptionChallenge(request: Request, session: Curr
     const paidAt = new Date(); const periodEnd = new Date(paidAt.getTime() + plan.plan.intervalDays * 86_400_000);
     const [confirmed] = await db.update(subscriptionPayments).set({ status: "confirmed", transactionHash: result.transactionHash, paidAt, updatedAt: paidAt }).where(eq(subscriptionPayments.id, payment.id)).returning();
     const [active] = await db.update(subscriptions).set({ status: "active", cycleCount: payment.periodNumber, currentPeriodStart: paidAt, currentPeriodEnd: periodEnd, updatedAt: paidAt }).where(eq(subscriptions.id, subscription.id)).returning();
+    await resolveSubscriptionNotices(active.id, payment.periodNumber);
     await queueWebhookEvent(plan.merchant.projectId, payment.periodNumber === 1 ? "subscription.started" : "subscription.renewed", { subscriptionId: active.id, planId: plan.plan.id, paymentId: payment.id, periodNumber: payment.periodNumber, receiptNumber: payment.receiptNumber, transactionHash: result.transactionHash }); await deliverQueuedWebhooks(10);
     return { ...result, complete: true, subscription: formatSubscription(active, plan.plan, plan.merchant, [confirmed]) };
   }
@@ -137,6 +146,7 @@ export async function subscriptionActionChallenge(request: Request, session: Cur
   if (input.action === "cancel") {
     if (row.subscription.status === "cancelled") return { complete: true, subscription: formatSubscription(row.subscription, row.plan, row.merchant) };
     const [cancelled] = await db.update(subscriptions).set({ status: "cancelled", cancelledAt: new Date(), updatedAt: new Date() }).where(eq(subscriptions.id, row.subscription.id)).returning();
+    await resolveSubscriptionNotices(cancelled.id);
     await queueWebhookEvent(row.merchant.projectId, "subscription.cancelled", { subscriptionId: row.subscription.id, planId: row.plan.id, cycleCount: row.subscription.cycleCount }); await deliverQueuedWebhooks(10);
     return { complete: true, subscription: formatSubscription(cancelled, row.plan, row.merchant) };
   }
@@ -150,6 +160,7 @@ export async function subscriptionActionChallenge(request: Request, session: Cur
     const paidAt = new Date(); const periodStart = row.subscription.currentPeriodEnd > paidAt ? row.subscription.currentPeriodEnd : paidAt; const periodEnd = new Date(periodStart.getTime() + row.plan.intervalDays * 86_400_000);
     const [confirmed] = await db.update(subscriptionPayments).set({ status: "confirmed", transactionHash: result.transactionHash, paidAt, updatedAt: paidAt }).where(eq(subscriptionPayments.id, payment.id)).returning();
     const [renewed] = await db.update(subscriptions).set({ cycleCount: periodNumber, currentPeriodStart: periodStart, currentPeriodEnd: periodEnd, updatedAt: paidAt }).where(eq(subscriptions.id, row.subscription.id)).returning();
+    await resolveSubscriptionNotices(renewed.id, periodNumber);
     await queueWebhookEvent(row.merchant.projectId, "subscription.renewed", { subscriptionId: row.subscription.id, planId: row.plan.id, paymentId: payment.id, periodNumber, receiptNumber: payment.receiptNumber, transactionHash: result.transactionHash }); await deliverQueuedWebhooks(10);
     return { ...result, complete: true, subscription: formatSubscription(renewed, row.plan, row.merchant, [confirmed]) };
   }

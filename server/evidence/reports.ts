@@ -10,15 +10,22 @@ import {
   auditEvents,
   claims,
   campaignQualityPolicies,
+  checkoutLinks,
+  checkoutPayments,
   crosschainFundingIntents,
   distributions,
   evidenceReports,
   gatewayFundingIntents,
   identityAttestations,
+  merchantAccounts,
   projectMembers,
   participantQualityAssessments,
   projects,
   referrals,
+  subscriptionNotices,
+  subscriptionPayments,
+  subscriptionPlans,
+  subscriptions,
   tokens,
   webhookEndpoints,
 } from "../db/schema.js";
@@ -26,7 +33,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v13";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v14";
 
 type Criterion = {
   id: string;
@@ -113,6 +120,77 @@ function formatAtomic(value: string, decimals: number) {
   return fraction ? `${whole}.${fraction}` : whole;
 }
 
+async function projectCommerceEvidence(projectId: string) {
+  const db = getDb();
+  const merchant = await db.query.merchantAccounts.findFirst({ where: eq(merchantAccounts.projectId, projectId) });
+  if (!merchant) {
+    return {
+      merchant: null,
+      checkout: { links: 0, confirmedPayments: 0, refunds: 0, volume: "0", settlements: [] as Array<Record<string, unknown>> },
+      subscriptions: { plans: 0, active: 0, cancelled: 0, confirmedCycles: 0, volume: "0", renewalDue: 0, pastDue: 0, settlements: [] as Array<Record<string, unknown>> },
+    };
+  }
+  const [linkRows, checkoutRows, planRows, subscriptionRows, cycleRows, noticeRows] = await Promise.all([
+    db.select().from(checkoutLinks).where(eq(checkoutLinks.merchantId, merchant.id)).orderBy(desc(checkoutLinks.createdAt)).limit(100),
+    db.select({ payment: checkoutPayments, checkout: checkoutLinks }).from(checkoutPayments)
+      .innerJoin(checkoutLinks, eq(checkoutLinks.id, checkoutPayments.checkoutId))
+      .where(eq(checkoutLinks.merchantId, merchant.id)).orderBy(desc(checkoutPayments.createdAt)).limit(200),
+    db.select().from(subscriptionPlans).where(eq(subscriptionPlans.merchantId, merchant.id)).orderBy(desc(subscriptionPlans.createdAt)).limit(100),
+    db.select({ subscription: subscriptions, plan: subscriptionPlans }).from(subscriptions)
+      .innerJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
+      .where(eq(subscriptionPlans.merchantId, merchant.id)).orderBy(desc(subscriptions.createdAt)).limit(200),
+    db.select({ payment: subscriptionPayments, plan: subscriptionPlans }).from(subscriptionPayments)
+      .innerJoin(subscriptions, eq(subscriptions.id, subscriptionPayments.subscriptionId))
+      .innerJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
+      .where(eq(subscriptionPlans.merchantId, merchant.id)).orderBy(desc(subscriptionPayments.createdAt)).limit(500),
+    db.select({ notice: subscriptionNotices, plan: subscriptionPlans }).from(subscriptionNotices)
+      .innerJoin(subscriptions, eq(subscriptions.id, subscriptionNotices.subscriptionId))
+      .innerJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
+      .where(eq(subscriptionPlans.merchantId, merchant.id)).orderBy(desc(subscriptionNotices.createdAt)).limit(500),
+  ]);
+  const confirmedCheckouts = checkoutRows.filter((row) => row.payment.status === "confirmed" || row.payment.status === "refunded");
+  const confirmedCycles = cycleRows.filter((row) => row.payment.status === "confirmed");
+  const checkoutVolume = confirmedCheckouts.reduce((total, row) => total + BigInt(row.payment.amountAtomic), BigInt(0));
+  const subscriptionVolume = confirmedCycles.reduce((total, row) => total + BigInt(row.payment.amountAtomic), BigInt(0));
+  return {
+    merchant: { name: merchant.displayName, status: merchant.status, settlementAddress: merchant.settlementAddress },
+    checkout: {
+      links: linkRows.length,
+      confirmedPayments: confirmedCheckouts.length,
+      refunds: checkoutRows.filter((row) => row.payment.status === "refunded").length,
+      volume: formatAtomic(checkoutVolume.toString(), 6),
+      settlements: confirmedCheckouts.map((row) => ({
+        checkoutId: row.checkout.id,
+        title: row.checkout.title,
+        receiptNumber: row.payment.receiptNumber,
+        status: row.payment.status,
+        amount: formatAtomic(row.payment.amountAtomic, 6),
+        transactionHash: row.payment.paymentTransactionHash,
+        refundTransactionHash: row.payment.refundTransactionHash,
+        paidAt: row.payment.paidAt?.toISOString() ?? null,
+      })),
+    },
+    subscriptions: {
+      plans: planRows.length,
+      active: subscriptionRows.filter((row) => row.subscription.status === "active").length,
+      cancelled: subscriptionRows.filter((row) => row.subscription.status === "cancelled").length,
+      confirmedCycles: confirmedCycles.length,
+      volume: formatAtomic(subscriptionVolume.toString(), 6),
+      renewalDue: noticeRows.filter((row) => row.notice.status === "open" && row.notice.kind === "renewal_due").length,
+      pastDue: noticeRows.filter((row) => row.notice.status === "open" && row.notice.kind === "past_due").length,
+      settlements: confirmedCycles.map((row) => ({
+        planId: row.plan.id,
+        planTitle: row.plan.title,
+        periodNumber: row.payment.periodNumber,
+        receiptNumber: row.payment.receiptNumber,
+        amount: formatAtomic(row.payment.amountAtomic, 6),
+        transactionHash: row.payment.transactionHash,
+        paidAt: row.payment.paidAt?.toISOString() ?? null,
+      })),
+    },
+  };
+}
+
 async function buildSnapshot(projectId: string, distributionId?: string) {
   const db = getDb();
   const project = await db.query.projects.findFirst({ where: eq(projects.id, projectId) });
@@ -120,6 +198,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const campaigns = await projectCampaigns(projectId, distributionId);
   const campaignIds = campaigns.map((campaign) => campaign.id);
   const config = getServerConfig();
+  const commercePromise = projectCommerceEvidence(projectId);
 
   const [
     allocationRows,
@@ -288,6 +367,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       ? db.select().from(participantQualityAssessments).where(inArray(participantQualityAssessments.distributionId, campaignIds))
       : [],
   ]);
+  const commerce = await commercePromise;
 
   const allocationsByCampaign = new Map(allocationRows.map((row) => [row.distributionId, row]));
   const claimsByCampaign = new Map(claimRows.map((row) => [row.distributionId, row]));
@@ -503,6 +583,20 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       evidence: `${apiKeyCount} active API key${apiKeyCount === 1 ? "" : "s"} and ${webhookCount} webhook endpoint${webhookCount === 1 ? "" : "s"}.`,
     },
     {
+      id: "merchant-settlement",
+      label: "Direct merchant USDC settlement",
+      weight: 10,
+      passed: commerce.checkout.confirmedPayments > 0,
+      evidence: `${commerce.checkout.confirmedPayments} confirmed checkout settlement${commerce.checkout.confirmedPayments === 1 ? "" : "s"} totaling ${commerce.checkout.volume} USDC.`,
+    },
+    {
+      id: "recurring-settlement",
+      label: "Subscriber-controlled recurring USDC",
+      weight: 10,
+      passed: commerce.subscriptions.confirmedCycles > 0,
+      evidence: `${commerce.subscriptions.confirmedCycles} explicitly approved subscription cycle${commerce.subscriptions.confirmedCycles === 1 ? "" : "s"} totaling ${commerce.subscriptions.volume} USDC.`,
+    },
+    {
       id: "external-pilot",
       label: "External pilot validation",
       weight: 10,
@@ -633,7 +727,15 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       qualityPolicies: qualityPolicyRows.length,
       qualityAssessments: qualityAssessmentRows.length,
       qualityReviewQueue: reviewedParticipants,
+      checkoutLinks: commerce.checkout.links,
+      checkoutPayments: commerce.checkout.confirmedPayments,
+      checkoutVolume: commerce.checkout.volume,
+      subscriptionPlans: commerce.subscriptions.plans,
+      activeSubscriptions: commerce.subscriptions.active,
+      subscriptionCycles: commerce.subscriptions.confirmedCycles,
+      subscriptionVolume: commerce.subscriptions.volume,
     },
+    commerce,
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({
       id: pilot.id,

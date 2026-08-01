@@ -13,6 +13,10 @@
     {
       "path": "/api/v1/internal/monitor",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/v1/internal/subscriptions/lifecycle",
+      "schedule": "15 8 * * *"
     }
   ],
   "headers": [

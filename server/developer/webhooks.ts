@@ -28,6 +28,8 @@ export const webhookEventTypes = [
   "subscription.plan.created",
   "subscription.started",
   "subscription.renewed",
+  "subscription.renewal_due",
+  "subscription.past_due",
   "subscription.cancelled",
   "campaign.cancelled",
   "campaign.refunded",

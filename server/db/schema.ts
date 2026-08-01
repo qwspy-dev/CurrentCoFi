@@ -289,6 +289,21 @@ export const subscriptionPayments = pgTable("subscription_payments", {
   index("subscription_payments_status_due_idx").on(table.status, table.dueAt),
 ]);
 
+export const subscriptionNotices = pgTable("subscription_notices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  subscriptionId: uuid("subscription_id").references(() => subscriptions.id, { onDelete: "cascade" }).notNull(),
+  periodNumber: integer("period_number").notNull(),
+  kind: text("kind").notNull(),
+  status: text("status").default("open").notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("subscription_notices_cycle_kind_unique").on(table.subscriptionId, table.periodNumber, table.kind),
+  index("subscription_notices_status_due_idx").on(table.status, table.dueAt),
+]);
+
 export const allocations = pgTable("allocations", {
   id: uuid("id").primaryKey().defaultRandom(),
   distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),

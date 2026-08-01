@@ -21,3 +21,4 @@ Each group ends with automated checks, a Vercel production deployment, browser v
 7. **$CURRENT economy** — locks, fee routing, buyback accounting, transparent public metrics.
 8. **Readiness** — external review, pilots, grant evidence, mainnet deployment controls.
 9. **Expansion** — merchant checkout, milestone escrow, recurring USDC subscriptions, and cross-chain USDC funding are implemented on Arc testnet.
+10. **Recurring operations and grant proof** — deduplicated renewal lifecycle notices, due/past-due webhooks, scheduled reconciliation, and checkout/subscription settlement evidence are implemented.

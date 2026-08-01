@@ -172,18 +172,38 @@ export type SubscriptionWorkspace = {
         currentPeriodEnd: string | null;
         renewalDue: boolean;
         pastDue: boolean;
+        notices: Array<{
+            id: string;
+            kind: string;
+            status: string;
+            periodNumber: number;
+            dueAt: string;
+            acknowledgedAt: string | null;
+        }>;
     }>;
     subscriberSubscriptions: Array<{
         id: string;
         status: string;
         cycleCount: number;
         currentPeriodEnd: string | null;
+        renewalDue: boolean;
+        pastDue: boolean;
+        notices: Array<{
+            id: string;
+            kind: string;
+            status: string;
+            periodNumber: number;
+            dueAt: string;
+            acknowledgedAt: string | null;
+        }>;
     }>;
     totals: {
         plans: number;
         activeSubscriptions: number;
         payments: number;
         collected: string;
+        openRenewals: number;
+        pastDue: number;
     };
 };
 export type ActivationResult = {

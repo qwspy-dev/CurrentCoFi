@@ -73,7 +73,7 @@ export default withApi((request) => ok(request, {
       post: { summary: "Generate an immutable, shareable grant-evidence snapshot" },
     },
     "/evidence/public": {
-      get: { summary: "Verify a public evidence report, canonical digest, and campaign anchors" },
+      get: { summary: "Verify a public evidence report, canonical digest, campaign anchors, checkout receipts, and subscription cycles" },
     },
     "/pilots": {
       get: { summary: "List external Arc pilot engagements and verified launch readiness" },
@@ -178,13 +178,13 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "project-access-tiers", "buyback-governance",
       "identity-bound-email-claims", "identity-bound-wallet-claims",
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
-      "grant-evidence-reports", "public-evidence-verification", "evidence-digests", "protocol-owned-liquidity", "partner-token-vaults", "partner-funded-campaigns", "liquidity-venue-registry", "adapter-bytecode-attestation", "venue-risk-policy",
+      "grant-evidence-reports", "public-evidence-verification", "evidence-digests", "commerce-settlement-proof", "subscription-cycle-proof", "protocol-owned-liquidity", "partner-token-vaults", "partner-funded-campaigns", "liquidity-venue-registry", "adapter-bytecode-attestation", "venue-risk-policy",
       "pilot-operations", "partner-attestations", "pilot-readiness", "partner-intake-links", "encrypted-pilot-applications", "pilot-application-review", "automatic-pilot-handoff",
       "campaign-quality-policies", "explainable-referral-risk", "manual-review-queues", "eligible-retention-cohorts",
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",

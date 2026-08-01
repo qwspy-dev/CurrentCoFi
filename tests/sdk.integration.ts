@@ -22,7 +22,7 @@ const mockFetch: typeof fetch = async (input, init) => {
   }
   if (String(input).endsWith("/developer/subscriptions")) {
     const plan = { id: "plan_sdk", slug: "founding-circle-sdk", title: "Founding circle", description: "Recurring access", status: "active", amount: "15", amountAtomic: "15000000", currency: "USDC", intervalDays: 30, subscribeUrl: "https://current.test/#/subscribe/founding-circle-sdk", createdAt: "2026-08-14T00:00:00.000Z" };
-    return Response.json({ ok: true, data: init?.method === "POST" ? plan : { merchant: { id: "merchant_sdk", displayName: "SDK Store", slug: "sdk-store", settlementAddress: "0x1111111111111111111111111111111111111111", status: "active" }, plans: [plan], merchantSubscriptions: [], subscriberSubscriptions: [], totals: { plans: 1, activeSubscriptions: 0, payments: 0, collected: "0" } } }, { status: init?.method === "POST" ? 201 : 200 });
+    return Response.json({ ok: true, data: init?.method === "POST" ? plan : { merchant: { id: "merchant_sdk", displayName: "SDK Store", slug: "sdk-store", settlementAddress: "0x1111111111111111111111111111111111111111", status: "active" }, plans: [plan], merchantSubscriptions: [], subscriberSubscriptions: [], totals: { plans: 1, activeSubscriptions: 0, payments: 0, collected: "0", openRenewals: 0, pastDue: 0 } } }, { status: init?.method === "POST" ? 201 : 200 });
   }
   if (String(input).endsWith("/developer/escrow")) {
     const agreement = {
