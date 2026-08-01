@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import deployment from "../../deployments/arc-testnet.json";
 import { getPartnerVaultSnapshot } from "./vault.js";
 
 type PartnerSnapshot = Awaited<ReturnType<typeof getPartnerVaultSnapshot>>;
@@ -11,6 +10,17 @@ type ProofAnchors = {
   assetApprovalTransactionHash?: string;
   reserveDepositTransactionHash?: string;
   campaignFundingTransactionHash?: string;
+};
+
+// Immutable, public Arc testnet transaction anchors for the currently configured
+// partner-proof deployment. Live contract state is still read at request time.
+const proofAnchors: ProofAnchors = {
+  tokenDeploymentTransactionHash: "0x7e72141b21ceefb64a51266010a116e884c421592861a8337776c11ac01d2e7c",
+  vaultDeploymentTransactionHash: "0x1d1775f94794733f01040598baad9fca046d46efadd56a5d6554dca3fbdd16aa",
+  governorDeploymentTransactionHash: "0x100148f7903845824d061f8b5a7fbe07782bb00756b2b2afdb4f69a9dc27d398",
+  assetApprovalTransactionHash: "0x7e19b228934a8b9a3afe8ef309ba808fdf952b6308c395324dab96baed957ee9",
+  reserveDepositTransactionHash: "0x87a1d90e408d7cb2b2a175091b1ed6570c9076bb25acc2f0a4b9b14bafca1198",
+  campaignFundingTransactionHash: "0xfd6067c3feac3ad26c9b5de5989123aa331e37f4a8746e46143709f3dd5c030f",
 };
 
 const stable = (value: unknown): string => {
@@ -126,13 +136,6 @@ export async function getProjectTokenProof() {
   return assembleProjectTokenProof({
     generatedAt: new Date().toISOString(),
     snapshot,
-    anchors: {
-      tokenDeploymentTransactionHash: deployment.currentTestnetPartnerTokenDeploymentTransactionHash,
-      vaultDeploymentTransactionHash: deployment.currentPartnerVaultDeploymentTransactionHash,
-      governorDeploymentTransactionHash: deployment.currentPartnerGovernorDeploymentTransactionHash,
-      assetApprovalTransactionHash: deployment.currentPartnerAssetApprovalTransactionHash,
-      reserveDepositTransactionHash: deployment.currentPartnerDepositTransactionHash,
-      campaignFundingTransactionHash: deployment.currentPartnerCampaignFundingTransactionHash,
-    },
+    anchors: proofAnchors,
   });
 }
