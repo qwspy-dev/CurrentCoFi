@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
-  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch" | "operations"
+  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
   | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -78,6 +78,48 @@ type ServiceIncident = {
   startedAt: string;
   latestUpdateAt: string;
   updates?: Array<{ id: string; status: string; message: string; createdAt: string }>;
+};
+
+type SecurityPostureState = {
+  product: string;
+  network: string;
+  assurance: { internalReadinessScore: number; implementedControls: number; totalInternalControls: number; externalAuditStatus: string; mainnetApproved: boolean; statement: string };
+  controls: Array<{ id: string; name: string; status: "implemented" | "pending-external-review"; evidence: string }>;
+  privilegedRoles: Array<{ role: string; authority: string; boundary: string }>;
+  fundFlows: Array<{ flow: string; custody: string; release: string }>;
+  reviewPackage: { scope: string; threatModel: string; invariants: string; auditorGuide: string; disclosure: string; repository: string; commit: string | null };
+  generatedAt: string;
+};
+
+const securityPreview: SecurityPostureState = {
+  product:"Current CoFi",network:"Arc testnet",generatedAt:new Date(0).toISOString(),
+  assurance:{internalReadinessScore:100,implementedControls:10,totalInternalControls:10,externalAuditStatus:"pending",mainnetApproved:false,statement:"Security readiness is internally evidenced on Arc testnet. Mainnet approval requires independent review and remediation closure."},
+  controls:[...[
+    ["runtime-bytecode","Exact runtime bytecode verification","The active release manifest binds every critical address to a versioned runtime code hash."],
+    ["delayed-governance","Delayed protocol governance","High-impact protocol changes use public queues before execution."],
+    ["guardian","Independent cancellation and pause","A separate guardian can cancel queued changes without gaining execution authority."],
+    ["claim-replay","Claim replay and redirect resistance","One-time state, recipient-bound authorization, expiry, and domain separation are adversarially tested."],
+    ["identity-privacy","Offchain identity privacy","Raw email and social identities never enter public chain state."],
+    ["developer-auth","Scoped developer and agent authorization","Hashed keys, HMAC signatures, timestamp tolerance, idempotency, and server-side policy are enforced."],
+    ["session-crypto","Encrypted account sessions","Production sessions use encryption and server-controlled authorization."],
+    ["operational-response","Monitoring and incident response","Structured logs, health checks, SLOs, scheduled monitoring, and an incident ledger are live."],
+    ["browser-boundary","Browser security boundary","HSTS, frame denial, MIME protection, no-referrer behavior, and permissions controls are deployed."],
+    ["dependency-gate","Dependency and security CI gate","Production dependency advisories and source-level checks run continuously."],
+  ].map(([id,name,evidence])=>({id,name,status:"implemented" as const,evidence})),{id:"external-audit",name:"Independent external smart-contract review",status:"pending-external-review",evidence:"The audit package is ready, but no independent auditor has issued a final report. Current CoFi does not claim otherwise."}],
+  privilegedRoles:[
+    {role:"Protocol owner",authority:"Queues governed protocol changes and rotates operational configuration.",boundary:"High-impact actions pass through delayed governors."},
+    {role:"Independent guardian",authority:"Cancels queued operations and can pause supported modules.",boundary:"Cannot execute queued operations or withdraw user distributions."},
+    {role:"Claim authorizer",authority:"Signs wallet-bound claims after identity verification.",boundary:"Cannot redirect a signed claim, alter its amount, or withdraw escrowed assets."},
+    {role:"Project administrator",authority:"Creates, funds, pauses, and recovers its own campaigns.",boundary:"Project-scoped access prevents cross-workspace control."},
+    {role:"Scoped API or agent key",authority:"Performs only the actions and volumes granted by policy.",boundary:"Signatures, scopes, limits, and approval thresholds are enforced server-side."},
+  ],
+  fundFlows:[
+    {flow:"Campaign distribution",custody:"Project token or USDC is escrowed in a dedicated Arc vault.",release:"A recipient-bound authorization releases the exact allocation once; expiry enables sender recovery."},
+    {flow:"Product fees",custody:"USDC is separated into buyback, gas, liquidity, and operations buckets.",release:"Market execution is batched through an allowlisted adapter and governed constraints."},
+    {flow:"Protocol liquidity",custody:"Paired $CURRENT and USDC remain in a dedicated vault.",release:"Only approved adapters and delayed governance can deploy or remove positions."},
+    {flow:"Partner reserves",custody:"Partner assets are segregated by token in a reserve vault.",release:"Governed operations may fund specified campaigns or return idle reserves to the registered treasury."},
+  ],
+  reviewPackage:{scope:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/security/audit-scope.json",threatModel:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/security-threat-model.md",invariants:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/security-invariants.md",auditorGuide:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/external-audit-package.md",disclosure:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/SECURITY.md",repository:"https://github.com/qwspy-dev/CurrentCoFi",commit:null},
 };
 
 type CampaignRecord = {
@@ -725,7 +767,7 @@ function formatAtomic(value:string) {
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
-  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch", "operations",
+  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch", "operations", "security",
   "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -746,7 +788,7 @@ const appNav = [
     ["evidence", "Grant evidence", FileCheck2],
   ]},
   { label: "Protocol", items: [
-    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["operations", "Operations", Activity], ["developers", "Developers", Code2],
+    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["operations", "Operations", Activity], ["security", "Security", ShieldCheck], ["developers", "Developers", Code2],
     ["agents", "AI agents", Bot],
   ]},
 ] as const;
@@ -1974,6 +2016,24 @@ function OperationsDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     <p className="economy-disclaimer"><Activity/>Request logs, Web Analytics, Core Web Vitals, scheduled checks, and the incident ledger form one operational evidence layer.</p></>;
 }
 
+function SecurityDashboard({go}:{go:(v:View)=>void}) {
+  const [snapshot,setSnapshot]=useState<SecurityPostureState>(securityPreview);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState<string|null>(null);
+  useEffect(()=>{currentApi.get<SecurityPostureState>("/security").then(setSnapshot).catch(()=>setError("The live security service is reconnecting.")).finally(()=>setLoading(false))},[]);
+  const implemented=snapshot.controls.filter(item=>item.status==="implemented");
+  const external=snapshot.controls.find(item=>item.status==="pending-external-review");
+  return <><PageHero eyebrow="SECURITY REVIEW READINESS" title="Trust boundaries you can inspect." copy="Current CoFi maps every privileged role, protected fund flow, protocol invariant, and review artifact before independent auditors receive the code. Internal readiness is public; external assurance is never implied." mode="network"><Button tone="blue" onClick={()=>go("launch")}>Verify protocol release <ArrowRight/></Button></PageHero>
+    {error&&<p className="economy-disclaimer"><RefreshCw/>{error} Showing the verified bundled review snapshot.</p>}
+    <div className="token-metrics-new security-metrics"><div><small>Internal controls</small><strong>{loading?"—":`${snapshot?.assurance.internalReadinessScore??0}%`}</strong><span>{implemented.length}/{snapshot?.assurance.totalInternalControls??0} evidenced</span></div><div><small>Independent audit</small><strong>{loading?"—":snapshot?.assurance.externalAuditStatus??"pending"}</strong><span>No external assurance claimed</span></div><div><small>Mainnet approval</small><strong>{loading?"—":snapshot?.assurance.mainnetApproved?"Approved":"Not yet"}</strong><span>Testnet-only security posture</span></div><div><small>Protected flows</small><strong>{loading?"—":snapshot?.fundFlows.length??0}</strong><span>Explicit custody boundaries</span></div></div>
+    <section className="security-current"><div className="security-orb"><ShieldCheck/><span>INTERNAL REVIEW</span><strong>{snapshot?.assurance.internalReadinessScore??0}</strong><small>/ 100</small></div><div><Eyebrow>HONEST ASSURANCE</Eyebrow><h2>Review-ready does not mean audited.</h2><p>{snapshot?.assurance.statement??"Loading Current CoFi's security assurance statement."}</p><Status tone="cyan">Independent review pending</Status></div><article><ShieldAlert/><b>{external?.name??"Independent external smart-contract review"}</b><p>{external?.evidence??"The review package is prepared; a final outside report has not been issued."}</p></article></section>
+    <div className="security-grid"><section className="data-panel"><div className="panel-head"><div><h3>Implemented controls</h3><p>Publicly documented and continuously checked</p></div><Status tone="green">{implemented.length} active</Status></div><div className="security-control-list">{snapshot?.controls.map(item=><div className={item.status==="implemented"?"pass":"pending"} key={item.id}><span>{item.status==="implemented"?<Check/>:<Clock3/>}</span><div><b>{item.name}</b><small>{item.evidence}</small></div><Status tone={item.status==="implemented"?"green":"cyan"}>{item.status==="implemented"?"Implemented":"External"}</Status></div>)}</div></section>
+      <section className="data-panel"><div className="panel-head"><div><h3>Privileged role map</h3><p>Authority is narrow and boundaries are explicit</p></div><KeyRound/></div><div className="security-role-list">{snapshot?.privilegedRoles.map(item=><article key={item.role}><span><Fingerprint/></span><div><b>{item.role}</b><p>{item.authority}</p><small>{item.boundary}</small></div></article>)}</div></section></div>
+    <section className="data-panel security-flow-panel"><div className="panel-head"><div><h3>Protected fund flows</h3><p>Where value is held and exactly what can release it</p></div><Network/></div><div className="security-flow-grid">{snapshot?.fundFlows.map((item,index)=><article key={item.flow}><span>{String(index+1).padStart(2,"0")}</span><h4>{item.flow}</h4><small>CUSTODY</small><p>{item.custody}</p><small>RELEASE BOUNDARY</small><p>{item.release}</p></article>)}</div></section>
+    <section className="security-package"><div><Eyebrow light>INDEPENDENT REVIEW HANDOFF</Eyebrow><h2>One package. No hidden assumptions.</h2><p>Auditors receive the exact contract scope, threat model, invariants, reproduction commands, disclosure policy, and pinned deployment evidence.</p></div><div>{snapshot&&Object.entries(snapshot.reviewPackage).filter(([key,value])=>key!=="commit"&&Boolean(value)).slice(0,5).map(([key,value])=><a href={String(value)} target="_blank" rel="noreferrer" key={key}><FileCheck2/><span><small>{key.replace(/([A-Z])/g," $1")}</small><b>{String(value)}</b></span><ArrowUpRight/></a>)}</div></section>
+    <p className="economy-disclaimer"><TestTube2/>Current CoFi is on Arc testnet. Independent audit completion and remediation closure are mandatory before mainnet approval.</p></>;
+}
+
 function PartnerVaultDashboard({go}:{go:(v:View)=>void}) {
   const [snapshot,setSnapshot]=useState<PartnerVaultState|null>(null); const [loading,setLoading]=useState(true); const [error,setError]=useState<string|null>(null);
   useEffect(()=>{currentApi.get<PartnerVaultState>("/partners").then(setSnapshot).catch(reason=>setError(reason instanceof Error?reason.message:"Partner reserves could not be read.")).finally(()=>setLoading(false))},[]);
@@ -2293,6 +2353,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "venues":page=<VenueRegistryDashboard go={go}/>;break;
     case "launch":page=<LaunchReadinessDashboard go={go}/>;break;
     case "operations":page=<OperationsDashboard auth={auth} go={go}/>;break;
+    case "security":page=<SecurityDashboard go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;

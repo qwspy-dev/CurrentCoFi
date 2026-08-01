@@ -41,7 +41,8 @@ async function arcCheck(): Promise<ServiceComponent> {
     const healthy = response.ok && actual === expected;
     return { id: "arc-rpc", name: "Arc testnet RPC", status: healthy ? latencyMs > 1_500 ? "degraded" : "operational" : "outage", latencyMs, message: healthy ? `Connected to chain ${actual}.` : "The Arc RPC did not return the expected network." };
   } catch (error) {
-    return { id: "arc-rpc", name: "Arc testnet RPC", status: "outage", latencyMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "RPC request failed." };
+    structuredLog("error", "status.arc-rpc.unavailable", { error: safeError(error) });
+    return { id: "arc-rpc", name: "Arc testnet RPC", status: "outage", latencyMs: Date.now() - startedAt, message: "The Arc RPC health check is unavailable." };
   }
 }
 
@@ -53,7 +54,8 @@ async function databaseCheck(): Promise<ServiceComponent> {
     const latencyMs = "latencyMs" in result ? result.latencyMs ?? Date.now() - startedAt : Date.now() - startedAt;
     return { id: "database", name: "Persistent data", status: latencyMs > 800 ? "degraded" : "operational", latencyMs, message: "Account and campaign records are reachable." };
   } catch (error) {
-    return { id: "database", name: "Persistent data", status: "outage", latencyMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "Database request failed." };
+    structuredLog("error", "status.database.unavailable", { error: safeError(error) });
+    return { id: "database", name: "Persistent data", status: "outage", latencyMs: Date.now() - startedAt, message: "The persistent data health check is unavailable." };
   }
 }
 
@@ -64,7 +66,8 @@ async function releaseCheck(): Promise<ServiceComponent> {
     const healthy = release.configured && release.readinessScore === 100 && release.release?.active;
     return { id: "protocol-release", name: "Protocol contracts", status: healthy ? "operational" : "outage", latencyMs: Date.now() - startedAt, message: healthy ? `${release.components.length}/${release.components.length} registered contracts match runtime bytecode.` : "The active release manifest failed one or more checks." };
   } catch (error) {
-    return { id: "protocol-release", name: "Protocol contracts", status: "outage", latencyMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "Release verification failed." };
+    structuredLog("error", "status.protocol-release.unavailable", { error: safeError(error) });
+    return { id: "protocol-release", name: "Protocol contracts", status: "outage", latencyMs: Date.now() - startedAt, message: "The release verification check is unavailable." };
   }
 }
 

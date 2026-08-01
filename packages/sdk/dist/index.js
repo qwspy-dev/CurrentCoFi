@@ -74,6 +74,9 @@ export class Current {
     observability = {
         get: () => this.get("/api/v1/developer/observability"),
     };
+    security = {
+        get: () => this.get("/api/v1/developer/security"),
+    };
     evidence = {
         list: () => this.get("/api/v1/developer/evidence"),
         create: (input = {}) => this.signedPost("/api/v1/developer/evidence", input),

@@ -62,3 +62,10 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Mobile document width matched the 390px viewport with no horizontal overflow.
 - The signed-out boundary remains deliberate and clear; authenticated action cards now reserve responsive space for campaign creation, token approval, vault funding, and the verified Arc receipt.
 - The five-metric operator summary collapses from five columns to three and then two columns without changing action priority.
+# Security review readiness QA — 2026-07-31
+
+- Desktop 1280×720: verified the security dashboard renders the complete hero, assurance metrics, control plane, and responsive sidebar without horizontal overflow.
+- Static resilience: verified the bundled posture keeps review evidence visible when the local development server cannot execute Vercel functions.
+- Browser integrity: no framework overlay and no error-level browser logs after render.
+- Mobile composition is deliberately defined at 1050px and 700px: the assurance scene collapses to one column, controls move their status below the copy, fund flows stack, and review links become a single-column list.
+- Production acceptance requires the live `/api/v1/security` response, security headers, and authenticated `/api/v1/developer/security` boundary to pass after deployment.

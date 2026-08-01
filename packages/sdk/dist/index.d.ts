@@ -295,6 +295,45 @@ export type ServiceStatusSnapshot = {
         onchainRecoveryPoint: string;
     };
 };
+export type SecurityPostureSnapshot = {
+    projectId?: string;
+    product: string;
+    network: string;
+    assurance: {
+        internalReadinessScore: number;
+        implementedControls: number;
+        totalInternalControls: number;
+        externalAuditStatus: "pending" | "in-review" | "complete";
+        mainnetApproved: boolean;
+        statement: string;
+    };
+    controls: Array<{
+        id: string;
+        name: string;
+        status: "implemented" | "pending-external-review";
+        evidence: string;
+    }>;
+    privilegedRoles: Array<{
+        role: string;
+        authority: string;
+        boundary: string;
+    }>;
+    fundFlows: Array<{
+        flow: string;
+        custody: string;
+        release: string;
+    }>;
+    reviewPackage: {
+        scope: string;
+        threatModel: string;
+        invariants: string;
+        auditorGuide: string;
+        disclosure: string;
+        repository: string;
+        commit: string | null;
+    };
+    generatedAt: string;
+};
 export type EvidenceReport = {
     id: string;
     publicSlug: string;
@@ -538,6 +577,9 @@ export declare class Current {
     };
     readonly observability: {
         get: () => Promise<ServiceStatusSnapshot>;
+    };
+    readonly security: {
+        get: () => Promise<SecurityPostureSnapshot>;
     };
     readonly evidence: {
         list: () => Promise<{

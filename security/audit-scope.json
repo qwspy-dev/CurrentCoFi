@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "current-security-scope-v1",
+  "status": "ready-for-independent-review",
+  "assurance": "internal-review-only",
+  "network": "Arc testnet",
+  "mainnetApproved": false,
+  "contracts": [
+    "CurrentAccessManager.sol", "CurrentClaimVault.sol", "CurrentCampaignVault.sol",
+    "CurrentToken.sol", "CurrentLockVault.sol", "CurrentFeeRouter.sol",
+    "CurrentBuybackGovernor.sol", "CurrentLiquidityVault.sol", "CurrentLiquidityGovernor.sol",
+    "CurrentPartnerVault.sol", "CurrentPartnerGovernor.sol", "CurrentLiquidityVenueRegistry.sol",
+    "CurrentVenueRegistryGovernor.sol", "CurrentReleaseRegistry.sol", "CurrentReleaseGovernor.sol"
+  ],
+  "serverBoundaries": [
+    "server/auth", "server/developer", "server/security", "server/releases",
+    "api/v1/auth", "api/v1/links", "api/v1/campaigns", "api/v1/developer", "api/v1/agent-actions"
+  ],
+  "priorityProperties": [
+    "No claim can be redirected, replayed, or exceed its allocation.",
+    "No campaign can release more assets than it was fully funded to distribute.",
+    "A guardian cannot execute or withdraw funds, and an owner cannot bypass a queued governance delay.",
+    "An API or agent key cannot exceed project, scope, amount, event, or human-approval policy.",
+    "Raw recipient identities and authentication secrets never appear in public responses, logs, evidence, or onchain state.",
+    "Release, venue, and adapter attestations fail closed when runtime bytecode differs."
+  ],
+  "excluded": [
+    "Third-party Circle, Arc RPC, CCTP, Gateway, OAuth provider, and liquidity venue implementations",
+    "Economic or legal assessment of $CURRENT",
+    "Mainnet readiness certification"
+  ]
+}

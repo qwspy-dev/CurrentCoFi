@@ -4,13 +4,14 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.0.0-production-observability",
+    version: "3.1.0-security-review-readiness",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
   paths: {
     "/health": { get: { summary: "Service and dependency health" } },
     "/status": { get: { summary: "Public component health, SLO targets, and incident history" } },
+    "/security": { get: { summary: "Public security controls, privileged roles, fund flows, and external-review status" } },
     "/incidents": {
       get: { summary: "List the authenticated operational incident ledger" },
       post: { summary: "Create, update, or resolve an operational incident" },
@@ -113,6 +114,7 @@ export default withApi((request) => ok(request, {
     "/launch-readiness": { get: { summary: "Verify the active protocol release, exact bytecode, governance, and rollback readiness" } },
     "/developer/launch-readiness": { get: { summary: "Read deployment rehearsal proof with a scoped API key" } },
     "/developer/observability": { get: { summary: "Read component health and incident evidence with a scoped API key" } },
+    "/developer/security": { get: { summary: "Read the security posture and review package with a scoped API key" } },
     "/developer/evidence": {
       get: { summary: "List project evidence reports with a scoped API key" },
       post: { summary: "Generate an HMAC-signed grant-evidence snapshot" },
@@ -145,6 +147,7 @@ export default withApi((request) => ok(request, {
       "agent-settlement-handoffs", "agent-wallet-approval", "agent-vault-funding-proof",
       "release-manifest-registry", "runtime-bytecode-verification", "delayed-release-governance", "rollback-payloads",
       "structured-runtime-logging", "public-status-api", "incident-response-ledger", "service-health-objectives", "scheduled-health-monitoring",
+      "public-security-posture", "security-threat-model", "protocol-invariant-catalog", "adversarial-security-tests", "dependency-security-gate", "responsible-vulnerability-disclosure", "external-audit-review-package",
     ],
     plannedResourceGroups: [],
   },

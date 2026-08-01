@@ -24,7 +24,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v11";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v12";
 
 type Criterion = {
   id: string;
@@ -550,6 +550,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       weight: 10,
       passed: Boolean(config.DATABASE_URL && config.CURRENT_RELEASE_REGISTRY_ADDRESS),
       evidence: "Structured request logs, public component health, SLO targets, scheduled monitoring, and a persistent incident-response ledger are active.",
+    },
+    {
+      id: "security-review-readiness",
+      label: "External security review readiness",
+      weight: 10,
+      passed: Boolean(config.CURRENT_RELEASE_REGISTRY_ADDRESS && config.CURRENT_GOVERNANCE_GUARDIAN_ADDRESS),
+      evidence: "A public threat model, protocol invariants, privileged-role and fund-flow maps, adversarial checks, disclosure policy, and auditor handoff are published. Independent review remains pending.",
     },
   ];
   const generatedAt = new Date().toISOString();

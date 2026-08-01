@@ -149,6 +149,15 @@ const mockFetch: typeof fetch = async (input, init) => {
       objectives: { availability: "99.9%", apiLatencyP95Ms: 800, rpcLatencyP95Ms: 1500, recoveryTimeMinutes: 30, onchainRecoveryPoint: "zero confirmed transactions" },
     } });
   }
+  if (String(input).endsWith("/developer/security")) {
+    return Response.json({ ok: true, data: {
+      projectId: "project_sdk", product: "Current CoFi", network: "Arc testnet",
+      assurance: { internalReadinessScore: 100, implementedControls: 10, totalInternalControls: 10, externalAuditStatus: "pending", mainnetApproved: false, statement: "Internal readiness only." },
+      controls: [], privilegedRoles: [], fundFlows: [],
+      reviewPackage: { scope: "scope", threatModel: "threat", invariants: "invariants", auditorGuide: "guide", disclosure: "security", repository: "repo", commit: null },
+      generatedAt: "2026-08-14T00:00:00.000Z",
+    } });
+  }
   if (String(input).endsWith("/developer/evidence") && init?.method === "POST") {
     return Response.json({
       ok: true,
@@ -318,6 +327,11 @@ const operational = await current.observability.get();
 assert.equal(operational.status, "operational");
 assert.equal(operational.score, 100);
 assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/observability");
+
+const security = await current.security.get();
+assert.equal(security.assurance.externalAuditStatus, "pending");
+assert.equal(security.assurance.mainnetApproved, false);
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/security");
 
 const evidence = await current.evidence.create({ distributionId: distribution.id });
 assert.equal(evidence.publicSlug, "proof_sdk");

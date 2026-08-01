@@ -72,6 +72,9 @@ console.log(partners.asset?.reserveBalance, partners.proofCampaign?.id);
 
 const venues = await current.venues.get();
 console.log(venues.venue?.codeHashMatches, venues.venue?.maxSlippageBps);
+
+const security = await current.security.get();
+console.log(security.assurance.internalReadinessScore, security.assurance.externalAuditStatus);
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.
