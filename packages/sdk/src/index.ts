@@ -42,6 +42,26 @@ export type ActivationInput = {
   payload?: Record<string, unknown>;
 };
 
+export type CreateEscrowInput = {
+  name: string;
+  clientAddress: `0x${string}`;
+  providerAddress: `0x${string}`;
+  arbitratorAddress: `0x${string}`;
+  tokenAddress?: `0x${string}`;
+  milestones: Array<{ title: string; amount: string; dueAt: string }>;
+};
+
+export type EscrowAgreement = {
+  id: string; name: string; status: string; clientAddress: string; providerAddress: string;
+  arbitratorAddress: string; contractDealId: string; contractAddress: string;
+  termsHash: string; fundingTransactionHash: string | null; cancellationRequested: boolean;
+  asset: { address: string; symbol: string; decimals: number };
+  totalAmount: string; releasedAmount: string; refundedAmount: string; nextMilestone: number;
+  milestones: Array<{ position: number; title: string; amount: string; dueAt: string; status: string; proofHash: string | null }>;
+};
+
+export type EscrowState = { configured: boolean; network: string; agreements: EscrowAgreement[] };
+
 export type ActivationResult = {
   id?: string;
   duplicate: boolean;
@@ -429,6 +449,11 @@ export class Current {
       "/api/v1/developer/distributions",
       input,
     ),
+  };
+
+  readonly escrow = {
+    list: () => this.get<EscrowState>("/api/v1/developer/escrow"),
+    create: (input: CreateEscrowInput) => this.signedPost<EscrowAgreement>("/api/v1/developer/escrow", input),
   };
 
   readonly activations = {

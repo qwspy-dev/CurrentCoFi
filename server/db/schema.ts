@@ -124,6 +124,54 @@ export const distributions = pgTable("distributions", {
   index("distributions_expires_idx").on(table.expiresAt),
 ]);
 
+export const escrowAgreements = pgTable("escrow_agreements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  clientUserId: uuid("client_user_id").references(() => users.id, { onDelete: "set null" }),
+  tokenId: uuid("token_id").references(() => tokens.id, { onDelete: "restrict" }).notNull(),
+  name: text("name").notNull(),
+  status: text("status").default("awaiting_funding").notNull(),
+  clientAddress: text("client_address").notNull(),
+  providerAddress: text("provider_address").notNull(),
+  refundAddress: text("refund_address").notNull(),
+  arbitratorAddress: text("arbitrator_address").notNull(),
+  contractDealId: text("contract_deal_id").notNull(),
+  contractAddress: text("contract_address"),
+  termsHash: text("terms_hash").notNull(),
+  totalAmountAtomic: numeric("total_amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  releasedAmountAtomic: numeric("released_amount_atomic", { precision: 78, scale: 0 }).default("0").notNull(),
+  refundedAmountAtomic: numeric("refunded_amount_atomic", { precision: 78, scale: 0 }).default("0").notNull(),
+  milestoneCount: integer("milestone_count").notNull(),
+  nextMilestone: integer("next_milestone").default(0).notNull(),
+  fundingTransactionHash: text("funding_transaction_hash"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("escrow_agreements_contract_deal_unique").on(table.contractDealId),
+  index("escrow_agreements_project_status_idx").on(table.projectId, table.status, table.createdAt),
+  index("escrow_agreements_client_idx").on(table.clientUserId, table.createdAt),
+]);
+
+export const escrowMilestones = pgTable("escrow_milestones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agreementId: uuid("agreement_id").references(() => escrowAgreements.id, { onDelete: "cascade" }).notNull(),
+  position: integer("position").notNull(),
+  title: text("title").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  status: text("status").default("pending").notNull(),
+  proofHash: text("proof_hash"),
+  submissionTransactionHash: text("submission_transaction_hash"),
+  settlementTransactionHash: text("settlement_transaction_hash"),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("escrow_milestones_agreement_position_unique").on(table.agreementId, table.position),
+  index("escrow_milestones_status_due_idx").on(table.status, table.dueAt),
+]);
+
 export const allocations = pgTable("allocations", {
   id: uuid("id").primaryKey().defaultRandom(),
   distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),

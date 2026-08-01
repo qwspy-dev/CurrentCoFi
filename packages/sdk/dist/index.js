@@ -40,6 +40,10 @@ export class Current {
     distributions = {
         create: (input) => this.signedPost("/api/v1/developer/distributions", input),
     };
+    escrow = {
+        list: () => this.get("/api/v1/developer/escrow"),
+        create: (input) => this.signedPost("/api/v1/developer/escrow", input),
+    };
     activations = {
         submit: (input) => this.signedPost("/api/v1/developer/activations", {
             ...input,

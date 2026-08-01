@@ -2,7 +2,7 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.6.0",
+  version: "1.7.0",
   network: "ARC-TESTNET",
   authentication: {
     type: "scoped-api-key",
@@ -11,6 +11,28 @@ export default withApi((request) => ok(request, {
     signatureHeader: "x-current-signature",
   },
   tools: [
+    {
+      name: "prepare_milestone_escrow",
+      description: "Prepare a fully funded USDC or Arc project-token agreement with sequential proof, release, dispute, and recovery boundaries. An authorized client wallet completes funding.",
+      method: "POST",
+      path: "/api/v1/developer/escrow",
+      permission: "campaigns:write",
+      input: {
+        name: "string",
+        clientAddress: "authorized Arc wallet",
+        providerAddress: "service-provider Arc wallet",
+        arbitratorAddress: "independent Arc wallet",
+        tokenAddress: "optional Arc ERC-20 address; omit for USDC",
+        milestones: "array of { title, amount, dueAt }",
+      },
+    },
+    {
+      name: "read_milestone_escrow",
+      description: "Read agreement funding, active milestone, proof, release, dispute, refund, and cancellation state.",
+      method: "GET",
+      path: "/api/v1/developer/escrow",
+      permission: "analytics:read",
+    },
     {
       name: "propose_reward_distribution",
       description: "Propose a walletless USDC or project-token campaign through enforced reward, identity, daily-volume, and human-approval policies.",

@@ -5,6 +5,7 @@
   "network": "Arc testnet",
   "mainnetApproved": false,
   "contracts": [
+    "contracts/CurrentMilestoneEscrow.sol",
     "CurrentAccessManager.sol", "CurrentClaimVault.sol", "CurrentCampaignVault.sol",
     "CurrentToken.sol", "CurrentLockVault.sol", "CurrentFeeRouter.sol",
     "CurrentBuybackGovernor.sol", "CurrentLiquidityVault.sol", "CurrentLiquidityGovernor.sol",

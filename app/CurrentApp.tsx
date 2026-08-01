@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "developers" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -456,6 +456,20 @@ type CampaignQualityState = {
   }>;
 };
 
+type EscrowAgreement = {
+  id: string; name: string; status: string; clientAddress: string; providerAddress: string;
+  arbitratorAddress: string; refundAddress: string; contractDealId: string; contractAddress: string | null;
+  termsHash: string; fundingTransactionHash: string | null;
+  asset: { address: string; symbol: string; decimals: number };
+  totalAmount: string; releasedAmount: string; refundedAmount: string; nextMilestone: number; cancellationRequested: boolean;
+  milestones: Array<{ id: string | null; position: number; title: string; amount: string; amountAtomic: string; dueAt: string; status: string; proofHash: string | null; submissionTransactionHash: string | null; settlementTransactionHash: string | null }>;
+  createdAt: string; updatedAt: string;
+};
+
+type EscrowState = { configured: boolean; network: string; agreements: EscrowAgreement[] };
+const escrowPlanningEpoch = new Date().getTime();
+function futureEscrowDate(days:number){const date=new Date(escrowPlanningEpoch+days*86_400_000);date.setMinutes(date.getMinutes()-date.getTimezoneOffset());return date.toISOString().slice(0,16)}
+
 type DeveloperKeyRecord = {
   id: string;
   name: string;
@@ -808,7 +822,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "token", "partners", "venues", "launch", "operations", "security",
-  "developers", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "developers", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -823,6 +837,7 @@ const appNav = [
     ["overview", "Overview", Gauge], ["onboarding", "Project setup", Globe2],
     ["create", "Create link", Link2],
     ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
+    ["escrow", "Milestone escrow", Lock],
     ["referrals", "Referrals", Network], ["analytics", "Analytics", BarChart3],
     ["pilots", "Pilot operations", Handshake],
     ["evidence", "Grant evidence", FileCheck2],
@@ -2427,6 +2442,54 @@ function Agents({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     <div className="data-panel guardrail-panel"><div className="panel-head"><div><h3>Network guardrails</h3><p>Evaluated before an agent can create any reward campaign.</p></div><Status tone="green">Enforced</Status></div><div className="guardrail-grid">{[["Signature window","5 minutes",Clock3],["Policy ledger","Immutable decisions",ShieldCheck],["Idempotency","Agent scoped",Fingerprint],["Approval route","Human controlled",Braces]].map(([x,v,I])=>{const Icon=I as typeof Gauge;return <div key={String(x)}><span><Icon/></span><b>{String(v)}</b><small>{String(x)}</small></div>})}</div></div></>}</>;
 }
 
+/* eslint-disable react-hooks/purity */
+function MilestoneEscrow({auth,go}:{auth:CircleAuth;go:(view:View)=>void}) {
+  const futureDate=futureEscrowDate;
+  const [state,setState]=useState<EscrowState|null>(null);
+  const [creating,setCreating]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState<string|null>(null);
+  const [name,setName]=useState("Creator launch package");
+  const [tokenAddress,setTokenAddress]=useState("");
+  const [providerAddress,setProviderAddress]=useState("");
+  const [arbitratorAddress,setArbitratorAddress]=useState("");
+  const [milestones,setMilestones]=useState([{title:"Creative direction",amount:"250",dueAt:futureEscrowDate(7)},{title:"Final delivery",amount:"750",dueAt:futureEscrowDate(14)}]);
+  const [proofs,setProofs]=useState<Record<string,string>>({});
+  const [awards,setAwards]=useState<Record<string,string>>({});
+  const walletAddress=auth.account?.wallets.find(wallet=>wallet.blockchain==="ARC-TESTNET")?.address.toLowerCase()??"";
+  const refresh=useCallback(async()=>{
+    if(!auth.account)return;
+    try{setState(await currentApi.get<EscrowState>("/escrow"));setError(null)}catch(loadError){setError(loadError instanceof Error?loadError.message:"Escrow agreements are unavailable.")}
+  },[auth.account,setState]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const challenge=async(agreementId:string,action:string,extra:Record<string,unknown>={})=>{
+    const first=await currentApi.post<WalletActionResult>("/escrow/actions",{agreementId,action,...extra});
+    if(!first.complete){if(!first.challengeId)throw new Error("Circle did not return the escrow approval.");await auth.executeChallenge(first.challengeId);await confirmWalletAction("/escrow/actions",{agreementId,action,...extra},first.challengeId)}
+  };
+  const create=async(event:React.FormEvent)=>{
+    event.preventDefault();if(!auth.account){go("claim");return}setBusy(true);setError(null);
+    try{
+      const agreement=await currentApi.post<EscrowAgreement>("/escrow",{name,tokenAddress:tokenAddress||undefined,providerAddress,arbitratorAddress,milestones:milestones.map(item=>({...item,dueAt:new Date(item.dueAt).toISOString()}))});
+      await challenge(agreement.id,"approve-token");await challenge(agreement.id,"fund");setCreating(false);await refresh();
+    }catch(createError){setError(createError instanceof Error?createError.message:"The agreement could not be funded.")}finally{setBusy(false)}
+  };
+  const act=async(agreement:EscrowAgreement,action:string,position?:number)=>{
+    setBusy(true);setError(null);
+    try{const key=`${agreement.id}:${position??"deal"}`;await challenge(agreement.id,action,{...(position===undefined?{}:{position}),...(action==="submit"?{proof:proofs[key]??""}:{}),...(action==="resolve"?{providerAward:awards[key]??"0"}:{})});await refresh()}
+    catch(actionError){setError(actionError instanceof Error?actionError.message:"The escrow action could not be completed.")}finally{setBusy(false)}
+  };
+  const updateMilestone=(index:number,key:"title"|"amount"|"dueAt",value:string)=>setMilestones(current=>current.map((item,itemIndex)=>itemIndex===index?{...item,[key]:value}:item));
+  const totals=state?.agreements.reduce((current,agreement)=>({locked:current.locked+(agreement.status==="active"||agreement.status==="disputed"?Number(agreement.totalAmount)-Number(agreement.releasedAmount)-Number(agreement.refundedAmount):0),released:current.released+Number(agreement.releasedAmount),active:current.active+(agreement.status==="active"||agreement.status==="disputed"?1:0)}),{locked:0,released:0,active:0})??{locked:0,released:0,active:0};
+  return <><PageHero eyebrow="PROGRAMMABLE ESCROW" title="Fund the promise. Release the proof." copy="Clients lock the complete USDC or project-token budget on Arc. Providers submit verifiable milestone proofs, clients release each payment, and a named arbitrator can resolve only the disputed milestone." mode="branches"><Button tone="cyan" onClick={()=>auth.account?setCreating(value=>!value):go("claim")}>{creating?"Close builder":"New agreement"} <Plus/></Button></PageHero>
+    <div className="escrow-metrics"><MetricCard label="Active agreements" value={totals.active.toLocaleString()} icon={Lock}/><MetricCard label="Value secured" value={`${totals.locked.toLocaleString(undefined,{maximumFractionDigits:2})} USDC`} icon={ShieldCheck}/><MetricCard label="Released by proof" value={`${totals.released.toLocaleString(undefined,{maximumFractionDigits:2})} USDC`} icon={CheckCircle2}/><MetricCard label="Dispute boundary" value="One milestone" icon={SlidersHorizontal}/></div>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Sign in to create or manage escrow</h3><p>Your embedded Arc wallet remains the client, provider, or arbitrator authority.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {creating&&auth.account&&<form className="escrow-builder data-panel" onSubmit={event=>void create(event)}><div className="panel-head"><div><Eyebrow>FULLY FUNDED AGREEMENT</Eyebrow><h3>Define the parties and release schedule.</h3><p>The terms digest and every milestone are committed before funds move.</p></div><Status tone="cyan">Arc testnet</Status></div><div className="field-grid"><label>Agreement name<input value={name} maxLength={100} onChange={event=>setName(event.target.value)}/></label><label>Asset contract<input value={tokenAddress} onChange={event=>setTokenAddress(event.target.value)} placeholder="Leave blank for USDC"/></label><label>Provider Arc address<input value={providerAddress} onChange={event=>setProviderAddress(event.target.value)} placeholder="0x…"/></label><label>Independent arbitrator<input value={arbitratorAddress} onChange={event=>setArbitratorAddress(event.target.value)} placeholder="0x…"/></label></div><div className="escrow-milestone-builder"><div className="panel-head"><div><h3>Milestones</h3><p>Deadlines must stay in chronological order.</p></div><button type="button" onClick={()=>setMilestones(current=>[...current,{title:"Next milestone",amount:"100",dueAt:futureDate(7+current.length*7)}])}><Plus/>Add milestone</button></div>{milestones.map((milestone,index)=><div className="escrow-milestone-input" key={index}><i>{index+1}</i><label>Deliverable<input value={milestone.title} onChange={event=>updateMilestone(index,"title",event.target.value)}/></label><label>Amount<input inputMode="decimal" value={milestone.amount} onChange={event=>updateMilestone(index,"amount",event.target.value)}/></label><label>Due date<input type="datetime-local" value={milestone.dueAt} onChange={event=>updateMilestone(index,"dueAt",event.target.value)}/></label>{milestones.length>1&&<button type="button" aria-label={`Remove milestone ${index+1}`} onClick={()=>setMilestones(current=>current.filter((_,itemIndex)=>itemIndex!==index))}><X/></button>}</div>)}</div><div className="escrow-funding-summary"><span><small>TOTAL SECURED</small><b>{milestones.reduce((sum,item)=>sum+(Number(item.amount)||0),0).toLocaleString()} {tokenAddress?"TOKEN":"USDC"}</b></span><span><small>RELEASE POLICY</small><b>Sequential proof + approval</b></span><span><small>RECOVERY</small><b>7-day overdue grace</b></span><Button tone="blue" type="submit" disabled={busy||!providerAddress||!arbitratorAddress}>{busy?"Opening wallet…":"Approve and fund agreement"} <Lock/></Button></div></form>}
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    {auth.account&&<div className="escrow-agreement-list">{state?.agreements.map(agreement=>{const isClient=walletAddress===agreement.clientAddress;const isProvider=walletAddress===agreement.providerAddress;const isArbitrator=walletAddress===agreement.arbitratorAddress;const current=agreement.milestones.find(milestone=>milestone.position===agreement.nextMilestone);const key=`${agreement.id}:${current?.position??"deal"}`;return <article className="escrow-agreement data-panel" key={agreement.id}><div className="escrow-agreement-head"><div><Status tone={agreement.status==="completed"?"green":agreement.status==="disputed"?"red":"cyan"}>{agreement.status.replaceAll("_"," ")}</Status><h3>{agreement.name}</h3><p>{agreement.totalAmount} {agreement.asset.symbol} · {agreement.milestones.length} milestone{agreement.milestones.length===1?"":"s"}</p></div><div><small>YOUR ROLE</small><b>{isClient?"Client":isProvider?"Provider":isArbitrator?"Arbitrator":"Observer"}</b><code>{agreement.termsHash.slice(0,12)}…</code></div></div><div className="escrow-progress">{agreement.milestones.map(milestone=><div className={milestone.status} key={milestone.position}><i>{["released","refunded"].includes(milestone.status)?<Check/>:milestone.position+1}</i><span><b>{milestone.title}</b><small>{milestone.amount} {agreement.asset.symbol} · due {new Date(milestone.dueAt).toLocaleDateString()}</small></span><Status tone={milestone.status==="released"?"green":milestone.status==="disputed"?"red":"grey"}>{milestone.status}</Status></div>)}</div>{current&&agreement.status!=="completed"&&agreement.status!=="cancelled"&&<div className="escrow-action-dock"><div><small>CURRENT MILESTONE</small><b>{current.title}</b><span>{current.amount} {agreement.asset.symbol}</span></div>{isProvider&&current.status==="pending"&&<label>Delivery proof<input value={proofs[key]??""} onChange={event=>setProofs(values=>({...values,[key]:event.target.value}))} placeholder="IPFS CID, commit, file digest, or delivery reference"/></label>}{isArbitrator&&current.status==="disputed"&&<label>Provider award<input inputMode="decimal" value={awards[key]??current.amount} onChange={event=>setAwards(values=>({...values,[key]:event.target.value}))}/></label>}<div className="escrow-actions">{isProvider&&current.status==="pending"&&<Button tone="blue" disabled={busy||!proofs[key]} onClick={()=>void act(agreement,"submit",current.position)}>Submit proof <Upload/></Button>}{isClient&&current.status==="submitted"&&<><button disabled={busy} onClick={()=>void act(agreement,"dispute",current.position)}>Raise dispute</button><Button tone="blue" disabled={busy} onClick={()=>void act(agreement,"approve",current.position)}>Release milestone <Check/></Button></>}{isProvider&&current.status==="submitted"&&<button disabled={busy} onClick={()=>void act(agreement,"dispute",current.position)}>Raise dispute</button>}{isArbitrator&&current.status==="disputed"&&<Button tone="cyan" disabled={busy} onClick={()=>void act(agreement,"resolve",current.position)}>Resolve split <SlidersHorizontal/></Button>}{isClient&&current.status==="pending"&&<><button disabled={busy} onClick={()=>void act(agreement,"request-cancellation")}>Request cancellation</button><button disabled={busy||Date.now()<=new Date(current.dueAt).getTime()+7*86_400_000} onClick={()=>void act(agreement,"refund-expired",current.position)}>Recover overdue funds</button></>}{isProvider&&<button disabled={busy} onClick={()=>void act(agreement,"accept-cancellation")}>Accept cancellation</button>}</div></div>}<div className="escrow-proof"><span><small>CONTRACT DEAL</small><code>{agreement.contractDealId.slice(0,14)}…</code></span><span><small>RELEASED</small><b>{agreement.releasedAmount} {agreement.asset.symbol}</b></span><span><small>REFUNDED</small><b>{agreement.refundedAmount} {agreement.asset.symbol}</b></span>{agreement.fundingTransactionHash&&<a href={`https://testnet.arcscan.app/tx/${agreement.fundingTransactionHash}`} target="_blank" rel="noreferrer">Funding proof <ExternalLink/></a>}</div></article>})}{!state?.agreements.length&&!creating&&<div className="campaign-empty"><ShieldCheck/><h3>No escrow agreements yet</h3><p>Create a fully funded milestone agreement to establish the first verifiable release record.</p><Button tone="blue" onClick={()=>setCreating(true)}>Create agreement <Plus/></Button></div>}</div>}
+  </>;
+}
+/* eslint-enable react-hooks/purity */
+
 function SettingsView() {
   const [saved,setSaved]=useState(false);
   return <><PageHero eyebrow="ORGANIZATION CONTROL" title="A calm center for the whole network." copy="Manage identity, project branding, members, security, notifications, billing, and network preferences."/><div className="settings-shell"><div className="settings-tabs"><button className="active">General</button><button>Members</button><button>Security</button><button>Billing</button><button>Notifications</button></div><form className="settings-panel" onSubmit={e=>{e.preventDefault();setSaved(true)}}><div className="panel-head"><div><h3>Organization profile</h3><p>Public details used across claims and campaigns.</p></div>{saved&&<Status tone="green">Changes saved</Status>}</div><div className="profile-uploader"><span>T</span><div><b>Project mark</b><small>SVG, PNG, or WebP · 2MB maximum</small></div><Button tone="ghost">Replace image</Button></div><div className="field-grid"><label>Organization name<input defaultValue="Tidebreak Labs"/></label><label>Current username<div className="input-prefix"><span>current.co/</span><input defaultValue="tidebreak"/></div></label><label>Website<input defaultValue="https://tidebreak.xyz"/></label><label>Default network<select><option>Arc testnet</option></select></label><label className="full">Description<textarea defaultValue="The team building Tidebreak and its community economy."/></label></div><div className="form-actions"><Button tone="ghost">Discard</Button><Button tone="blue" type="submit">Save changes</Button></div><div className="danger-zone"><div><b>Delete organization</b><p>Removes offchain data after all campaigns and balances are settled.</p></div><button>Delete</button></div></form></div></>;
@@ -2473,6 +2536,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "launch":page=<LaunchReadinessDashboard go={go}/>;break;
     case "operations":page=<OperationsDashboard auth={auth} go={go}/>;break;
     case "security":page=<SecurityDashboard go={go}/>;break;
+    case "escrow":page=<MilestoneEscrow auth={auth} go={go}/>;break;
     case "developers":page=<Developers go={go}/>;break;
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;

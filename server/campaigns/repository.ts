@@ -54,7 +54,7 @@ export type CampaignRecipientInput = {
   amount: string;
 };
 
-function toAtomic(amount: string, decimals: number) {
+export function toAtomic(amount: string, decimals: number) {
   const normalized = amount.trim();
   if (!AMOUNT_PATTERN.test(normalized)) {
     throw new ApiError(400, "INVALID_AMOUNT", `Invalid recipient amount: ${amount}`);
@@ -88,7 +88,7 @@ function maskedIdentity(type: CampaignRecipientInput["identityType"], value: str
   return value.length > 12 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value;
 }
 
-async function projectAccess(userId: string, projectId: string) {
+export async function projectAccess(userId: string, projectId: string) {
   const membership = await getDb().query.projectMembers.findFirst({
     where: and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)),
   });
@@ -97,7 +97,7 @@ async function projectAccess(userId: string, projectId: string) {
   }
 }
 
-async function resolveToken(projectId: string, requestedAddress?: string) {
+export async function resolveToken(projectId: string, requestedAddress?: string) {
   const db = getDb();
   const address = requestedAddress?.trim() || ARC_TESTNET.usdcAddress;
   if (!isAddress(address)) throw new ApiError(400, "INVALID_TOKEN", "Enter a valid Arc token contract address.");

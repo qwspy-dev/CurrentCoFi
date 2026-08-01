@@ -32,6 +32,7 @@ export function compileContracts() {
     sources: {
       "CurrentClaimVault.sol": { content: readSource("contracts/CurrentClaimVault.sol") },
       "CurrentCampaignVault.sol": { content: readSource("contracts/CurrentCampaignVault.sol") },
+      "CurrentMilestoneEscrow.sol": { content: readSource("contracts/CurrentMilestoneEscrow.sol") },
       "CurrentToken.sol": { content: readSource("contracts/CurrentToken.sol") },
       "CurrentLockVault.sol": { content: readSource("contracts/CurrentLockVault.sol") },
       "CurrentFeeRouter.sol": { content: readSource("contracts/CurrentFeeRouter.sol") },
@@ -71,6 +72,7 @@ export function compileContracts() {
   if (fatal.length) throw new Error(fatal.map((entry) => entry.formattedMessage).join("\n"));
   const vault = output.contracts?.["CurrentClaimVault.sol"]?.CurrentClaimVault;
   const campaignVault = output.contracts?.["CurrentCampaignVault.sol"]?.CurrentCampaignVault;
+  const milestoneEscrow = output.contracts?.["CurrentMilestoneEscrow.sol"]?.CurrentMilestoneEscrow;
   const currentToken = output.contracts?.["CurrentToken.sol"]?.CurrentToken;
   const currentLockVault = output.contracts?.["CurrentLockVault.sol"]?.CurrentLockVault;
   const currentFeeRouter = output.contracts?.["CurrentFeeRouter.sol"]?.CurrentFeeRouter;
@@ -95,6 +97,7 @@ export function compileContracts() {
   if (
     !vault?.evm.bytecode.object ||
     !campaignVault?.evm.bytecode.object ||
+    !milestoneEscrow?.evm.bytecode.object ||
     !currentToken?.evm.bytecode.object ||
     !currentLockVault?.evm.bytecode.object ||
     !currentFeeRouter?.evm.bytecode.object ||
@@ -121,6 +124,10 @@ export function compileContracts() {
     campaignVault: {
       abi: campaignVault.abi,
       bytecode: `0x${campaignVault.evm.bytecode.object}` as `0x${string}`,
+    },
+    milestoneEscrow: {
+      abi: milestoneEscrow.abi,
+      bytecode: `0x${milestoneEscrow.evm.bytecode.object}` as `0x${string}`,
     },
     currentToken: {
       abi: currentToken.abi,
@@ -202,6 +209,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   fs.writeFileSync(
     path.join(outputDirectory, "CurrentCampaignVault.json"),
     JSON.stringify(compiled.campaignVault, null, 2),
+  );
+  fs.writeFileSync(
+    path.join(outputDirectory, "CurrentMilestoneEscrow.json"),
+    JSON.stringify(compiled.milestoneEscrow, null, 2),
   );
   fs.writeFileSync(
     path.join(outputDirectory, "CurrentToken.json"),

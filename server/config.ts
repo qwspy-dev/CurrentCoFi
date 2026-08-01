@@ -20,6 +20,7 @@ export type ServerConfig = {
   CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY?: `0x${string}`;
   CURRENT_CLAIM_VAULT_ADDRESS?: `0x${string}`;
   CURRENT_CAMPAIGN_VAULT_ADDRESS?: `0x${string}`;
+  CURRENT_MILESTONE_ESCROW_ADDRESS?: `0x${string}`;
   CURRENT_TOKEN_ADDRESS?: `0x${string}`;
   CURRENT_LOCK_VAULT_ADDRESS?: `0x${string}`;
   CURRENT_FEE_ROUTER_ADDRESS?: `0x${string}`;
@@ -82,6 +83,7 @@ export function getServerConfig(): ServerConfig {
       CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY: optional("CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY") as `0x${string}` | undefined,
       CURRENT_CLAIM_VAULT_ADDRESS: optional("CURRENT_CLAIM_VAULT_ADDRESS") as `0x${string}` | undefined,
       CURRENT_CAMPAIGN_VAULT_ADDRESS: optional("CURRENT_CAMPAIGN_VAULT_ADDRESS") as `0x${string}` | undefined,
+      CURRENT_MILESTONE_ESCROW_ADDRESS: optional("CURRENT_MILESTONE_ESCROW_ADDRESS") as `0x${string}` | undefined,
       CURRENT_TOKEN_ADDRESS: optional("CURRENT_TOKEN_ADDRESS") as `0x${string}` | undefined,
       CURRENT_LOCK_VAULT_ADDRESS: optional("CURRENT_LOCK_VAULT_ADDRESS") as `0x${string}` | undefined,
       CURRENT_FEE_ROUTER_ADDRESS: optional("CURRENT_FEE_ROUTER_ADDRESS") as `0x${string}` | undefined,
@@ -136,6 +138,7 @@ export function getPublicConfig() {
         config.CURRENT_LOCK_VAULT_ADDRESS &&
         config.CURRENT_FEE_ROUTER_ADDRESS
       ),
+      milestoneEscrow: Boolean(config.CURRENT_MILESTONE_ESCROW_ADDRESS),
       currentGovernance: Boolean(
         config.CURRENT_ACCESS_MANAGER_ADDRESS &&
         config.CURRENT_BUYBACK_GOVERNOR_ADDRESS &&
@@ -196,6 +199,7 @@ export function getReadiness() {
       config.CURRENT_LOCK_VAULT_ADDRESS &&
       config.CURRENT_FEE_ROUTER_ADDRESS
     ),
+    milestoneEscrow: Boolean(config.CURRENT_MILESTONE_ESCROW_ADDRESS),
     currentGovernance: Boolean(
       config.CURRENT_ACCESS_MANAGER_ADDRESS &&
       config.CURRENT_BUYBACK_GOVERNOR_ADDRESS &&

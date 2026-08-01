@@ -8,6 +8,20 @@ const requests: Array<{ url: string; init?: RequestInit }> = [];
 
 const mockFetch: typeof fetch = async (input, init) => {
   requests.push({ url: String(input), init });
+  if (String(input).endsWith("/developer/escrow")) {
+    const agreement = {
+      id: "escrow_sdk", name: "SDK milestone proof", status: "awaiting_funding",
+      clientAddress: "0x1111111111111111111111111111111111111111",
+      providerAddress: "0x2222222222222222222222222222222222222222",
+      arbitratorAddress: "0x3333333333333333333333333333333333333333",
+      contractDealId: "0xdeal", contractAddress: "0xescrow", termsHash: "0xterms",
+      fundingTransactionHash: null, cancellationRequested: false,
+      asset: { address: "0xusdc", symbol: "USDC", decimals: 6 },
+      totalAmount: "500", releasedAmount: "0", refundedAmount: "0", nextMilestone: 0,
+      milestones: [{ position: 0, title: "Ship integration", amount: "500", dueAt: "2026-09-01T00:00:00.000Z", status: "pending", proofHash: null }],
+    };
+    return Response.json({ ok: true, data: init?.method === "POST" ? agreement : { configured: true, network: "ARC-TESTNET", agreements: [agreement] } }, { status: init?.method === "POST" ? 201 : 200 });
+  }
   if (String(input).endsWith("/developer/distributions")) {
     return Response.json({
       ok: true,
@@ -306,6 +320,19 @@ const expectedSignature = createHmac("sha256", signingSecret)
   .update(`${timestamp}.${signedRequest.init?.body}`)
   .digest("base64url");
 assert.equal(suppliedSignature, expectedSignature);
+
+const escrow = await current.escrow.create({
+  name: "SDK milestone proof",
+  clientAddress: "0x1111111111111111111111111111111111111111",
+  providerAddress: "0x2222222222222222222222222222222222222222",
+  arbitratorAddress: "0x3333333333333333333333333333333333333333",
+  milestones: [{ title: "Ship integration", amount: "500", dueAt: "2026-09-01T00:00:00.000Z" }],
+});
+assert.equal(escrow.id, "escrow_sdk");
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/escrow");
+assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
+const escrows = await current.escrow.list();
+assert.equal(escrows.agreements[0]?.asset.symbol, "USDC");
 
 const activation = await current.activations.submit({
   externalEventId: "event_1",

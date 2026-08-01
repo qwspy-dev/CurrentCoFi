@@ -40,6 +40,11 @@ export default withApi((request) => ok(request, {
     "/campaigns/manage": { post: { summary: "Cancel a campaign or refund an expired campaign" } },
     "/campaigns/recipients": { get: { summary: "List masked recipient allocations and settlement states" } },
     "/campaigns/analytics": { get: { summary: "Read live campaign targeting, claims, and activation totals" } },
+    "/escrow": {
+      get: { summary: "List fully funded milestone agreements for the signed-in wallet" },
+      post: { summary: "Create a USDC or project-token milestone agreement" },
+    },
+    "/escrow/actions": { post: { summary: "Approve, fund, submit, release, dispute, resolve, cancel, or recover a milestone agreement" } },
     "/funding": {
       get: { summary: "List CCTP V2 funding routes and their source, Arc, and vault proofs" },
       post: { summary: "Create, authorize, bridge, synchronize, or settle a crosschain USDC funding route" },
@@ -83,6 +88,10 @@ export default withApi((request) => ok(request, {
     },
     "/developer/distributions": {
       post: { summary: "Create a signed walletless USDC or project-token distribution" },
+    },
+    "/developer/escrow": {
+      get: { summary: "List project milestone agreements with a scoped API key" },
+      post: { summary: "Prepare an HMAC-signed milestone agreement for wallet funding" },
     },
     "/developer/agent-actions": {
       get: { summary: "List auditable policy decisions made for a scoped agent" },
@@ -146,7 +155,7 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "project-access-tiers", "buyback-governance",
