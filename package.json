@@ -21,6 +21,7 @@
     "contracts:deploy:governance": "tsx scripts/contracts/deploy-current-governance.ts",
     "contracts:deploy:liquidity": "tsx scripts/contracts/deploy-current-liquidity.ts",
     "contracts:deploy:partners": "tsx scripts/contracts/deploy-current-partner-vault.ts",
+    "contracts:prove:partner-claim": "tsx scripts/contracts/prove-current-partner-claim.ts",
     "contracts:deploy:venues": "tsx scripts/contracts/deploy-current-venue-registry.ts",
     "contracts:deploy:release": "tsx scripts/contracts/deploy-current-release.ts",
     "contracts:deploy:escrow": "tsx scripts/contracts/deploy-current-milestone-escrow.ts",

@@ -73,6 +73,7 @@ export type ProjectTokenProof = {
   readiness:{complete:boolean;verifiedStages:number;stages:number};
   asset:null|{symbol:string;name:string;decimals:number;contractAddress:string;contractUrl:string|null;approved:boolean;metadataHash:string;reserveBalance:string;totalDeposited:string;totalCampaignFunded:string};
   campaign:null|{proofRef:string;totalAmount:string;remainingAmount:string;recipientCount:number;merkleRoot:string;state:string;expiresAt:string;claimEvidence:string};
+  settlement:null|{proofRef:string;totalAmount:string;remainingAmount:string;recipientCount:number;merkleRoot:string;state:string;expiresAt:string;claimed:boolean;claimEvidence:string;queueTransactionHash:string|null;queueTransactionUrl:string|null;fundingTransactionHash:string|null;fundingTransactionUrl:string|null;claimTransactionHash:string|null;claimTransactionUrl:string|null};
   governance:null|{governorOwnsVault:boolean;minimumDelaySeconds:number;queuedOperations:number;executedOperations:number;cancelledOperations:number};
   flow:Array<{id:string;label:string;status:string;evidence:string|null}>;
   contracts:Array<{id:string;label:string;address:string;url:string|null}>;

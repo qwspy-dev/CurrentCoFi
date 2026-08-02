@@ -10,6 +10,9 @@ type ProofAnchors = {
   assetApprovalTransactionHash?: string;
   reserveDepositTransactionHash?: string;
   campaignFundingTransactionHash?: string;
+  settlementQueueTransactionHash?: string;
+  settlementFundingTransactionHash?: string;
+  settlementClaimTransactionHash?: string;
 };
 
 // Immutable, public Arc testnet transaction anchors for the currently configured
@@ -21,6 +24,9 @@ const proofAnchors: ProofAnchors = {
   assetApprovalTransactionHash: "0x7e19b228934a8b9a3afe8ef309ba808fdf952b6308c395324dab96baed957ee9",
   reserveDepositTransactionHash: "0x87a1d90e408d7cb2b2a175091b1ed6570c9076bb25acc2f0a4b9b14bafca1198",
   campaignFundingTransactionHash: "0xfd6067c3feac3ad26c9b5de5989123aa331e37f4a8746e46143709f3dd5c030f",
+  settlementQueueTransactionHash: "0x47ad3265197cbe3c993e3f6980f1aef08494e49da5f5cc07f30fef4f4b2eab91",
+  settlementFundingTransactionHash: "0xc9a6f417f615425a5a4c21f6094cce339bf87877fda5affeb0ffa06bcbefbcba",
+  settlementClaimTransactionHash: "0xfad01a7d1feeb893480a9b65bc847a72a69b7400b88e6d4d3d18541bd3dd51e0",
 };
 
 const stable = (value: unknown): string => {
@@ -48,6 +54,7 @@ export function assembleProjectTokenProof(input: {
   const transactionUrl = (hash?: string | null) => hash ? `${explorerUrl}/tx/${hash}` : null;
   const asset = snapshot.asset;
   const campaign = snapshot.proofCampaign;
+  const settlement = snapshot.settlementProof;
   const governance = snapshot.governance;
   const addresses = snapshot.addresses;
   const funded = Boolean(
@@ -56,6 +63,13 @@ export function assembleProjectTokenProof(input: {
     campaign &&
     Number(campaign.totalAmount) > 0 &&
     campaign.state === 1,
+  );
+  const settled = Boolean(
+    settlement &&
+    settlement.claimed &&
+    Number(settlement.totalAmount) > 0 &&
+    Number(settlement.remainingAmount) === 0 &&
+    settlement.state === 2,
   );
 
   const body = {
@@ -66,17 +80,18 @@ export function assembleProjectTokenProof(input: {
     configured: snapshot.configured,
     proofMode: "protocol-owned demonstration",
     valueStatus: "CPT is an Arc testnet demonstration token with no monetary value and no external partner endorsement.",
-    boundary: "This proves Current CoFi can govern, reserve, and fully fund an arbitrary ERC-20 campaign on Arc testnet. It is protocol capability evidence, not external pilot traction or a completed recipient claim.",
-    headline: "Project tokens move through the same funded walletless campaign rail as USDC.",
+    boundary: "This proves Current CoFi can govern, reserve, fund, and complete an arbitrary ERC-20 recipient settlement on Arc testnet. It is protocol-owned capability evidence, not external pilot traction.",
+    headline: "Project tokens move through the same funded walletless campaign rail as USDC—and settle to recipients on Arc.",
     readiness: {
-      complete: funded && Boolean(governance?.governorOwnsVault),
+      complete: funded && settled && Boolean(governance?.governorOwnsVault),
       verifiedStages: [
         Boolean(addresses?.testnetPartnerToken),
         Boolean(asset?.approved && Number(asset.totalDeposited) > 0),
         Boolean(governance?.governorOwnsVault && governance.totalExecuted >= 2),
         funded,
+        settled,
       ].filter(Boolean).length,
-      stages: 4,
+      stages: 5,
     },
     asset: asset && addresses ? {
       symbol: asset.symbol,
@@ -98,7 +113,24 @@ export function assembleProjectTokenProof(input: {
       merkleRoot: campaign.merkleRoot,
       state: campaign.state === 1 ? "funded" : `state-${campaign.state}`,
       expiresAt: new Date(Number(campaign.expiresAt) * 1_000).toISOString(),
-      claimEvidence: "claim-capability-only",
+      claimEvidence: "funded-capability",
+    } : null,
+    settlement: settlement ? {
+      proofRef: `project-token-settlement-${projectTokenProofDigest(settlement.id).slice(0, 16)}`,
+      totalAmount: settlement.totalAmount,
+      remainingAmount: settlement.remainingAmount,
+      recipientCount: settlement.recipientCount,
+      merkleRoot: settlement.merkleRoot,
+      state: settlement.state === 2 ? "completed" : `state-${settlement.state}`,
+      expiresAt: new Date(Number(settlement.expiresAt) * 1_000).toISOString(),
+      claimed: settlement.claimed,
+      claimEvidence: settled ? "claimed-and-verified" : "unavailable",
+      queueTransactionHash: input.anchors.settlementQueueTransactionHash ?? null,
+      queueTransactionUrl: transactionUrl(input.anchors.settlementQueueTransactionHash),
+      fundingTransactionHash: input.anchors.settlementFundingTransactionHash ?? null,
+      fundingTransactionUrl: transactionUrl(input.anchors.settlementFundingTransactionHash),
+      claimTransactionHash: input.anchors.settlementClaimTransactionHash ?? null,
+      claimTransactionUrl: transactionUrl(input.anchors.settlementClaimTransactionHash),
     } : null,
     governance: governance ? {
       governorOwnsVault: governance.governorOwnsVault,
@@ -112,6 +144,7 @@ export function assembleProjectTokenProof(input: {
       { id: "reserve", label: "100,000 CPT reserved", status: Number(asset?.totalDeposited ?? 0) >= 100_000 ? "verified" : "unavailable", evidence: transactionUrl(input.anchors.reserveDepositTransactionHash) },
       { id: "governance", label: "Delayed governance executed", status: governance?.governorOwnsVault && governance.totalExecuted >= 2 ? "verified" : "unavailable", evidence: addressUrl(addresses?.governor) },
       { id: "campaign", label: "10,000 CPT fully funded", status: funded ? "verified" : "unavailable", evidence: transactionUrl(input.anchors.campaignFundingTransactionHash) },
+      { id: "settlement", label: "25 CPT recipient settlement", status: settled ? "verified" : "unavailable", evidence: transactionUrl(input.anchors.settlementClaimTransactionHash) },
     ],
     contracts: addresses ? [
       { id: "token", label: "Test project token", address: addresses.testnetPartnerToken, url: addressUrl(addresses.testnetPartnerToken) },
@@ -124,6 +157,9 @@ export function assembleProjectTokenProof(input: {
       { id: "asset-approved", label: "Asset approval executed", hash: input.anchors.assetApprovalTransactionHash, url: transactionUrl(input.anchors.assetApprovalTransactionHash) },
       { id: "reserve-funded", label: "Reserve deposited", hash: input.anchors.reserveDepositTransactionHash, url: transactionUrl(input.anchors.reserveDepositTransactionHash) },
       { id: "campaign-funded", label: "Campaign funded", hash: input.anchors.campaignFundingTransactionHash, url: transactionUrl(input.anchors.campaignFundingTransactionHash) },
+      { id: "settlement-queued", label: "Settlement queued", hash: input.anchors.settlementQueueTransactionHash, url: transactionUrl(input.anchors.settlementQueueTransactionHash) },
+      { id: "settlement-funded", label: "Settlement funded", hash: input.anchors.settlementFundingTransactionHash, url: transactionUrl(input.anchors.settlementFundingTransactionHash) },
+      { id: "settlement-claimed", label: "Recipient claim completed", hash: input.anchors.settlementClaimTransactionHash, url: transactionUrl(input.anchors.settlementClaimTransactionHash) },
     ].filter((item) => item.hash),
     privacy: "No recipient identity, email, social handle, API key, session, or private project record is included.",
   };
