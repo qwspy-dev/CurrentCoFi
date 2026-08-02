@@ -150,7 +150,12 @@ export function buildGrantDossier(input: {
 }
 
 export async function getGrantDossier() {
-  const [networkResult, launchResult, projectTokenResult] = await Promise.allSettled([getNetworkProof(), getLaunchReadinessSnapshot(), getProjectTokenProof()]);
+  const [networkResult, launchResult] = await Promise.allSettled([getNetworkProof(), getLaunchReadinessSnapshot()]);
+  // Arc's public testnet RPC is intentionally conservative. Keep the heavier
+  // partner-vault reads out of the release-verification burst so the dossier
+  // remains complete even when the provider applies per-second limits.
+  await new Promise((resolve) => setTimeout(resolve, 1_100));
+  const [projectTokenResult] = await Promise.allSettled([getProjectTokenProof()]);
   const network = networkResult.status === "fulfilled" ? networkResult.value : await getNetworkProof();
   return buildGrantDossier({
     generatedAt: new Date().toISOString(),
