@@ -49,6 +49,9 @@ const links = {
   projectTokenProofApi: "https://www.currentco.finance/api/v1/project-token-proof",
   proofHealth: "https://www.currentco.finance/#/proof-health",
   proofHealthApi: "https://www.currentco.finance/api/v1/proof-health",
+  grantApplication: "https://www.currentco.finance/#/grant-application",
+  grantApplicationApi: "https://www.currentco.finance/api/v1/grant-application",
+  grantApplicationMarkdown: "https://www.currentco.finance/api/v1/grant-application/markdown",
   developers: "https://www.currentco.finance/#/developers",
   integrationManifest: "https://www.currentco.finance/api/v1/integration-manifest",
   openapi: "https://www.currentco.finance/api/v1/openapi",
@@ -168,3 +171,5 @@ export async function getGrantDossier() {
     projectTokenError: projectTokenResult.status === "rejected" ? "Arc project-token verification is temporarily unavailable." : null,
   });
 }
+
+export type GrantDossier = Awaited<ReturnType<typeof getGrantDossier>>;

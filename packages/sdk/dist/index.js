@@ -66,6 +66,24 @@ export class Current {
     analytics = {
         get: () => this.get("/api/v1/developer/analytics"),
     };
+    integrations = {
+        manifest: () => this.publicGet("/api/v1/integration-manifest"),
+        readiness: () => this.get("/api/v1/developer/integration-readiness"),
+        certify: () => this.signedPost("/api/v1/developer/integration-certification", {}),
+    };
+    network = {
+        proof: () => this.publicGet("/api/v1/network-proof"),
+    };
+    dossier = {
+        get: () => this.publicGet("/api/v1/grant-dossier"),
+        application: () => this.publicGet("/api/v1/grant-application"),
+    };
+    proofs = {
+        campaigns: () => this.publicGet("/api/v1/campaign-proofs"),
+        reviewerDemo: () => this.publicGet("/api/v1/reviewer-demo"),
+        projectToken: () => this.publicGet("/api/v1/project-token-proof"),
+        health: () => this.publicGet("/api/v1/proof-health"),
+    };
     quality = {
         get: () => this.get("/api/v1/developer/quality"),
         evaluate: (distributionId) => this.signedPost("/api/v1/developer/quality", { action: "evaluate", distributionId }),
@@ -99,6 +117,10 @@ export class Current {
         list: () => this.get("/api/v1/developer/evidence"),
         create: (input = {}) => this.signedPost("/api/v1/developer/evidence", input),
     };
+    grant = {
+        list: () => this.get("/api/v1/developer/grant"),
+        create: (input = {}) => this.signedPost("/api/v1/developer/grant", input),
+    };
     pilots = {
         list: () => this.get("/api/v1/developer/pilots"),
         create: (input) => this.signedPost("/api/v1/developer/pilots", input),
@@ -126,6 +148,10 @@ export class Current {
                 authorization: `Bearer ${this.apiKey}`,
             },
         });
+        return parseResponse(response);
+    }
+    async publicGet(path) {
+        const response = await this.request(`${this.baseUrl}${path}`, { headers: { accept: "application/json" } });
         return parseResponse(response);
     }
     async signedPost(path, value) {

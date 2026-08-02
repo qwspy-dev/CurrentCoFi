@@ -3,6 +3,473 @@ export type CurrentRecipient = {
     identity: string;
     amount: string;
 };
+export type IntegrationManifest = {
+    schemaVersion: string;
+    product: string;
+    network: string;
+    message: string;
+    publishedAt: string;
+    digest: string;
+    paths: Array<{
+        id: string;
+        label: string;
+        bestFor: string;
+        package?: string;
+        spec?: string;
+        manifest?: string;
+    }>;
+    circleStack: readonly string[];
+    endpoints: Array<{
+        method: string;
+        path: string;
+        purpose: string;
+        permission: string;
+        signed: boolean;
+    }>;
+    webhookEvents: readonly string[];
+    security: readonly string[];
+};
+export type IntegrationReadiness = {
+    schemaVersion: string;
+    projectId: string;
+    score: number;
+    level: "foundation" | "integrating" | "pilot-ready" | "grant-ready";
+    completed: number;
+    total: number;
+    generatedAt: string;
+    checks: Array<{
+        id: string;
+        label: string;
+        detail: string;
+        weight: number;
+        complete: boolean;
+        count: number;
+    }>;
+    next: {
+        id: string;
+        label: string;
+        detail: string;
+        weight: number;
+        complete: boolean;
+        count: number;
+    } | null;
+};
+export type IntegrationCertificate = {
+    token: string;
+    digest: string;
+    publicUrl: string;
+    certificate: {
+        schemaVersion: string;
+        subject: {
+            projectRef: string;
+            projectName: string;
+        };
+        issuer: {
+            name: string;
+            network: string;
+        };
+        status: "progress" | "integration-verified" | "grant-ready";
+        score: number;
+        completed: number;
+        total: number;
+        manifestDigest: string;
+        issuedAt: string;
+        expiresAt: string;
+        checks: Array<{
+            id: string;
+            label: string;
+            weight: number;
+            count: number;
+            complete: boolean;
+        }>;
+    };
+};
+export type NetworkProof = {
+    schemaVersion: string;
+    product: string;
+    network: string;
+    configured: boolean;
+    valueStatus: string;
+    dataMode: string;
+    asOf: string;
+    digest: string;
+    totals: {
+        projects: number;
+        campaigns: number;
+        recipientsTargeted: number;
+        confirmedClaims: number;
+        fundedWallets: number;
+        activatedUsers: number;
+        activationEvents: number;
+        usdcClaimedAtomic: string;
+        projectTokenCampaigns: number;
+    };
+    rates: {
+        claimRate: number;
+        activationRate: number;
+    };
+    activity: Array<{
+        date: string;
+        campaigns: number;
+        claims: number;
+        activations: number;
+    }>;
+    sources: Array<{
+        metric: string;
+        record: string;
+        rule: string;
+    }>;
+    privacy: string;
+};
+export type CampaignProofExplorer = {
+    schemaVersion: string;
+    product: string;
+    network: string;
+    explorerUrl: string;
+    configured: boolean;
+    valueStatus: string;
+    generatedAt: string;
+    digest: string;
+    privacy: string;
+    totals: {
+        campaigns: number;
+        recipients: number;
+        confirmedClaims: number;
+        settlementTransactions: number;
+        activationEvents: number;
+        identityAttestations: number;
+        fundedCampaigns: number;
+    };
+    campaigns: Array<{
+        proofRef: string;
+        label: string;
+        status: string;
+        kind: string;
+        digest: string;
+        asset: {
+            symbol: string;
+            name: string;
+            decimals: number;
+            contractAddress: string;
+            verified: boolean;
+            amountAtomic: string;
+            claimedAmountAtomic: string;
+        };
+        targeting: {
+            claimMode: string;
+            recipients: number;
+            allocationStates: Record<string, number>;
+        };
+        settlement: {
+            confirmedClaims: number;
+            remainingAtomic: string;
+            claimTransactions: Array<{
+                hash: string;
+                confirmedAt: string | null;
+            }>;
+        };
+        activation: {
+            events: number;
+            distinctUsers: number;
+            eventTypes: Record<string, number>;
+        };
+        identity: {
+            attestations: number;
+            consumed: number;
+            types: Record<string, number>;
+        };
+        referrals: {
+            total: number;
+            states: Record<string, number>;
+        };
+        anchors: {
+            merkleRoot: string | null;
+            vaultAddress: string | null;
+            fundingTransactionHash: string | null;
+            refundTransactionHash: string | null;
+            crosschainFunding: Array<Record<string, unknown>>;
+            gatewayFunding: Array<Record<string, unknown>>;
+        };
+        recovery: {
+            expiresAt: string | null;
+            refundable: boolean;
+            refunded: boolean;
+        };
+        timeline: {
+            createdAt: string;
+            startsAt: string | null;
+            expiresAt: string | null;
+        };
+    }>;
+};
+export type ReviewerDemo = {
+    schemaVersion: string;
+    product: string;
+    environment: string;
+    generatedAt: string;
+    replayId: string;
+    mode: "non-mutating-verified-replay";
+    boundary: string;
+    digest: string;
+    privacy: string;
+    story: {
+        headline: string;
+        recipient: string;
+        project: string;
+        asset: string;
+        amountAtomic: string;
+        decimals: number;
+        proofRef: string | null;
+    };
+    readiness: {
+        stages: number;
+        verifiedStages: number;
+        complete: boolean;
+    };
+    stages: Array<{
+        id: string;
+        index: number;
+        label: string;
+        actor: string;
+        status: string;
+        explanation: string;
+        evidence: Record<string, unknown>;
+    }>;
+    liveContext: {
+        campaigns: number;
+        confirmedClaims: number;
+        fundedWallets: number;
+        activatedUsers: number;
+        networkDigest: string;
+        integrationDigest: string;
+    };
+    reviewerActions: Array<{
+        id: string;
+        label: string;
+        url: string | null;
+    }>;
+    developerRecipe: {
+        package: string;
+        sequence: string[];
+        integrationPaths: Array<{
+            id: string;
+            label: string;
+        }>;
+    };
+};
+export type ProjectTokenProof = {
+    schemaVersion: string;
+    product: string;
+    environment: string;
+    generatedAt: string;
+    configured: boolean;
+    proofMode: string;
+    valueStatus: string;
+    boundary: string;
+    headline: string;
+    digest: string;
+    privacy: string;
+    readiness: {
+        complete: boolean;
+        verifiedStages: number;
+        stages: number;
+    };
+    asset: null | {
+        symbol: string;
+        name: string;
+        decimals: number;
+        contractAddress: string;
+        contractUrl: string | null;
+        approved: boolean;
+        metadataHash: string;
+        reserveBalance: string;
+        totalDeposited: string;
+        totalCampaignFunded: string;
+    };
+    campaign: null | {
+        proofRef: string;
+        totalAmount: string;
+        remainingAmount: string;
+        recipientCount: number;
+        merkleRoot: string;
+        state: string;
+        expiresAt: string;
+        claimEvidence: string;
+    };
+    settlement: null | {
+        proofRef: string;
+        totalAmount: string;
+        remainingAmount: string;
+        recipientCount: number;
+        merkleRoot: string;
+        state: string;
+        expiresAt: string;
+        claimed: boolean;
+        claimEvidence: string;
+        queueTransactionHash: string | null;
+        queueTransactionUrl: string | null;
+        fundingTransactionHash: string | null;
+        fundingTransactionUrl: string | null;
+        claimTransactionHash: string | null;
+        claimTransactionUrl: string | null;
+    };
+    governance: null | {
+        governorOwnsVault: boolean;
+        minimumDelaySeconds: number;
+        queuedOperations: number;
+        executedOperations: number;
+        cancelledOperations: number;
+    };
+    flow: Array<{
+        id: string;
+        label: string;
+        status: string;
+        evidence: string | null;
+    }>;
+    contracts: Array<{
+        id: string;
+        label: string;
+        address: string;
+        url: string | null;
+    }>;
+    transactions: Array<{
+        id: string;
+        label: string;
+        hash: string;
+        url: string | null;
+    }>;
+};
+export type GrantProofHealth = {
+    schemaVersion: string;
+    product: string;
+    environment: string;
+    generatedAt: string;
+    status: "healthy" | "degraded" | "unavailable";
+    score: number;
+    verifiedChecks: number;
+    totalChecks: number;
+    boundary: string;
+    digest: string;
+    privacy: string;
+    checks: Array<{
+        id: string;
+        label: string;
+        status: "verified" | "degraded" | "unavailable";
+        statement: string;
+        evidence: string | null;
+        digest: string | null;
+        externalGate: string | null;
+    }>;
+    reviewerLinks: Record<string, string>;
+};
+export type PublicGrantDossier = {
+    schemaVersion: string;
+    product: string;
+    environment: string;
+    generatedAt: string;
+    boundary: string;
+    digest: string;
+    application: {
+        oneLiner: string;
+        problem: string;
+        solution: string;
+        ecosystemValue: string;
+    };
+    criteria: Array<{
+        id: string;
+        label: string;
+        statement: string;
+        proof: readonly string[];
+    }>;
+    architecture: Array<{
+        product: string;
+        role: string;
+    }>;
+    shipped: Array<{
+        id: string;
+        label: string;
+        detail: string;
+    }>;
+    liveProof: {
+        network: NetworkProof;
+        release: Record<string, unknown>;
+        security: Record<string, unknown>;
+        integration: Record<string, unknown>;
+    };
+    externalGates: Array<{
+        id: string;
+        label: string;
+        status: string;
+        target: string;
+    }>;
+    proposedGrantMilestones: Array<{
+        id: string;
+        title: string;
+        measurement: string;
+    }>;
+    reviewerLinks: Record<string, string>;
+    privacy: string;
+};
+export type GrantApplicationPacket = {
+    schemaVersion: string;
+    product: string;
+    environment: string;
+    generatedAt: string;
+    status: string;
+    boundary: string;
+    digest: string;
+    executiveSummary: string;
+    privacy: string;
+    officialGrantSource: {
+        name: string;
+        url: string;
+        applicationUrl: string;
+        researchedAt: string;
+        applicationWindowObserved: string;
+        criteria: readonly string[];
+    };
+    applicationAnswers: Array<{
+        id: string;
+        prompt: string;
+        response: string;
+        wordCount: number;
+        evidence: string[];
+    }>;
+    architecture: Array<{
+        product: string;
+        role: string;
+    }>;
+    shipped: Array<{
+        id: string;
+        label: string;
+        detail: string;
+    }>;
+    evidenceSnapshot: Record<string, string | number | boolean | null>;
+    proposedMilestones: Array<{
+        id: string;
+        title: string;
+        measurement: string;
+        sequence: number;
+        acceptanceEvidence: string[];
+    }>;
+    externalGates: Array<{
+        id: string;
+        label: string;
+        status: string;
+        target: string;
+    }>;
+    applicantInputs: Array<{
+        id: string;
+        label: string;
+        reason: string;
+    }>;
+    submissionChecklist: {
+        internallyComplete: string[];
+        awaitingApplicant: string[];
+        awaitingExternal: string[];
+    };
+    reviewerLinks: Record<string, string>;
+};
 export type CreateDistributionInput = {
     name: string;
     tokenAddress?: string;
@@ -519,6 +986,54 @@ export type EvidenceReportSummary = Omit<EvidenceReport, "snapshot"> & {
         activations: number;
     };
 };
+export type GrantReviewPackage = {
+    schemaVersion: string;
+    digest: string;
+    evidence: {
+        id: string;
+        publicSlug: string;
+        schemaVersion: string;
+        digest: string;
+        integrity: {
+            valid: boolean;
+            recalculatedDigest: string;
+        };
+        generatedAt: string;
+    };
+    application: {
+        project: string;
+        website: string;
+        oneLiner: string;
+        problem: string;
+        solution: string;
+        whyArc: string;
+        ecosystemValue: string;
+    };
+    officialCriteria: Array<{
+        id: string;
+        label: string;
+        summary: string;
+    }>;
+    architecture: Array<{
+        product: string;
+        role: string;
+    }>;
+    proof: Record<string, string | number | boolean | null>;
+    shipped: string[];
+    proposedMilestones: Array<{
+        id: string;
+        title: string;
+        measurement: string;
+        dependsOn: string;
+    }>;
+    honestGaps: Array<{
+        id: string;
+        label: string;
+        evidence: string;
+    }>;
+    reviewerLinks: Record<string, string>;
+    privacy: string;
+};
 export type CreatePilotInput = {
     partnerName: string;
     partnerWebsite?: string;
@@ -819,6 +1334,24 @@ export declare class Current {
     readonly analytics: {
         get: () => Promise<DeveloperAnalytics>;
     };
+    readonly integrations: {
+        manifest: () => Promise<IntegrationManifest>;
+        readiness: () => Promise<IntegrationReadiness>;
+        certify: () => Promise<IntegrationCertificate>;
+    };
+    readonly network: {
+        proof: () => Promise<NetworkProof>;
+    };
+    readonly dossier: {
+        get: () => Promise<PublicGrantDossier>;
+        application: () => Promise<GrantApplicationPacket>;
+    };
+    readonly proofs: {
+        campaigns: () => Promise<CampaignProofExplorer>;
+        reviewerDemo: () => Promise<ReviewerDemo>;
+        projectToken: () => Promise<ProjectTokenProof>;
+        health: () => Promise<GrantProofHealth>;
+    };
     readonly quality: {
         get: () => Promise<CampaignQualitySnapshot>;
         evaluate: (distributionId: string) => Promise<{
@@ -914,6 +1447,14 @@ export declare class Current {
             distributionId?: string;
         }) => Promise<EvidenceReport>;
     };
+    readonly grant: {
+        list: () => Promise<{
+            packages: EvidenceReportSummary[];
+        }>;
+        create: (input?: {
+            distributionId?: string;
+        }) => Promise<GrantReviewPackage>;
+    };
     readonly pilots: {
         list: () => Promise<{
             pilots: PilotRecord[];
@@ -953,6 +1494,7 @@ export declare class Current {
     };
     constructor(options: CurrentOptions);
     private get;
+    private publicGet;
     private signedPost;
 }
 export declare function verifyCurrentWebhook(input: {

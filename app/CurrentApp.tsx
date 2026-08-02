@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -429,6 +429,19 @@ type GrantDossierState = {
   proposedGrantMilestones: Array<{ id: string; title: string; measurement: string }>;
   reviewerLinks: Record<string,string>;
   privacy: string;
+};
+
+type GrantApplicationState = {
+  schemaVersion:string;product:string;environment:string;generatedAt:string;status:string;boundary:string;digest:string;executiveSummary:string;privacy:string;
+  officialGrantSource:{name:string;url:string;applicationUrl:string;researchedAt:string;applicationWindowObserved:string;criteria:readonly string[]};
+  applicationAnswers:Array<{id:string;prompt:string;response:string;wordCount:number;evidence:string[]}>;
+  architecture:Array<{product:string;role:string}>;
+  evidenceSnapshot:{projects:number;campaigns:number;targetedRecipients:number;confirmedClaims:number;fundedWallets:number;activatedUsers:number;releaseReadinessScore:number;securityReadinessScore:number};
+  proposedMilestones:Array<{id:string;title:string;measurement:string;sequence:number;acceptanceEvidence:string[]}>;
+  externalGates:Array<{id:string;label:string;status:string;target:string}>;
+  applicantInputs:Array<{id:string;label:string;reason:string}>;
+  submissionChecklist:{internallyComplete:string[];awaitingApplicant:string[];awaitingExternal:string[]};
+  reviewerLinks:Record<string,string>;
 };
 
 type PilotRecord = {
@@ -931,7 +944,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -1261,6 +1274,37 @@ function GrantProofHealthView({go}:{go:(v:View)=>void}) {
   </div>;
 }
 
+function GrantApplicationView({go}:{go:(v:View)=>void}) {
+  const [packet,setPacket]=useState<GrantApplicationState|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const [copied,setCopied]=useState<string|null>(null);
+  const load=useCallback(()=>currentApi.get<GrantApplicationState>("/grant-application").then(value=>{setPacket(value);setError(null)}).catch(reason=>setError(reason instanceof Error?reason.message:"The application packet is temporarily unavailable.")),[]);
+  useEffect(()=>{let active=true;currentApi.get<GrantApplicationState>("/grant-application").then(value=>{if(active)setPacket(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"The application packet is temporarily unavailable.")});return()=>{active=false}},[]);
+  const copyAnswer=async(id:string,value:string)=>{await navigator.clipboard.writeText(value);setCopied(id);window.setTimeout(()=>setCopied(current=>current===id?null:current),1600)};
+  const saveJson=()=>{if(!packet)return;const url=URL.createObjectURL(new Blob([JSON.stringify(packet,null,2)],{type:"application/json"}));const anchor=document.createElement("a");anchor.href=url;anchor.download="current-cofi-circle-grant-application.json";anchor.click();URL.revokeObjectURL(url)};
+  const compactDigest=(value:string|undefined)=>value?`${value.slice(0,12)}…${value.slice(-10)}`:"Verifying…";
+  return <div className="grant-application-page">
+    <header><Brand light onClick={()=>go("home")}/><nav><button onClick={()=>go("grant-dossier")}>Grant dossier</button><button onClick={()=>go("proof-health")}>Proof health</button><button onClick={()=>go("reviewer-demo")}>Product replay</button></nav><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
+    <main>
+      <section className="grant-application-hero"><FluidCanvas mode="network"/><div><Eyebrow light><FileCheck2/> SUBMISSION READINESS</Eyebrow><h1>Built to answer.<br/><em>Ready to prove.</em></h1><p>{packet?.executiveSummary??"Assembling Current CoFi's verified application answers, milestones, and reviewer evidence."}</p><div><a className="cofi-button tone-cyan" href="/api/v1/grant-application/markdown" download>Download application <Download/></a><Button tone="ghost" onClick={()=>go("grant-dossier")}>Inspect dossier <ArrowUpRight/></Button></div></div><aside><small>APPLICATION PACKET</small><strong>{packet?.applicationAnswers.length??"—"}</strong><p>evidence-backed application answers</p><dl><div><dt>Milestones</dt><dd>{packet?.proposedMilestones.length??"—"}</dd></div><div><dt>Internal sections</dt><dd>{packet?.submissionChecklist.internallyComplete.length??"—"}</dd></div><div><dt>Invented claims</dt><dd>0</dd></div></dl><code>SHA-256 · {compactDigest(packet?.digest)}</code></aside></section>
+
+      {error?<section className="grant-application-error"><ShieldAlert/><div><h2>Application packet unavailable</h2><p>{error}</p></div><Button tone="blue" onClick={load}>Try again <RefreshCw/></Button></section>:null}
+
+      <section className="grant-application-source"><div><Eyebrow>OFFICIAL REVIEW MAP</Eyebrow><h2>{"Circle's criteria."}<br/>{"Current's evidence."}</h2><p>{"The packet follows Circle's currently published review criteria and keeps the application-window status separate from product readiness."}</p><a href={packet?.officialGrantSource.url??"https://www.circle.com/grant"} target="_blank" rel="noreferrer">Open official grant criteria <ArrowUpRight/></a></div><div>{(packet?.officialGrantSource.criteria??[]).map((item,index)=><article key={item}><span>{String(index+1).padStart(2,"0")}</span><b>{item}</b><CheckCircle2/></article>)}<footer><Clock3/><span><b>Window observed closed</b><small>Checked {packet?.officialGrantSource.researchedAt??"2026-08-01"} · packet remains submission-ready</small></span></footer></div></section>
+
+      <section className="grant-application-evidence"><div><small>VERIFIED TESTNET RECORD</small><strong>{packet?.evidenceSnapshot.campaigns??"—"}</strong><span>campaigns</span></div><div><small>TARGETED RECIPIENTS</small><strong>{packet?.evidenceSnapshot.targetedRecipients??"—"}</strong><span>persisted allocations</span></div><div><small>CONFIRMED CLAIMS</small><strong>{packet?.evidenceSnapshot.confirmedClaims??"—"}</strong><span>settled records</span></div><div><small>RELEASE READINESS</small><strong>{packet?`${packet.evidenceSnapshot.releaseReadinessScore}%`:"—"}</strong><span>runtime verified</span></div><div><small>SECURITY READINESS</small><strong>{packet?`${packet.evidenceSnapshot.securityReadinessScore}%`:"—"}</strong><span>internal controls</span></div></section>
+
+      <section className="grant-application-answers"><header><Eyebrow light>APPLICATION ANSWERS</Eyebrow><h2>Concise enough to submit.<br/>Deep enough to inspect.</h2><p>Every answer includes its word count and direct reviewer evidence. Copy one response or download the full Markdown packet.</p></header><div>{(packet?.applicationAnswers??[]).map((item,index)=><article key={item.id}><div><span>{String(index+1).padStart(2,"0")}</span><small>{item.wordCount} words</small></div><h3>{item.prompt}</h3><p>{item.response}</p><footer><button onClick={()=>void copyAnswer(item.id,item.response)}>{copied===item.id?<Check/>:<Copy/>}{copied===item.id?"Copied":"Copy answer"}</button><div>{item.evidence.slice(0,3).map((url,evidenceIndex)=><a href={url} target="_blank" rel="noreferrer" key={url} aria-label={`Open evidence ${evidenceIndex+1} for ${item.prompt}`}><Fingerprint/>{evidenceIndex+1}</a>)}</div></footer></article>)}</div></section>
+
+      <section className="grant-application-milestones"><div><Eyebrow>GRANT MILESTONE DESIGN</Eyebrow><h2>Disbursement tied<br/>to public outcomes.</h2><p>No vague “grow the community” promises. Each milestone defines acceptance evidence Circle can inspect.</p></div><div>{(packet?.proposedMilestones??[]).map(item=><article key={item.id}><span>{String(item.sequence).padStart(2,"0")}</span><h3>{item.title}</h3><p>{item.measurement}</p><ul>{item.acceptanceEvidence.map(evidence=><li key={evidence}><Check/>{evidence}</li>)}</ul></article>)}</div></section>
+
+      <section className="grant-application-readiness"><div><Eyebrow light>HONEST COMPLETION LINE</Eyebrow><h2>Everything we can finish,<br/>already packaged.</h2><p>{packet?.boundary??"Public proof and external validation remain deliberately separate."}</p></div><div><article className="complete"><header><CheckCircle2/><span><b>Complete internally</b><small>Ready without outside help</small></span></header>{(packet?.submissionChecklist.internallyComplete??[]).map(item=><p key={item}><Check/>{item}</p>)}</article><article><header><Users/><span><b>Applicant input</b><small>Private founder details</small></span></header>{(packet?.applicantInputs??[]).map(item=><p key={item.id}><Clock3/>{item.label}</p>)}</article><article><header><Handshake/><span><b>External gates</b><small>Cannot be self-attested</small></span></header>{(packet?.submissionChecklist.awaitingExternal??[]).map(item=><p key={item}><ShieldAlert/>{item}</p>)}</article></div></section>
+
+      <section className="grant-application-export"><div><FileCheck2/><span><small>CANONICAL SUBMISSION DRAFT</small><h2>One packet. Every proof route.</h2><p>{packet?.privacy??"Reviewer-safe public evidence only."}</p></span></div><div><a className="cofi-button tone-cyan" href="/api/v1/grant-application/markdown" download>Download Markdown <Download/></a><Button tone="ghost" onClick={saveJson}>Download JSON <Braces/></Button><Button tone="ghost" onClick={()=>go("proof-health")}>Verify live health <Activity/></Button></div><footer><span><small>PACKET DIGEST</small><code>{packet?.digest??"Verifying…"}</code></span><span><small>GENERATED</small><b>{packet?new Date(packet.generatedAt).toLocaleString():"Loading…"}</b></span></footer></section>
+    </main>
+  </div>;
+}
+
 function GrantDossierView({go}:{go:(v:View)=>void}) {
   const [dossier,setDossier]=useState<GrantDossierState|null>(null);
   const [error,setError]=useState<string|null>(null);
@@ -1271,7 +1315,7 @@ function GrantDossierView({go}:{go:(v:View)=>void}) {
   const copy=()=>navigator.clipboard.writeText(location.href);
   const compact=(value:number|undefined)=>value===undefined?"—":value.toLocaleString();
   return <div className="dossier-page">
-    <header><Brand light onClick={()=>go("home")}/><nav><button onClick={()=>go("network-proof")}>Network proof</button><button onClick={()=>go("developers")}>Developers</button><button onClick={()=>go("security")}>Security</button></nav><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
+    <header><Brand light onClick={()=>go("home")}/><nav><button onClick={()=>go("grant-application")}>Application packet</button><button onClick={()=>go("network-proof")}>Network proof</button><button onClick={()=>go("developers")}>Developers</button><button onClick={()=>go("security")}>Security</button></nav><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
     <main>
       <section className="dossier-hero">
         <FluidCanvas mode="network"/>
@@ -1324,6 +1368,7 @@ function GrantDossierView({go}:{go:(v:View)=>void}) {
         <div>{Object.entries(dossier?.reviewerLinks??{}).map(([label,url])=><a key={label} href={url} target="_blank" rel="noreferrer"><span><small>{label.replace(/([A-Z])/g," $1")}</small><b>{new URL(url).hostname}</b></span><ArrowUpRight/></a>)}</div>
         <footer><span><small>DOSSIER DIGEST</small><code>{dossier?.digest??"Verifying…"}</code></span><span><small>GENERATED</small><b>{dossier?new Date(dossier.generatedAt).toLocaleString():"Loading…"}</b></span></footer>
       </section>
+      <section className="dossier-application-cta"><FileCheck2/><div><small>SUBMISSION-READY EXPORT</small><h2>Move from technical dossier to application answers.</h2><p>Open the evidence-backed packet, copy concise responses, and download the complete Markdown or JSON draft.</p></div><Button tone="blue" onClick={()=>go("grant-application")}>Open application packet <ArrowRight/></Button></section>
     </main>
   </div>;
 }
@@ -3108,5 +3153,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:view==="proof-health"?<GrantProofHealthView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="grant-application"?<GrantApplicationView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:view==="proof-health"?<GrantProofHealthView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

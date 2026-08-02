@@ -98,6 +98,20 @@ export type PublicGrantDossier = {
   reviewerLinks: Record<string, string>; privacy: string;
 };
 
+export type GrantApplicationPacket = {
+  schemaVersion:string;product:string;environment:string;generatedAt:string;status:string;boundary:string;digest:string;executiveSummary:string;privacy:string;
+  officialGrantSource:{name:string;url:string;applicationUrl:string;researchedAt:string;applicationWindowObserved:string;criteria:readonly string[]};
+  applicationAnswers:Array<{id:string;prompt:string;response:string;wordCount:number;evidence:string[]}>;
+  architecture:Array<{product:string;role:string}>;
+  shipped:Array<{id:string;label:string;detail:string}>;
+  evidenceSnapshot:Record<string,string|number|boolean|null>;
+  proposedMilestones:Array<{id:string;title:string;measurement:string;sequence:number;acceptanceEvidence:string[]}>;
+  externalGates:Array<{id:string;label:string;status:string;target:string}>;
+  applicantInputs:Array<{id:string;label:string;reason:string}>;
+  submissionChecklist:{internallyComplete:string[];awaitingApplicant:string[];awaitingExternal:string[]};
+  reviewerLinks:Record<string,string>;
+};
+
 export type CreateDistributionInput = {
   name: string;
   tokenAddress?: string;
@@ -660,6 +674,7 @@ export class Current {
 
   readonly dossier = {
     get: () => this.publicGet<PublicGrantDossier>("/api/v1/grant-dossier"),
+    application: () => this.publicGet<GrantApplicationPacket>("/api/v1/grant-application"),
   };
 
   readonly proofs = {

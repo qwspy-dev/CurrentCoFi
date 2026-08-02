@@ -321,6 +321,13 @@ const mockFetch: typeof fetch = async (input, init) => {
     message: "Turn offchain audiences into funded wallets and active token users.", publishedAt: "2026-08-01T00:00:00.000Z", digest: "manifest_sdk",
     paths: [], circleStack: ["Arc settlement", "USDC"], endpoints: [], webhookEvents: [], security: [],
   } });
+  if (String(input).endsWith("/grant-application")) return Response.json({ ok: true, data: {
+    schemaVersion: "current-circle-grant-application-v1", product: "Current CoFi", environment: "Arc testnet", generatedAt: "2026-08-14T00:00:00.000Z",
+    status: "submission-ready-pending-applicant-and-external-input", boundary: "Verified submission draft.", digest: "application_digest_sdk", executiveSummary: "Walletless activation infrastructure.", privacy: "Aggregate only.",
+    officialGrantSource: { name: "Circle Developer Grants", url: "https://www.circle.com/grant", applicationUrl: "https://www.circle.com/grant/application", researchedAt: "2026-08-01", applicationWindowObserved: "closed-check-back-soon", criteria: [] },
+    applicationAnswers: [{ id: "overview", prompt: "What are you building?", response: "Current CoFi", wordCount: 2, evidence: [] }], architecture: [], shipped: [], evidenceSnapshot: {}, proposedMilestones: [], externalGates: [], applicantInputs: [],
+    submissionChecklist: { internallyComplete: [], awaitingApplicant: [], awaitingExternal: [] }, reviewerLinks: {},
+  } });
   if (String(input).endsWith("/developer/integration-readiness")) return Response.json({ ok: true, data: {
     schemaVersion: "current-readiness-v1", projectId: "project_sdk", score: 65, level: "pilot-ready",
     completed: 6, total: 10, generatedAt: "2026-08-14T00:00:00.000Z", checks: [],
@@ -419,6 +426,9 @@ assert.equal(JSON.parse(String(attestationRequest?.init?.body)).identityType, "x
 
 const analytics = await current.analytics.get();
 assert.equal(analytics.totals.campaigns, 1);
+const publicApplication = await current.dossier.application();
+assert.equal(publicApplication.digest, "application_digest_sdk");
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/grant-application");
 const quality = await current.quality.get();
 assert.equal(quality.retention.day1, 60);
 await current.quality.updatePolicy("dist_sdk", { enforcementAction: "hold-referral-reward", reviewThreshold: 40 });
