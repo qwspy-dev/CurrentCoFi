@@ -47,6 +47,8 @@ const links = {
   reviewerDemoApi: "https://www.currentco.finance/api/v1/reviewer-demo",
   projectTokenProof: "https://www.currentco.finance/#/project-token-proof",
   projectTokenProofApi: "https://www.currentco.finance/api/v1/project-token-proof",
+  proofHealth: "https://www.currentco.finance/#/proof-health",
+  proofHealthApi: "https://www.currentco.finance/api/v1/proof-health",
   developers: "https://www.currentco.finance/#/developers",
   integrationManifest: "https://www.currentco.finance/api/v1/integration-manifest",
   openapi: "https://www.currentco.finance/api/v1/openapi",

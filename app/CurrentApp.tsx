@@ -19,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
@@ -137,6 +137,12 @@ type ProjectTokenProofState = {
   flow:Array<{id:string;label:string;status:string;evidence:string|null}>;
   contracts:Array<{id:string;label:string;address:string;url:string|null}>;
   transactions:Array<{id:string;label:string;hash:string;url:string|null}>;
+};
+
+type GrantProofHealthState = {
+  schemaVersion:string;product:string;environment:string;generatedAt:string;status:"healthy"|"degraded"|"unavailable";score:number;verifiedChecks:number;totalChecks:number;boundary:string;digest:string;privacy:string;
+  checks:Array<{id:string;label:string;status:"verified"|"degraded"|"unavailable";statement:string;evidence:string|null;digest:string|null;externalGate:string|null}>;
+  reviewerLinks:Record<string,string>;
 };
 
 const securityPreview: SecurityPostureState = {
@@ -925,7 +931,7 @@ function formatAtomic(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "create", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "proof-explorer", "reviewer-demo", "project-token-proof", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -1231,6 +1237,26 @@ function ProjectTokenProofView({go}:{go:(v:View)=>void}) {
         <div><h3>Contracts</h3>{(proof?.contracts??[]).map(item=><a href={item.url??undefined} target="_blank" rel="noreferrer" key={item.id}><span><small>{item.label}</small><b>{short(item.address)}</b></span><ArrowUpRight/></a>)}<h3>Transactions</h3>{(proof?.transactions??[]).map(item=><a href={item.url??undefined} target="_blank" rel="noreferrer" key={item.id}><span><small>{item.label}</small><b>{short(item.hash)}</b></span><ArrowUpRight/></a>)}</div>
       </section>
       <section className="project-token-proof-boundary"><ShieldCheck/><div><small>HONEST EVIDENCE BOUNDARY</small><h2>Capability proven. External adoption still earned.</h2><p>{proof?.privacy} This demonstration is kept separate from the persisted user-traction totals in Network Proof.</p></div><Button tone="blue" onClick={()=>go("grant-dossier")}>Open grant dossier <ArrowRight/></Button></section>
+    </main>
+  </div>;
+}
+
+function GrantProofHealthView({go}:{go:(v:View)=>void}) {
+  const [proof,setProof]=useState<GrantProofHealthState|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const load=useCallback(()=>currentApi.get<GrantProofHealthState>("/proof-health").then(value=>{setProof(value);setError(null)}).catch(reason=>setError(reason instanceof Error?reason.message:"Grant proof health is temporarily unavailable.")),[]);
+  useEffect(()=>{let active=true;currentApi.get<GrantProofHealthState>("/proof-health").then(value=>{if(active)setProof(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"Grant proof health is temporarily unavailable.")});return()=>{active=false}},[]);
+  const compact=(value?:string|null)=>value?`${value.slice(0,9)}…${value.slice(-7)}`:"No digest";
+  return <div className="proof-health-page">
+    <header><Brand light onClick={()=>go("home")}/><nav><button onClick={()=>go("grant-dossier")}>Grant dossier</button><button onClick={()=>go("project-token-proof")}>Token settlement</button></nav><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header>
+    <main>
+      <section className="proof-health-hero"><FluidCanvas mode="network"/><div><Eyebrow light><Activity/> CONTINUOUS GRANT PROOF</Eyebrow><h1>Every claim.<br/><em>Still true.</em></h1><p>A live integrity layer continuously evaluates Current CoFi’s public Arc evidence, release contracts, builder interface, and honest external boundaries.</p><span><i className={proof?.status==="healthy"?"healthy":""}/>{proof?.status==="healthy"?"ALL PUBLIC PROOFS HEALTHY":"VERIFYING PUBLIC PROOFS"}</span></div><aside><small>PROOF HEALTH</small><strong>{proof?`${proof.score}%`:"—"}</strong><p>{proof?`${proof.verifiedChecks}/${proof.totalChecks} independent checks verified`:"Reading Current’s public evidence…"}</p><code>SHA-256 · {compact(proof?.digest)}</code><button onClick={load}><RefreshCw/>Run fresh verification</button></aside></section>
+      {error?<section className="proof-health-error"><ShieldAlert/><div><h2>Proof health unavailable</h2><p>{error}</p></div><Button tone="cyan" onClick={load}>Try again</Button></section>:null}
+      <section className="proof-health-intro"><div><Eyebrow>ONE REVIEWER SURFACE</Eyebrow><h2>Six systems.<br/>One living record.</h2></div><p>{proof?.boundary??"Current verifies only evidence it can independently reproduce. External validation remains explicitly separate."}</p></section>
+      <section className="proof-health-grid">{(proof?.checks??[]).map((check,index)=><article className={check.status} key={check.id}><header><span>{String(index+1).padStart(2,"0")}</span>{check.status==="verified"?<BadgeCheck/>:<Clock3/>}</header><small>{check.status}</small><h3>{check.label}</h3><p>{check.statement}</p>{check.externalGate?<div><ShieldAlert/><span>{check.externalGate}</span></div>:<div className="internal"><ShieldCheck/><span>Internally reproducible evidence</span></div>}<footer><code>{compact(check.digest)}</code>{check.evidence?<a href={check.evidence} target="_blank" rel="noreferrer" aria-label={`Inspect ${check.label}`}>Inspect <ArrowUpRight/></a>:null}</footer></article>)}</section>
+      <section className="proof-health-current"><div><Eyebrow light>VERIFICATION CURRENT</Eyebrow><h2>Records become evidence.<br/>Evidence stays inspectable.</h2><p>The verifier reads persisted campaign records and public Arc state, checks their digests and runtime constraints, then publishes one new tamper-evident health record.</p></div><div className="proof-health-current-map"><span>Network records</span><i/><span>Campaign evidence</span><i/><span>Arc contracts</span><i/><strong>HEALTHY</strong></div></section>
+      <section className="proof-health-ledger"><div><Eyebrow>REVIEWER ROUTES</Eyebrow><h2>Open the layer<br/>behind every check.</h2><p>{proof?.privacy??"No private recipient or project data enters this verifier."}</p></div><div>{Object.entries(proof?.reviewerLinks??{}).map(([label,url])=><a href={url} target="_blank" rel="noreferrer" key={label}><span><small>{label.replace(/([A-Z])/g," $1")}</small><b>{new URL(url).pathname||"/"}</b></span><ArrowUpRight/></a>)}</div></section>
+      <section className="proof-health-boundary"><ShieldCheck/><div><small>THE LINE CURRENT WILL NOT CROSS</small><h2>Internal proof is not external validation.</h2><p>Proof health can verify deployed technology and persisted testnet records. It cannot manufacture partner traction, audit independence, legal approval, or mainnet availability.</p></div><Button tone="blue" onClick={()=>go("grant-dossier")}>Open full dossier <ArrowRight/></Button></section>
     </main>
   </div>;
 }
@@ -3082,5 +3108,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:view==="proof-health"?<GrantProofHealthView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

@@ -80,6 +80,12 @@ export type ProjectTokenProof = {
   transactions:Array<{id:string;label:string;hash:string;url:string|null}>;
 };
 
+export type GrantProofHealth = {
+  schemaVersion:string;product:string;environment:string;generatedAt:string;status:"healthy"|"degraded"|"unavailable";score:number;verifiedChecks:number;totalChecks:number;boundary:string;digest:string;privacy:string;
+  checks:Array<{id:string;label:string;status:"verified"|"degraded"|"unavailable";statement:string;evidence:string|null;digest:string|null;externalGate:string|null}>;
+  reviewerLinks:Record<string,string>;
+};
+
 export type PublicGrantDossier = {
   schemaVersion: string; product: string; environment: string; generatedAt: string; boundary: string; digest: string;
   application: { oneLiner: string; problem: string; solution: string; ecosystemValue: string };
@@ -660,6 +666,7 @@ export class Current {
     campaigns: () => this.publicGet<CampaignProofExplorer>("/api/v1/campaign-proofs"),
     reviewerDemo: () => this.publicGet<ReviewerDemo>("/api/v1/reviewer-demo"),
     projectToken: () => this.publicGet<ProjectTokenProof>("/api/v1/project-token-proof"),
+    health: () => this.publicGet<GrantProofHealth>("/api/v1/proof-health"),
   };
 
   readonly quality = {

@@ -57,6 +57,7 @@ export default withApi((request) => ok(request, {
       "public-project-token-proof",
       "arbitrary-erc20-testnet-evidence",
       "completed-project-token-settlement",
+      "continuous-grant-proof-health",
       "verified-testnet-traction",
       "public-grant-dossier",
       "project-integration-readiness",
