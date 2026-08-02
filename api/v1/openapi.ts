@@ -188,6 +188,9 @@ export default withApi((request) => ok(request, {
     "/agent/tools": {
       get: { summary: "Read the machine-readable Current CoFi agent tool manifest" },
     },
+    "/mcp-manifest": {
+      get: { summary: "Read the digest-addressed installable Current CoFi MCP server contract" },
+    },
   },
   "x-current-cofi": {
     liveResourceGroups: [
@@ -203,6 +206,7 @@ export default withApi((request) => ok(request, {
       "pilot-operations", "partner-attestations", "pilot-readiness", "partner-intake-links", "encrypted-pilot-applications", "pilot-application-review", "automatic-pilot-handoff",
       "campaign-quality-policies", "explainable-referral-risk", "manual-review-queues", "eligible-retention-cohorts",
       "agent-action-ledger", "agent-policy-evaluation", "human-approval-queue",
+      "installable-mcp-server", "mcp-read-only-default", "mcp-explicit-write-approval",
       "crosschain-funding-intents", "cctp-v2-forwarding", "crosschain-settlement-proof",
       "agent-settlement-handoffs", "agent-wallet-approval", "agent-vault-funding-proof",
       "release-manifest-registry", "runtime-bytecode-verification", "delayed-release-governance", "rollback-payloads",

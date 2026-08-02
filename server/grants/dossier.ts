@@ -11,7 +11,7 @@ const application = {
   oneLiner: "Current CoFi turns offchain audiences into funded wallets and active token users through walletless USDC and project-token distribution on Arc.",
   problem: "Arc projects may already have players, customers, followers, or contributors, but most of those people do not have an Arc wallet, gas, or a safe claim path. Traditional airdrops require wallet lists and measure distribution rather than useful post-claim behavior.",
   solution: "A project assigns USDC or its Arc token to an email, social identity, private link, game account, or allowlist. Current verifies eligibility, creates an embedded wallet, sponsors the claim, settles it on Arc, and attributes activation and retention back to the campaign.",
-  ecosystemValue: "Hosted claims, APIs, SDKs, React embeds, signed webhooks, and policy-bound agent tools let other Arc builders add walletless distribution without rebuilding the financial and identity infrastructure.",
+  ecosystemValue: "Hosted claims, APIs, SDKs, React embeds, signed webhooks, and an installable policy-bound MCP server let other Arc builders and agents add walletless distribution without rebuilding the financial and identity infrastructure.",
 } as const;
 
 const criteria = [
@@ -26,7 +26,7 @@ const shipped = [
   { id: "campaigns", label: "Fully funded distribution campaigns", detail: "Merkle allocations, expirations, refunds, recipient management, referral attribution, and activation analytics." },
   { id: "circle-funding", label: "Circle-native funding paths", detail: "CCTP V2 and Gateway intent, signing, direct mint, campaign-vault settlement, and public transaction evidence." },
   { id: "developer-platform", label: "Reusable builder infrastructure", detail: "HMAC APIs, TypeScript SDK, React embed, durable webhooks, identity adapters, and integration certification." },
-  { id: "agent-runtime", label: "Policy-bound AI agent payments", detail: "Scoped actions, spending limits, human approvals, Circle wallet challenges, and settlement evidence." },
+  { id: "agent-runtime", label: "Installable policy-bound MCP server", detail: "Seven MCP tools, read-only defaults, scoped credentials, exact approval phrases, spending limits, signed requests, and honest Arc settlement evidence." },
   { id: "operations", label: "Production-style assurance", detail: "Release manifests, runtime bytecode checks, delayed governance, incident response, security package, and proof APIs." },
 ] as const;
 
@@ -35,6 +35,7 @@ const externalGates = [
   { id: "audit", label: "Independent security review", status: "outside-validation-required", target: "Publish findings and remediate every critical or high-severity issue." },
   { id: "mainnet", label: "Arc mainnet release", status: "external-network-required", target: "Deploy the reviewed manifest after Arc mainnet and production Circle support are official." },
   { id: "legal", label: "$CURRENT legal review", status: "specialist-review-required", target: "Finalize token mechanics and launch disclosures with qualified counsel before any public sale or liquidity." },
+  { id: "mcp-registry", label: "MCP registry publication", status: "external-release-required", target: "Publish the tested @currentcofi/mcp package after registry ownership and release credentials are configured." },
 ] as const;
 
 const links = {
@@ -54,6 +55,8 @@ const links = {
   grantApplicationMarkdown: "https://www.currentco.finance/api/v1/grant-application/markdown",
   developers: "https://www.currentco.finance/#/developers",
   integrationManifest: "https://www.currentco.finance/api/v1/integration-manifest",
+  mcpManifest: "https://www.currentco.finance/api/v1/mcp-manifest",
+  mcpSource: "https://github.com/qwspy-dev/CurrentCoFi/tree/codex/sdk-embeds/packages/mcp",
   openapi: "https://www.currentco.finance/api/v1/openapi",
   security: "https://www.currentco.finance/#/security",
   securityApi: "https://www.currentco.finance/api/v1/security",

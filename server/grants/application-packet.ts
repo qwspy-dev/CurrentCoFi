@@ -58,7 +58,7 @@ export function buildGrantApplicationPacket(input: { generatedAt: string; dossie
     answer(
       "shipping",
       "What has the team already shipped?",
-      "Current CoFi has shipped a production-style Arc testnet platform spanning walletless USDC and arbitrary ERC-20 claims, fully funded campaigns, embedded wallet onboarding, sponsored settlement, campaign recovery, referrals, signed activation events, retention analytics, merchant checkout, subscriptions, milestone escrow, CCTP and Gateway funding, developer APIs, SDKs, React embeds, durable webhooks, agent payment controls, governed token-economy contracts, operational monitoring, and public security and release evidence. Public proof endpoints expose canonical digests, deployed addresses, runtime-bytecode checks, settlement transactions, and privacy-safe aggregate usage.",
+      "Current CoFi has shipped a production-style Arc testnet platform spanning walletless USDC and arbitrary ERC-20 claims, fully funded campaigns, embedded wallet onboarding, sponsored settlement, campaign recovery, referrals, signed activation events, retention analytics, merchant checkout, subscriptions, milestone escrow, CCTP and Gateway funding, developer APIs, SDKs, React embeds, durable webhooks, and an installable MCP server with seven tested, policy-bound agent tools. Governed token-economy contracts, operational monitoring, and public security and release evidence are also live. Public proof endpoints expose canonical digests, deployed addresses, runtime-bytecode checks, settlement transactions, and privacy-safe aggregate usage.",
       [dossier.reviewerLinks.repository, dossier.reviewerLinks.openapi, dossier.reviewerLinks.proofHealth],
     ),
     answer(
@@ -71,7 +71,7 @@ export function buildGrantApplicationPacket(input: { generatedAt: string; dossie
       "ecosystem-impact",
       "How does this strengthen Arc and expand USDC utility?",
       "Current gives every Arc game, token community, creator platform, marketplace, and AI agent one reusable way to turn an offchain audience into funded wallets and measurable users. Each integration can create embedded wallets, sponsored Arc claims, USDC campaign balances, project-token settlement, referrals, activation events, and repeat transactions without rebuilding identity, custody, attribution, and recovery infrastructure. This creates a distribution surface for other Arc builders, increases practical USDC movement, and makes launches accountable to activation and retention rather than raw airdrop volume.",
-      [dossier.reviewerLinks.developers, dossier.reviewerLinks.integrationManifest, dossier.reviewerLinks.openapi],
+      [dossier.reviewerLinks.developers, dossier.reviewerLinks.integrationManifest, dossier.reviewerLinks.mcpManifest, dossier.reviewerLinks.openapi],
     ),
     answer(
       "business-model",

@@ -2,8 +2,16 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.10.0",
+  version: "1.11.0",
   network: "ARC-TESTNET",
+  mcp: {
+    package: "@currentcofi/mcp",
+    version: "0.1.0",
+    transport: "stdio",
+    manifest: "/api/v1/mcp-manifest",
+    defaultMode: "read-only",
+    writeBoundary: "Project mode, scoped credentials, exact approval phrases, HMAC signatures, and Current policy evaluation are required.",
+  },
   authentication: {
     type: "scoped-api-key",
     signature: "HMAC-SHA256",

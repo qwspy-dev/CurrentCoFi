@@ -16,7 +16,7 @@ const manifestBody = {
     { id: "server-sdk", label: "Server SDK", bestFor: "Games, token projects, communities", package: "@currentcofi/sdk" },
     { id: "react-embed", label: "React embed", bestFor: "Claim experiences inside existing products", package: "@currentcofi/react" },
     { id: "rest-hmac", label: "REST + HMAC", bestFor: "Any backend stack", spec: "/api/v1/openapi" },
-    { id: "agent-tools", label: "Agent tools", bestFor: "Policy-bound AI reward flows", manifest: "/api/v1/agent/tools" },
+    { id: "agent-tools", label: "Agent tools", bestFor: "Policy-bound AI reward flows", package: "@currentcofi/mcp", manifest: "/api/v1/mcp-manifest" },
   ],
   circleStack: ["Arc settlement", "USDC", "Circle embedded wallets", "Gas Station", "CCTP V2", "Gateway"],
   endpoints: [
