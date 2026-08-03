@@ -94,11 +94,11 @@ export async function inspectArcTokenTrust(value: string): Promise<ArcTokenTrust
       { address, abi: ownerAbi, functionName: "owner" },
     ],
   });
-  const symbol = reads[0].status === "success" ? String(reads[0].result) : null;
-  const name = reads[1].status === "success" ? String(reads[1].result) : null;
-  const decimalsValue = reads[2].status === "success" ? Number(reads[2].result) : null;
-  const supply = reads[3].status === "success" ? BigInt(reads[3].result as bigint) : null;
-  const ownerResult = reads[4].status === "success" ? String(reads[4].result) : null;
+  const symbol = reads[0]?.status === "success" ? String(reads[0].result) : null;
+  const name = reads[1]?.status === "success" ? String(reads[1].result) : null;
+  const decimalsValue = reads[2]?.status === "success" ? Number(reads[2].result) : null;
+  const supply = reads[3]?.status === "success" ? BigInt(reads[3].result as bigint) : null;
+  const ownerResult = reads[4]?.status === "success" ? String(reads[4].result) : null;
   await pause();
   const storageResult = await client.getStorageAt({ address, slot: implementationSlot }).catch(() => undefined);
   if (!bytecode || bytecode === "0x") throw new ApiError(400, "TOKEN_CODE_MISSING", "No contract code exists at this Arc address.");

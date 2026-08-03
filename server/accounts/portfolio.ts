@@ -103,7 +103,7 @@ async function onchainBalances(walletAddress: string, catalog: Map<string, Portf
   const items = tokenList.map((token, index) => {
     const result = results[index];
     if (result?.status === "success") {
-      const atomic = result.result;
+      const atomic = result.result as bigint;
       const balance = formatUnits(atomic, token.decimals);
       return {
         ...token,
