@@ -17,16 +17,16 @@ const handler = {
     const state = url.searchParams.get("state") ?? "";
     const code = url.searchParams.get("code") ?? "";
     if (url.searchParams.get("error")) {
-      return Response.redirect(returnTo(request, { identityError: "cancelled" }));
+      return Response.redirect(returnTo(request, { identityError: "cancelled" }).toString());
     }
     try {
       const linked = await completeExternalAuthorization(request, await sessionFromRequest(request), provider, state, code);
-      return Response.redirect(returnTo(request, { identityLinked: linked }));
+      return Response.redirect(returnTo(request, { identityLinked: linked }).toString());
     } catch (error) {
       const codeValue = error && typeof error === "object" && "code" in error && typeof error.code === "string"
         ? error.code
         : "link_failed";
-      return Response.redirect(returnTo(request, { identityError: codeValue }));
+      return Response.redirect(returnTo(request, { identityError: codeValue }).toString());
     }
   },
 };
