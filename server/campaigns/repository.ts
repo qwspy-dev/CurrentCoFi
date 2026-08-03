@@ -69,6 +69,7 @@ export function toAtomic(amount: string, decimals: number) {
 }
 
 export function formatAtomic(atomic: string, decimals: number) {
+  if (decimals === 0) return atomic.replace(/^0+(?=\d)/, "");
   const value = atomic.padStart(decimals + 1, "0");
   const whole = value.slice(0, -decimals);
   const fraction = value.slice(-decimals).replace(/0+$/, "");

@@ -15,13 +15,22 @@ assert.equal(send.prepared[0]?.label, "Direct payment");
 assert.throws(() => prepareSocialPaymentShares("split", undefined, [{ amount: "1" }]));
 assert.throws(() => prepareSocialPaymentShares("request", "0"));
 assert.throws(() => prepareSocialPaymentShares("tip", "1.0000001"));
+const projectTokenSplit = prepareSocialPaymentShares("split", undefined, [
+  { label: "Builder", amount: "1.250000000000000001" },
+  { label: "Artist", amount: "0.000000000000000001" },
+], 18);
+assert.equal(projectTokenSplit.totalAmountAtomic, "1250000000000000002");
+assert.deepEqual(projectTokenSplit.prepared.map((share) => share.amountAtomic), ["1250000000000000001", "1"]);
 
 const service = await readFile(new URL("../server/payments/social.ts", import.meta.url), "utf8");
 assert.match(service, /intendedPayerUserId/);
 assert.match(service, /PAYER_MISMATCH/);
 assert.match(service, /CHALLENGE_MISMATCH/);
 assert.match(service, /transfer\(address,uint256\)/);
+assert.match(service, /contractAddress: asset\.address/);
 assert.match(service, /recipientAddress, row\.share\.amountAtomic/);
+assert.match(service, /resolveToken\(input\.projectId, input\.tokenAddress\)/);
+assert.match(service, /asset: \{/);
 assert.match(service, /eq\(socialPaymentShares\.status, "authorizing"\)/);
 assert.doesNotMatch(service, /rawEmail|phoneNumber|socialHandle/);
 const migration = await readFile(new URL("../drizzle-vercel/0019_tidy_triton.sql", import.meta.url), "utf8");

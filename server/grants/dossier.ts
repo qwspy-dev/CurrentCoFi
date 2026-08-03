@@ -23,6 +23,7 @@ const criteria = [
 
 const shipped = [
   { id: "walletless-claims", label: "Walletless USDC and project-token claims", detail: "Identity-bound and allowlist claims create embedded wallets and sponsor Arc settlement." },
+  { id: "universal-social-payments", label: "Non-custodial social payments for any Arc asset", detail: "Username sends, requests, tips, and split links settle exact USDC or project-token amounts directly between Circle wallets." },
   { id: "campaigns", label: "Fully funded distribution campaigns", detail: "Merkle allocations, expirations, refunds, recipient management, referral attribution, and activation analytics." },
   { id: "circle-funding", label: "Circle-native funding paths", detail: "CCTP V2 and Gateway intent, signing, direct mint, campaign-vault settlement, and public transaction evidence." },
   { id: "developer-platform", label: "Reusable builder infrastructure", detail: "HMAC APIs, TypeScript SDK, React embed, durable webhooks, identity adapters, and integration certification." },

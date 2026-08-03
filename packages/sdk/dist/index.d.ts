@@ -644,6 +644,7 @@ export type CreateSocialPaymentInput = {
     title: string;
     note?: string;
     amount?: string;
+    tokenAddress?: string;
     shares?: Array<{
         label?: string;
         amount: string;
@@ -661,6 +662,13 @@ export type CreatedSocialPayment = {
     paidAmount: string;
     currency: string;
     expiresAt: string | null;
+    asset: {
+        address: string;
+        symbol: string;
+        name: string;
+        decimals: number;
+        verified: boolean;
+    };
     shares: Array<{
         id: string;
         label: string | null;

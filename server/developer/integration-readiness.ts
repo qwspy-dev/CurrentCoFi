@@ -22,6 +22,7 @@ const manifestBody = {
   endpoints: [
     { method: "POST", path: "/api/v1/developer/tokens/inspect", purpose: "Validate exact Arc project-token metadata before distribution", permission: "campaigns:write", signed: true },
     { method: "POST", path: "/api/v1/developer/links", purpose: "Create a private walletless USDC or project-token claim link", permission: "claims:write", signed: true },
+    { method: "POST", path: "/api/v1/developer/social-payments", purpose: "Create a non-custodial USDC or project-token request, tip, or split", permission: "campaigns:write", signed: true },
     { method: "POST", path: "/api/v1/developer/distributions", purpose: "Create identity-bound USDC or project-token distributions", permission: "distributions:write", signed: true },
     { method: "POST", path: "/api/v1/developer/identity-attestations", purpose: "Bind an offchain identity to an exact recipient wallet", permission: "identities:write", signed: true },
     { method: "POST", path: "/api/v1/developer/activations", purpose: "Attribute valuable post-claim actions", permission: "activations:write", signed: true },

@@ -23,5 +23,5 @@ export default withApi(async (request) => {
     const item = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
     return { label: typeof item.label === "string" ? item.label : undefined, amount: typeof item.amount === "string" ? item.amount : "" };
   }) : undefined;
-  return ok(request, await createSocialPayment({ userId: owner.userId, creatorAddress: wallet.address, projectId: key.projectId, kind, title: requiredString(body, "title", 100), note: typeof body.note === "string" ? body.note : undefined, amount: typeof body.amount === "string" ? body.amount : undefined, shares, expiresAt: typeof body.expiresAt === "string" ? body.expiresAt : undefined, origin: new URL(request.url).origin }), 201);
+  return ok(request, await createSocialPayment({ userId: owner.userId, creatorAddress: wallet.address, projectId: key.projectId, kind, title: requiredString(body, "title", 100), note: typeof body.note === "string" ? body.note : undefined, amount: typeof body.amount === "string" ? body.amount : undefined, tokenAddress: typeof body.tokenAddress === "string" && body.tokenAddress.trim() ? body.tokenAddress.trim() : undefined, shares, expiresAt: typeof body.expiresAt === "string" ? body.expiresAt : undefined, origin: new URL(request.url).origin }), 201);
 }, ["POST"]);

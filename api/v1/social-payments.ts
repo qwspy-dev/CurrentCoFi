@@ -38,6 +38,7 @@ async function create(request: Request) {
     title: requiredString(body, "title", 100),
     note: typeof body.note === "string" ? body.note : undefined,
     amount: typeof body.amount === "string" ? body.amount : undefined,
+    tokenAddress: typeof body.tokenAddress === "string" && body.tokenAddress.trim() ? body.tokenAddress.trim() : undefined,
     shares,
     expiresAt: typeof body.expiresAt === "string" ? body.expiresAt : undefined,
     origin: new URL(request.url).origin,

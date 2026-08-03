@@ -26,6 +26,14 @@ const mockFetch: typeof fetch = async (input, init) => {
       checkouts: [checkout], payments: [], totals: { checkouts: 1, payments: 0, volume: "0", refunds: 0 },
     } }, { status: init?.method === "POST" ? 201 : 200 });
   }
+  if (String(input).endsWith("/developer/social-payments")) {
+    return Response.json({ ok: true, data: {
+      id: "social_sdk", slug: "tip-sdk", kind: "tip", title: "Project token tip", note: "Thanks",
+      status: "active", amount: "1.250000000000000001", paidAmount: "0", currency: "TIDE",
+      asset: { address: "0x2222222222222222222222222222222222222222", symbol: "TIDE", name: "Tide Token", decimals: 18, verified: false },
+      expiresAt: "2026-08-14T00:00:00.000Z", shares: [{ id: "share_sdk", label: "Open payment", amount: "1.250000000000000001", payUrl: "https://current.test/?payment=proof#/pay/tip-sdk" }],
+    } }, { status: 201 });
+  }
   if (String(input).endsWith("/developer/subscriptions")) {
     const plan = { id: "plan_sdk", slug: "founding-circle-sdk", title: "Founding circle", description: "Recurring access", status: "active", amount: "15", amountAtomic: "15000000", currency: "USDC", intervalDays: 30, subscribeUrl: "https://current.test/#/subscribe/founding-circle-sdk", createdAt: "2026-08-14T00:00:00.000Z" };
     return Response.json({ ok: true, data: init?.method === "POST" ? plan : { merchant: { id: "merchant_sdk", displayName: "SDK Store", slug: "sdk-store", settlementAddress: "0x1111111111111111111111111111111111111111", status: "active" }, plans: [plan], merchantSubscriptions: [], subscriberSubscriptions: [], totals: { plans: 1, activeSubscriptions: 0, payments: 0, collected: "0", openRenewals: 0, pastDue: 0 } } }, { status: init?.method === "POST" ? 201 : 200 });
@@ -414,6 +422,12 @@ assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/subscr
 assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
 const subscriptions = await current.subscriptions.list();
 assert.equal(subscriptions.totals.plans, 1);
+
+const socialPayment = await current.socialPayments.create({ kind: "tip", title: "Project token tip", amount: "1.250000000000000001", tokenAddress: "0x2222222222222222222222222222222222222222" });
+assert.equal(socialPayment.asset.decimals, 18);
+assert.equal(socialPayment.currency, "TIDE");
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).tokenAddress, "0x2222222222222222222222222222222222222222");
+assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
 
 const activation = await current.activations.submit({
   externalEventId: "event_1",

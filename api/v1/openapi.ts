@@ -35,10 +35,10 @@ export default withApi((request) => ok(request, {
     "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
     "/social-payments": {
       get: { summary: "List social payment requests, split progress, and sent-payment receipts" },
-      post: { summary: "Create a username send, payment request, tip link, or split bill" },
+      post: { summary: "Create a USDC or Arc project-token username send, payment request, tip link, or split bill" },
     },
     "/social-payments/public": { get: { summary: "Resolve a token-scoped social payment without exposing private identities" } },
-    "/social-payments/pay": { post: { summary: "Prepare or confirm an exact non-custodial Arc USDC transfer" } },
+    "/social-payments/pay": { post: { summary: "Prepare or confirm an exact non-custodial Arc ERC-20 transfer" } },
     "/social-payments/manage": { post: { summary: "Cancel an owned active social payment request" } },
     "/campaigns": {
       get: { summary: "List owned campaigns with verified settlement analytics" },
@@ -126,7 +126,7 @@ export default withApi((request) => ok(request, {
       get: { summary: "Read subscription plans, subscribers, cycles, and recurring volume with a scoped API key" },
       post: { summary: "Publish a recurring USDC plan with an HMAC-signed request" },
     },
-    "/developer/social-payments": { post: { summary: "Create an HMAC-signed request, tip, or split-bill link for a project" } },
+    "/developer/social-payments": { post: { summary: "Create an HMAC-signed USDC or project-token request, tip, or split-bill link" } },
     "/developer/agent-actions": {
       get: { summary: "List auditable policy decisions made for a scoped agent" },
       post: { summary: "Propose a policy-bound walletless reward distribution" },

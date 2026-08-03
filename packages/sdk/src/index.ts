@@ -228,6 +228,7 @@ export type CreateSocialPaymentInput = {
   title: string;
   note?: string;
   amount?: string;
+  tokenAddress?: string;
   shares?: Array<{ label?: string; amount: string }>;
   expiresAt?: string;
 };
@@ -235,6 +236,7 @@ export type CreateSocialPaymentInput = {
 export type CreatedSocialPayment = {
   id: string; slug: string; kind: CreateSocialPaymentInput["kind"]; title: string; note: string | null;
   status: string; amount: string; paidAmount: string; currency: string; expiresAt: string | null;
+  asset: { address: string; symbol: string; name: string; decimals: number; verified: boolean };
   shares: Array<{ id: string; label: string | null; amount: string; payUrl: string }>;
 };
 
