@@ -141,6 +141,34 @@ export type CreatedDistribution = {
   }>;
 };
 
+export type InspectedArcToken = {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  verified: boolean;
+  network: string;
+  warning: string | null;
+};
+
+export type CreateAssetLinkInput = {
+  amount: string;
+  tokenAddress?: string;
+  message?: string;
+  expiresInHours?: number;
+};
+
+export type CreatedAssetLink = {
+  id: string;
+  status: string;
+  amount: string;
+  asset: string;
+  assetDetails: InspectedArcToken;
+  expiresAt: string;
+  claimUrl: string;
+  funding: { required: boolean; network: string; amountAtomic: string; assetAddress: string; state: string };
+};
+
 export type ActivationInput = {
   externalEventId: string;
   eventType: string;
@@ -626,6 +654,17 @@ export class Current {
   readonly distributions = {
     create: (input: CreateDistributionInput) => this.signedPost<CreatedDistribution>(
       "/api/v1/developer/distributions",
+      input,
+    ),
+  };
+
+  readonly links = {
+    inspectToken: (address: string) => this.signedPost<InspectedArcToken>(
+      "/api/v1/developer/tokens/inspect",
+      { address },
+    ),
+    create: (input: CreateAssetLinkInput) => this.signedPost<CreatedAssetLink>(
+      "/api/v1/developer/links",
       input,
     ),
   };

@@ -1740,15 +1740,28 @@ function Overview({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
 }
 
 function CreateLink({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
-  const [asset,setAsset]=useState("USDC"); const [amount,setAmount]=useState("25"); const [message,setMessage]=useState("A little value for your next current.");
-  const [created,setCreated]=useState<{id:string;claimUrl:string;status:string}|null>(null);
+  type InspectedToken={address:string;symbol:string;name:string;decimals:number;verified:boolean;network:string;warning:string|null};
+  type CreatedLink={id:string;claimUrl:string;status:string;asset:string;assetDetails:InspectedToken};
+  const [assetMode,setAssetMode]=useState<"usdc"|"token">("usdc"); const [tokenAddress,setTokenAddress]=useState("");
+  const [inspectedToken,setInspectedToken]=useState<InspectedToken|null>(null); const [inspecting,setInspecting]=useState(false);
+  const [amount,setAmount]=useState("25"); const [message,setMessage]=useState("A little value for your next current.");
+  const [created,setCreated]=useState<CreatedLink|null>(null);
   const [fundingStep,setFundingStep]=useState<"idle"|"creating"|"approving"|"funding"|"complete">("idle");
   const [submitting,setSubmitting]=useState(false); const [error,setError]=useState<string|null>(null);
-  const fund=async(link:{id:string;claimUrl:string;status:string})=>{
+  const asset=assetMode==="usdc"?"USDC":inspectedToken?.symbol??"TOKEN";
+  const inspectToken=async()=>{
+    setError(null);setInspectedToken(null);
+    if(!auth.account){go("claim");return}
+    setInspecting(true);
+    try{setInspectedToken(await currentApi.post<InspectedToken>("/tokens/inspect",{address:tokenAddress}))}
+    catch(inspectError){setError(inspectError instanceof Error?inspectError.message:"This token could not be read on Arc.")}
+    finally{setInspecting(false)}
+  };
+  const fund=async(link:CreatedLink)=>{
     setFundingStep("approving");
     const approval=await currentApi.post<WalletActionResult>("/links/fund",{distributionId:link.id,action:"approve"});
     if(!approval.complete){
-      if(!approval.challengeId)throw new Error("Circle did not return the USDC approval.");
+      if(!approval.challengeId)throw new Error(`Circle did not return the ${link.asset} approval.`);
       await auth.executeChallenge(approval.challengeId);
       await confirmWalletAction("/links/fund",{distributionId:link.id,action:"approve"},approval.challengeId);
     }
@@ -1771,23 +1784,25 @@ function CreateLink({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
         await fund(created);
       }else{
         setFundingStep("creating");
-        const result=await currentApi.post<{id:string;claimUrl:string;status:string}>("/links",{amount,message,expiresInHours:168});
+        if(assetMode==="token"&&!inspectedToken)throw new Error("Inspect the Arc token contract before creating this link.");
+        const result=await currentApi.post<CreatedLink>("/links",{amount,message,expiresInHours:168,tokenAddress:assetMode==="token"?inspectedToken?.address:undefined});
         setCreated(result);await fund(result);
       }
     }catch(linkError){if(!created)setFundingStep("idle");setError(linkError instanceof Error?linkError.message:"The link could not be created.")}
     finally{setSubmitting(false)}
   };
-  const buttonLabel=fundingStep==="creating"?"Securing link…":fundingStep==="approving"?"Approve USDC access…":fundingStep==="funding"?"Fund the Arc vault…":created&&fundingStep!=="complete"?"Resume secure funding":auth.account?"Create and fund link":"Sign in to create";
+  const buttonLabel=fundingStep==="creating"?"Securing link…":fundingStep==="approving"?`Approve ${asset} access…`:fundingStep==="funding"?"Fund the Arc vault…":created&&fundingStep!=="complete"?"Resume secure funding":auth.account?"Create and fund link":"Sign in to create";
   return <><PageHero eyebrow="PERSONAL CURRENT" title="Send value before a wallet exists." copy="Create one private, identity-bound, or open link for USDC or any supported project token."/>
     <div className="form-preview-grid"><form className="form-panel" onSubmit={submit}><div className="panel-head"><div><h3>Create an asset link</h3><p>Funds remain recoverable until claimed.</p></div><Status tone="blue">Arc testnet</Status></div>
-      <label>Asset<div className="asset-options">{["USDC","TIDE","$CURRENT"].map(x=><button type="button" disabled={x!=="USDC"} title={x==="USDC"?"Live now":"Project tokens arrive with campaign distributions"} className={asset===x?"selected":""} onClick={()=>setAsset(x)} key={x}>{x}</button>)}</div></label>
+      <label>Asset<div className="asset-options"><button type="button" className={assetMode==="usdc"?"selected":""} onClick={()=>{setAssetMode("usdc");setInspectedToken(null);setError(null)}}>USDC</button><button type="button" className={assetMode==="token"?"selected":""} onClick={()=>{setAssetMode("token");setError(null)}}>Project token</button></div></label>
+      {assetMode==="token"&&<div className="token-inspector"><label>Arc token contract<div className="token-address-row"><input value={tokenAddress} onChange={event=>{setTokenAddress(event.target.value);setInspectedToken(null)}} placeholder="0x…" spellCheck={false}/><button type="button" onClick={()=>void inspectToken()} disabled={inspecting||!tokenAddress.trim()}>{inspecting?<RefreshCw className="spin"/>:<Search/>}{inspecting?"Reading…":"Inspect"}</button></div></label>{inspectedToken&&<div className="inspected-token-result"><span>{inspectedToken.symbol.slice(0,1)}</span><div><b>{inspectedToken.name} <small>{inspectedToken.symbol}</small></b><p>{inspectedToken.decimals} decimals · {inspectedToken.address.slice(0,8)}…{inspectedToken.address.slice(-6)}</p></div><Status tone={inspectedToken.verified?"green":"cyan"}>{inspectedToken.verified?"Circle verified":"Onchain metadata"}</Status></div>}{inspectedToken?.warning&&<p className="token-safety-note"><ShieldCheck/>{inspectedToken.warning}</p>}</div>}
       <label>Amount<div className="amount-input"><input value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal"/><span>{asset}</span></div></label>
       <div className="two-fields"><label>Recipient rule<select><option>Anyone with the private link</option><option>Verified email</option><option>Verified X identity</option></select></label><label>Expiration<select><option>7 days</option><option>24 hours</option><option>30 days</option></select></label></div>
       <label>Message<textarea value={message} onChange={event=>setMessage(event.target.value)}/></label>
       <div className="fee-summary"><span>Distribution <b>{amount} {asset}</b></span><span>Sponsored gas <b>$0.02</b></span><span>Current CoFi fee <b>$0.00</b></span></div>
       {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
-      <Button tone="blue" type="submit" disabled={submitting||fundingStep==="complete"}>{buttonLabel} <ArrowRight/></Button>
-      {created&&<div className="link-result"><CheckCircle2/><div><b>{fundingStep==="complete"?"Funded claim link copied":"Secure claim link reserved"}</b><small>{fundingStep==="complete"?"The USDC is locked in the Arc vault and ready to claim.":"Complete both wallet approvals to make the link claimable."}</small></div><button type="button" onClick={()=>void navigator.clipboard?.writeText(created.claimUrl)} aria-label="Copy claim link"><Copy/></button></div>}</form>
+      <Button tone="blue" type="submit" disabled={submitting||fundingStep==="complete"||(assetMode==="token"&&!inspectedToken)}>{buttonLabel} <ArrowRight/></Button>
+      {created&&<div className="link-result"><CheckCircle2/><div><b>{fundingStep==="complete"?"Funded claim link copied":"Secure claim link reserved"}</b><small>{fundingStep==="complete"?`The ${created.asset} is locked in the Arc vault and ready to claim.`:"Complete both wallet approvals to make the link claimable."}</small></div><button type="button" onClick={()=>void navigator.clipboard?.writeText(created.claimUrl)} aria-label="Copy claim link"><Copy/></button></div>}</form>
       <aside className="live-link-preview"><FluidCanvas/><Eyebrow light>LIVE PREVIEW</Eyebrow><span className="preview-token">{asset[0]}</span><small>You’re sending</small><strong>{amount || "0"} {asset}</strong><p>{message}</p><button>Claim — no gas required</button>{created&&<div className="created-toast"><CheckCircle2/>{fundingStep==="complete"?"Vault funded":"Link secured"}</div>}</aside></div></>;
 }
 

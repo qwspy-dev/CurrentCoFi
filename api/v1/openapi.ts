@@ -29,8 +29,9 @@ export default withApi((request) => ok(request, {
     "/auth/refresh": { post: { summary: "Refresh Circle credentials and the encrypted account session" } },
     "/links": {
       get: { summary: "List claim links owned by the signed-in account" },
-      post: { summary: "Create a persistent, signed walletless USDC claim link" },
+      post: { summary: "Create a persistent, signed walletless USDC or Arc project-token claim link" },
     },
+    "/tokens/inspect": { post: { summary: "Read and validate ERC-20 metadata directly from an Arc token contract" } },
     "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
     "/social-payments": {
       get: { summary: "List social payment requests, split progress, and sent-payment receipts" },
@@ -111,6 +112,8 @@ export default withApi((request) => ok(request, {
     "/developer/distributions": {
       post: { summary: "Create a signed walletless USDC or project-token distribution" },
     },
+    "/developer/links": { post: { summary: "Create an HMAC-signed private USDC or project-token claim link" } },
+    "/developer/tokens/inspect": { post: { summary: "Inspect Arc ERC-20 metadata with an HMAC-signed request" } },
     "/developer/escrow": {
       get: { summary: "List project milestone agreements with a scoped API key" },
       post: { summary: "Prepare an HMAC-signed milestone agreement for wallet funding" },

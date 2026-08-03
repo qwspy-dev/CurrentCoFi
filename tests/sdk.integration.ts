@@ -8,6 +8,12 @@ const requests: Array<{ url: string; init?: RequestInit }> = [];
 
 const mockFetch: typeof fetch = async (input, init) => {
   requests.push({ url: String(input), init });
+  if (String(input).endsWith("/developer/tokens/inspect")) {
+    return Response.json({ ok: true, data: { address: "0x2222222222222222222222222222222222222222", symbol: "TIDE", name: "Tide Token", decimals: 18, verified: false, network: "ARC-TESTNET", warning: "Metadata was read onchain." } });
+  }
+  if (String(input).endsWith("/developer/links")) {
+    return Response.json({ ok: true, data: { id: "link_sdk", status: "awaiting_funding", amount: "1.25", asset: "TIDE", assetDetails: { address: "0x2222222222222222222222222222222222222222", symbol: "TIDE", name: "Tide Token", decimals: 18, verified: false, network: "ARC-TESTNET", warning: null }, expiresAt: "2026-08-14T00:00:00.000Z", claimUrl: "https://current.test/?claim=proof#/claim", funding: { required: true, network: "ARC-TESTNET", amountAtomic: "1250000000000000000", assetAddress: "0x2222222222222222222222222222222222222222", state: "awaiting_vault_transaction" } } }, { status: 201 });
+  }
   if (String(input).endsWith("/developer/checkout")) {
     const checkout = {
       id: "checkout_sdk", slug: "founding-membership-sdk", title: "Founding membership", description: "Current community access",
@@ -371,6 +377,15 @@ const expectedSignature = createHmac("sha256", signingSecret)
   .update(`${timestamp}.${signedRequest.init?.body}`)
   .digest("base64url");
 assert.equal(suppliedSignature, expectedSignature);
+
+const inspectedToken = await current.links.inspectToken("0x2222222222222222222222222222222222222222");
+assert.equal(inspectedToken.symbol, "TIDE");
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/tokens/inspect");
+assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
+const assetLink = await current.links.create({ amount: "1.25", tokenAddress: inspectedToken.address, message: "Welcome aboard" });
+assert.equal(assetLink.funding.amountAtomic, "1250000000000000000");
+assert.equal(assetLink.asset, "TIDE");
+assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/developer/links");
 
 const escrow = await current.escrow.create({
   name: "SDK milestone proof",

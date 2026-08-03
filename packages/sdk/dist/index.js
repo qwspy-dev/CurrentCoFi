@@ -40,6 +40,10 @@ export class Current {
     distributions = {
         create: (input) => this.signedPost("/api/v1/developer/distributions", input),
     };
+    links = {
+        inspectToken: (address) => this.signedPost("/api/v1/developer/tokens/inspect", { address }),
+        create: (input) => this.signedPost("/api/v1/developer/links", input),
+    };
     escrow = {
         list: () => this.get("/api/v1/developer/escrow"),
         create: (input) => this.signedPost("/api/v1/developer/escrow", input),

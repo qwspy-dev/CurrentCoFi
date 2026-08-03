@@ -502,6 +502,37 @@ export type CreatedDistribution = {
         claimUrl: string;
     }>;
 };
+export type InspectedArcToken = {
+    address: string;
+    symbol: string;
+    name: string;
+    decimals: number;
+    verified: boolean;
+    network: string;
+    warning: string | null;
+};
+export type CreateAssetLinkInput = {
+    amount: string;
+    tokenAddress?: string;
+    message?: string;
+    expiresInHours?: number;
+};
+export type CreatedAssetLink = {
+    id: string;
+    status: string;
+    amount: string;
+    asset: string;
+    assetDetails: InspectedArcToken;
+    expiresAt: string;
+    claimUrl: string;
+    funding: {
+        required: boolean;
+        network: string;
+        amountAtomic: string;
+        assetAddress: string;
+        state: string;
+    };
+};
 export type ActivationInput = {
     externalEventId: string;
     eventType: string;
@@ -1305,6 +1336,10 @@ export declare class Current {
     private readonly request;
     readonly distributions: {
         create: (input: CreateDistributionInput) => Promise<CreatedDistribution>;
+    };
+    readonly links: {
+        inspectToken: (address: string) => Promise<InspectedArcToken>;
+        create: (input: CreateAssetLinkInput) => Promise<CreatedAssetLink>;
     };
     readonly escrow: {
         list: () => Promise<EscrowState>;

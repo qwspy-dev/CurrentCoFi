@@ -20,12 +20,16 @@ async function create(request: Request) {
   const body = await readJsonObject(request);
   const amount = typeof body.amount === "string" ? body.amount : "";
   const message = typeof body.message === "string" ? body.message : undefined;
+  const tokenAddress = typeof body.tokenAddress === "string" && body.tokenAddress.trim()
+    ? body.tokenAddress.trim()
+    : undefined;
   const origin = new URL(request.url).origin;
   return ok(request, await createClaimLink({
     userId: account.userId,
     displayName: session.displayName,
     projectId: project.id,
     amount,
+    tokenAddress,
     message,
     expiresInHours: hours(body.expiresInHours),
     refundAddress: wallet.address,

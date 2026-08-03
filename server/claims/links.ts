@@ -11,50 +11,15 @@ import {
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
 import { parseClaimToken, sha256, signClaimToken } from "../security/crypto.js";
+import { formatAtomic, resolveToken, toAtomic } from "../campaigns/repository.js";
 import { keccak256 } from "viem";
-
-const AMOUNT_PATTERN = /^\d{1,18}(?:\.\d{1,6})?$/;
-
-function toAtomic(amount: string, decimals: number) {
-  const normalized = amount.trim();
-  if (!AMOUNT_PATTERN.test(normalized)) {
-    throw new ApiError(400, "INVALID_AMOUNT", "Enter an amount with up to six decimal places.");
-  }
-  const [whole, fraction = ""] = normalized.split(".");
-  const atomic = `${whole}${fraction.padEnd(decimals, "0")}`.replace(/^0+(?=\d)/, "");
-  if (BigInt(atomic) <= BigInt(0)) throw new ApiError(400, "INVALID_AMOUNT", "The amount must be greater than zero.");
-  return atomic;
-}
-
-function formatAtomic(atomic: string, decimals: number) {
-  const value = atomic.padStart(decimals + 1, "0");
-  const whole = value.slice(0, -decimals);
-  const fraction = value.slice(-decimals).replace(/0+$/, "");
-  return fraction ? `${whole}.${fraction}` : whole;
-}
-
-async function usdcToken() {
-  const db = getDb();
-  const [token] = await db.insert(tokens).values({
-    chainCode: ARC_TESTNET.network,
-    contractAddress: ARC_TESTNET.usdcAddress.toLowerCase(),
-    symbol: "USDC",
-    name: "USD Coin",
-    decimals: 6,
-    verified: true,
-    metadata: { source: "circle", network: "Arc testnet" },
-  }).onConflictDoUpdate({
-    target: [tokens.chainCode, tokens.contractAddress],
-    set: { verified: true, updatedAt: new Date() },
-  }).returning();
-  return token;
-}
 
 export async function createClaimLink(input: {
   userId: string;
   displayName: string;
   projectId: string;
   amount: string;
+  tokenAddress?: string;
   message?: string;
   expiresInHours: number;
   refundAddress: string;
@@ -69,7 +34,7 @@ export async function createClaimLink(input: {
   }
   const project = await db.query.projects.findFirst({ where: eq(projects.id, input.projectId) });
   if (!project) throw new ApiError(404, "PROJECT_NOT_FOUND", "The project does not exist.");
-  const token = await usdcToken();
+  const token = await resolveToken(project.id, input.tokenAddress);
   const amountAtomic = toAtomic(input.amount, token.decimals);
   const expiresAt = new Date(Date.now() + input.expiresInHours * 60 * 60 * 1_000);
   const [distribution] = await db.insert(distributions).values({
@@ -78,12 +43,17 @@ export async function createClaimLink(input: {
     tokenId: token.id,
     kind: "private-link",
     status: "awaiting_funding",
-    name: input.message ? input.message.slice(0, 100) : `${input.amount} USDC private link`,
+    name: input.message ? input.message.slice(0, 100) : `${input.amount} ${token.symbol} private link`,
     totalAmountAtomic: amountAtomic,
     refundAddress: input.refundAddress.toLowerCase(),
     expiresAt,
     rules: { claimMode: "secret", recipientPaysGas: false },
-    metadata: { message: input.message?.slice(0, 280) ?? "", creatorDisplayName: input.displayName },
+    metadata: {
+      message: input.message?.slice(0, 280) ?? "",
+      creatorDisplayName: input.displayName,
+      assetContract: token.contractAddress,
+      assetVerified: token.verified,
+    },
   }).returning();
   const secret = `0x${Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("hex")}` as `0x${string}`;
   const [allocation] = await db.insert(allocations).values({
@@ -108,6 +78,15 @@ export async function createClaimLink(input: {
     status: distribution.status,
     amount: formatAtomic(amountAtomic, token.decimals),
     asset: token.symbol,
+    assetDetails: {
+      address: token.contractAddress,
+      symbol: token.symbol,
+      name: token.name,
+      decimals: token.decimals,
+      verified: token.verified,
+      network: ARC_TESTNET.network,
+      warning: token.verified ? null : "Metadata was read onchain and is not an endorsement by Current CoFi.",
+    },
     expiresAt: expiresAt.toISOString(),
     claimUrl: `${input.origin}/?claim=${encodeURIComponent(claimToken)}#/claim`,
     funding: {
