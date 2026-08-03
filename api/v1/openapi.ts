@@ -31,6 +31,7 @@ export default withApi((request) => ok(request, {
       get: { summary: "List claim links owned by the signed-in account" },
       post: { summary: "Create a persistent, signed walletless USDC or Arc project-token claim link" },
     },
+    "/portfolio": { get: { summary: "Read verified Arc token balances and unified signed-in account activity" } },
     "/tokens/inspect": { post: { summary: "Read and validate ERC-20 metadata directly from an Arc token contract" } },
     "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
     "/social-payments": {

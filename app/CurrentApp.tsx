@@ -17,7 +17,7 @@ import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
 import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
-  | "home" | "claim" | "overview" | "create" | "payments" | "pay" | "onboarding" | "campaigns"
+  | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
@@ -66,6 +66,14 @@ type PublicSocialPayment = Omit<SocialPayment,"shares"> & {
   creator?:{username:string;displayName:string};
   share:{id:string;label:string|null;amount:string;status:string;receiptNumber:string|null;transactionHash:string|null};
   payable:boolean;network:string;
+};
+
+type PortfolioState = {
+  schemaVersion:string;network:string;walletAddress:string;explorerUrl:string;generatedAt:string;blockNumber:string;
+  provenance:string;valuationBoundary:string;
+  totals:{verifiedUsd:string;assets:number;pricedAssets:number;activity:number};
+  assets:Array<{address:string;symbol:string;name:string;decimals:number;verified:boolean;balance:string;balanceAtomic:string;usdValue:string|null;valuation:"stablecoin-parity"|"unpriced"|"unavailable";status:"verified"|"unavailable";explorerUrl:string}>;
+  activity:Array<{id:string;kind:"claim"|"social-payment"|"checkout"|"subscription";direction:"in"|"out";title:string;amount:string;symbol:string;status:string;transactionHash:string|null;occurredAt:string}>;
 };
 
 type ServiceStatusState = {
@@ -957,7 +965,7 @@ function formatAtomic(value:string) {
 }
 
 const validViews = new Set<View>([
-  "home", "claim", "overview", "create", "payments", "pay", "onboarding", "campaigns",
+  "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
@@ -974,7 +982,7 @@ function viewFromHash(hash: string): View | null {
 
 const appNav = [
   { label: "Workspace", items: [
-    ["overview", "Overview", Gauge], ["onboarding", "Project setup", Globe2],
+    ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2],
     ["create", "Create link", Link2],
     ["payments", "Social payments", CircleDollarSign],
     ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
@@ -1743,6 +1751,23 @@ function Overview({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
     <div className="metric-grid-new"><MetricCard label="Campaigns created" value={(totals?.campaigns??0).toLocaleString()} icon={CircleDollarSign}/><MetricCard label="Recipients targeted" value={(totals?.targeted??0).toLocaleString()} icon={Wallet}/><MetricCard label="Claims settled" value={(totals?.claimed??0).toLocaleString()} icon={Activity}/><MetricCard label="Verified claim rate" value={`${(totals?.claimRate??0).toFixed(1)}%`} icon={Target}/></div>
     {network.error&&<p className="auth-system-note is-error"><X/>{network.error}</p>}
     <div className="overview-grid"><CampaignTable campaigns={network.campaigns} loading={network.loading}/><div className="data-panel activity-panel"><div className="panel-head"><div><h3>Live protocol proof</h3><p>Production capability status</p></div><Radio/></div>{[["Identity-bound claims","Verified email + exact Arc wallet"],["Merkle campaigns","Up to 1,000 recipients"],["Project tokens","Any readable Arc ERC-20"],["Walletless claims","Circle SCA + sponsored gas"],["Recovery","Cancellation and expiry refunds"]].map((row,i)=><div className="activity-row" key={row[0]}><span className={`activity-node a-${i}`}><i/></span><div><b>{row[0]}</b><p>{row[1]}</p></div><Status tone="green">Live</Status></div>)}</div></div></>;
+}
+
+function AccountPortfolio({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [state,setState]=useState<PortfolioState|null>(null);const [loading,setLoading]=useState(false);const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(()=>{if(!auth.account){setState(null);return}setLoading(true);setError(null);currentApi.get<PortfolioState>("/portfolio").then(setState).catch(reason=>setError(reason instanceof Error?reason.message:"Your Arc portfolio is unavailable.")).finally(()=>setLoading(false))},[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const short=(value:string)=>`${value.slice(0,7)}…${value.slice(-5)}`;
+  return <><PageHero eyebrow="YOUR CURRENT ACCOUNT" title="Every asset. One honest record." copy="See verified Arc balances and the Current activity that moved them. Project tokens stay unpriced until a trustworthy market source exists." mode="branches"><Button tone="cyan" onClick={()=>go("payments")}>Move an asset <ArrowRight/></Button></PageHero>
+    {!auth.account?<div className="portfolio-locked"><FluidCanvas mode="orbit"/><span><Wallet/></span><Eyebrow light>WALLETLESS ACCOUNT</Eyebrow><h2>Your portfolio begins with one claim.</h2><p>Sign in with email or Google. Current creates your embedded Arc wallet without a seed phrase, extension, or gas balance.</p><Button tone="light" onClick={()=>go("claim")}>Create your account <ArrowRight/></Button></div>:<>
+      <section className="portfolio-proofbar"><div><span className="portfolio-wallet-mark"><Wallet/></span><div><small>ARC TESTNET WALLET</small><b>{short(state?.walletAddress??auth.account.wallets.find(wallet=>wallet.blockchain==="ARC-TESTNET")?.address??"0x000000000000")}</b></div></div><div><small>READ AT BLOCK</small><b>{state?.blockNumber??(loading?"Reading…":"—")}</b></div><div><small>DATA MODE</small><b><i/>Verified onchain</b></div>{state?<a href={state.explorerUrl} target="_blank" rel="noreferrer">Open in ArcScan <ExternalLink/></a>:<button onClick={()=>void refresh()}><RefreshCw className={loading?"spin":""}/>Refresh</button>}</section>
+      {error?<div className="portfolio-error"><ShieldAlert/><div><b>The account current was interrupted.</b><p>{error} Your funds have not moved.</p></div><button onClick={()=>void refresh()}>Try again</button></div>:null}
+      <div className="portfolio-metrics"><article className="portfolio-total"><small>VERIFIED USDC PARITY</small><strong>{loading&&!state?"—":state?.totals.verifiedUsd??"0.00"}<em>USDC</em></strong><p>Arc testnet assets have no real monetary value.</p><span className="portfolio-waterline"><i/></span></article><MetricCard label="Assets detected" value={(state?.totals.assets??0).toLocaleString()} icon={Layers3}/><MetricCard label="Unpriced assets" value={(state?.assets.filter(asset=>asset.valuation==="unpriced").length??0).toLocaleString()} icon={ShieldCheck}/><MetricCard label="Account events" value={(state?.totals.activity??0).toLocaleString()} icon={Activity}/></div>
+      <div className="portfolio-layout"><section className="data-panel portfolio-assets"><div className="panel-head"><div><h3>Arc assets</h3><p>Balances read from token contracts at the block above</p></div><Status tone="green">Onchain</Status></div>{loading&&!state?<div className="portfolio-loading">{[1,2,3].map(item=><i key={item}/>)}</div>:state?.assets.map(asset=><article key={asset.address}><span className={`portfolio-token token-${asset.verified?"verified":"project"}`}>{asset.symbol.slice(0,2)}</span><div><b>{asset.name}</b><small>{asset.symbol} · {short(asset.address)}</small></div><strong>{Number(asset.balance).toLocaleString(undefined,{maximumFractionDigits:6})}<small>{asset.symbol}</small></strong><div className="portfolio-value">{asset.usdValue!==null?<><b>{asset.usdValue} USDC</b><small>stablecoin parity</small></>:<><b>Unpriced</b><small>No trusted market source</small></>}</div><a href={asset.explorerUrl} target="_blank" rel="noreferrer" aria-label={`Open ${asset.symbol} in ArcScan`}><ExternalLink/></a></article>)}{!loading&&!state?.assets.length?<div className="campaign-empty compact"><Wallet/><b>No onchain balance detected</b><p>Claim USDC or a project token and it will appear after Arc confirms the transfer.</p><Button tone="blue" onClick={()=>go("create")}>Create a claim link</Button></div>:null}</section>
+        <section className="data-panel portfolio-activity"><div className="panel-head"><div><h3>Unified activity</h3><p>Claims, social payments, checkout, and subscriptions</p></div><Activity/></div>{loading&&!state?<div className="portfolio-loading">{[1,2,3,4].map(item=><i key={item}/>)}</div>:state?.activity.map(item=><article key={item.id}><span className={`portfolio-direction ${item.direction}`}>{item.direction==="in"?<ArrowLeft/>:<ArrowUpRight/>}</span><div><b>{item.title}</b><small>{item.kind.replace("-"," ")} · {new Date(item.occurredAt).toLocaleDateString()}</small></div><strong className={item.direction}>{item.direction==="in"?"+":"−"}{item.amount}<small>{item.symbol}</small></strong>{item.transactionHash?<a href={`https://testnet.arcscan.app/tx/${item.transactionHash}`} target="_blank" rel="noreferrer"><ExternalLink/></a>:<Status tone={item.status==="confirmed"?"green":"grey"}>{item.status}</Status>}</article>)}{!loading&&!state?.activity.length?<div className="campaign-empty compact"><Activity/><b>No account activity yet</b><p>Verified claims and payments will form one readable history here.</p></div>:null}</section></div>
+      <aside className="portfolio-boundary"><ShieldCheck/><div><b>What this account does—and does not—claim</b><p>{state?.provenance??"Balances are read directly from Arc testnet."} {state?.valuationBoundary??"Project tokens are not assigned fabricated prices."}</p></div></aside>
+    </>}
+  </>;
 }
 
 function CreateLink({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
@@ -3173,6 +3198,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
   let page:React.ReactNode;
   switch(view){
     case "overview":page=<Overview go={go} auth={auth}/>;break;
+    case "account":page=<AccountPortfolio go={go} auth={auth}/>;break;
     case "create":page=<CreateLink auth={auth} go={go}/>;break;
     case "payments":page=<SocialPayments auth={auth} go={go}/>;break;
     case "onboarding":page=<ProjectOnboarding go={go}/>;break;
