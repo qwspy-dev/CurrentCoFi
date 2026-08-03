@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { ApiError } from "../http.js";
 import type { CurrentSession } from "../auth/session.js";
 import { getDb } from "../db/client.js";
 import { identities, projectMembers, projects, users, wallets } from "../db/schema.js";
@@ -119,4 +120,57 @@ export async function resolveCurrentUsername(value: string) {
     avatarUrl: user.avatarUrl,
     walletAddress: wallet.address,
   };
+}
+
+export type ExternalIdentityProvider = "x" | "discord" | "telegram";
+
+export async function linkExternalIdentity(
+  userId: string,
+  provider: ExternalIdentityProvider,
+  providerSubject: string,
+  profile: { username?: string; displayName?: string; avatarUrl?: string },
+) {
+  const db = getDb();
+  const providerSubjectHash = await sha256(`${provider}:${providerSubject}`);
+  const existing = await db.query.identities.findFirst({
+    where: and(
+      eq(identities.provider, provider),
+      eq(identities.providerSubjectHash, providerSubjectHash),
+    ),
+  });
+  if (existing && existing.userId !== userId) {
+    throw new ApiError(409, "IDENTITY_ALREADY_LINKED", "That social identity is already linked to another Current account.");
+  }
+  const metadata = {
+    ...(profile.username ? { username: profile.username.slice(0, 100) } : {}),
+    ...(profile.displayName ? { displayName: profile.displayName.slice(0, 100) } : {}),
+    ...(profile.avatarUrl ? { avatarUrl: profile.avatarUrl.slice(0, 1_000) } : {}),
+  };
+  if (existing) {
+    await db.update(identities).set({ metadata, verifiedAt: new Date(), updatedAt: new Date() }).where(eq(identities.id, existing.id));
+    return existing.id;
+  }
+  const [identity] = await db.insert(identities).values({
+    userId,
+    provider,
+    providerSubjectHash,
+    verifiedAt: new Date(),
+    metadata,
+  }).returning();
+  return identity.id;
+}
+
+export async function listAccountIdentities(userId: string) {
+  const db = getDb();
+  const records = await db.query.identities.findMany({ where: eq(identities.userId, userId) });
+  return records.map((identity) => ({
+    id: identity.id,
+    provider: identity.provider,
+    verifiedAt: identity.verifiedAt?.toISOString() ?? null,
+    profile: {
+      username: typeof identity.metadata.username === "string" ? identity.metadata.username : null,
+      displayName: typeof identity.metadata.displayName === "string" ? identity.metadata.displayName : null,
+      avatarUrl: typeof identity.metadata.avatarUrl === "string" ? identity.metadata.avatarUrl : null,
+    },
+  }));
 }

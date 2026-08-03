@@ -8,7 +8,17 @@ export type AuthConfig = {
   configured: boolean;
   appId: string | null;
   googleClientId: string | null;
+  facebookAppId: string | null;
+  appleFirebaseConfig: {
+    apiKey: string;
+    authDomain: string;
+    projectId: string;
+    storageBucket?: string;
+    messagingSenderId?: string;
+    appId: string;
+  } | null;
   methods: { google: boolean; email: boolean; apple: boolean; facebook: boolean };
+  linkedIdentities: { x: boolean; discord: boolean; telegram: boolean };
   network: "ARC-TESTNET";
   accountType: "SCA";
 };
@@ -68,7 +78,7 @@ export function useCircleWalletAuth() {
   const [state, setState] = useState<AuthState>("loading");
   const [error, setError] = useState<string | null>(null);
 
-  const createSession = useCallback(async (result: LoginResult, deviceId: string, provider: "google" | "email") => {
+  const createSession = useCallback(async (result: LoginResult, deviceId: string, provider: "google" | "email" | "apple" | "facebook") => {
     sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
       userToken: result.userToken,
       encryptionKey: result.encryptionKey,
@@ -134,7 +144,7 @@ export function useCircleWalletAuth() {
         const storedDeviceToken = localStorage.getItem(`${STORAGE_PREFIX}deviceToken`) ?? "";
         const storedDeviceEncryptionKey = localStorage.getItem(`${STORAGE_PREFIX}deviceEncryptionKey`) ?? "";
         const storedOtpToken = localStorage.getItem(`${STORAGE_PREFIX}otpToken`) ?? undefined;
-        const storedProvider = (localStorage.getItem(`${STORAGE_PREFIX}provider`) ?? "google") as "google" | "email";
+        const storedProvider = (localStorage.getItem(`${STORAGE_PREFIX}provider`) ?? "google") as "google" | "email" | "apple" | "facebook";
         const onLoginComplete = (loginError: unknown, rawResult?: unknown) => {
           if (cancelled) return;
           if (loginError || !rawResult) {
@@ -169,6 +179,10 @@ export function useCircleWalletAuth() {
                 selectAccountPrompt: true,
               },
             } : {}),
+            ...(nextConfig.facebookAppId ? {
+              facebook: { appId: nextConfig.facebookAppId, redirectUri: window.location.origin },
+            } : {}),
+            ...(nextConfig.appleFirebaseConfig ? { apple: nextConfig.appleFirebaseConfig } : {}),
           } : undefined,
         }, onLoginComplete);
         sdkRef.current = sdk;
@@ -223,6 +237,10 @@ export function useCircleWalletAuth() {
             selectAccountPrompt: true,
           },
         } : {}),
+        ...(nextConfig.facebookAppId ? {
+          facebook: { appId: nextConfig.facebookAppId, redirectUri: window.location.origin },
+        } : {}),
+        ...(nextConfig.appleFirebaseConfig ? { apple: nextConfig.appleFirebaseConfig } : {}),
       },
     }, loginCallbackRef.current ?? undefined);
     return sdk;
@@ -243,6 +261,27 @@ export function useCircleWalletAuth() {
       setState("error");
     }
   }, [configureSdk, deviceId]);
+
+  const startSocial = useCallback(async (provider: "apple" | "facebook") => {
+    try {
+      if (!configRef.current?.methods[provider]) {
+        throw new Error(`${provider === "apple" ? "Apple" : "Facebook"} login is waiting for its provider configuration.`);
+      }
+      setError(null);
+      setState("redirecting");
+      const id = await deviceId();
+      const tokens = await currentApi.post<{ deviceToken: string; deviceEncryptionKey: string }>("/auth/device-token", { deviceId: id });
+      localStorage.setItem(`${STORAGE_PREFIX}provider`, provider);
+      const sdk = configureSdk(tokens);
+      await sdk.performLogin((provider === "apple" ? "Apple" : "Facebook") as Parameters<W3SSdk["performLogin"]>[0]);
+    } catch (loginError) {
+      setError(messageFrom(loginError));
+      setState("error");
+    }
+  }, [configureSdk, deviceId]);
+
+  const startApple = useCallback(() => startSocial("apple"), [startSocial]);
+  const startFacebook = useCallback(() => startSocial("facebook"), [startSocial]);
 
   const startEmail = useCallback(async (email: string) => {
     try {
@@ -298,5 +337,5 @@ export function useCircleWalletAuth() {
     });
   }, []);
 
-  return { config, account, state, error, startGoogle, startEmail, signOut, executeChallenge };
+  return { config, account, state, error, startGoogle, startEmail, startApple, startFacebook, signOut, executeChallenge };
 }

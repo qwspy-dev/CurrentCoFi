@@ -15,6 +15,19 @@ export type ServerConfig = {
   CIRCLE_ENTITY_SECRET?: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;
   CIRCLE_EMAIL_OTP_ENABLED: boolean;
+  FACEBOOK_APP_ID?: string;
+  APPLE_FIREBASE_API_KEY?: string;
+  APPLE_FIREBASE_AUTH_DOMAIN?: string;
+  APPLE_FIREBASE_PROJECT_ID?: string;
+  APPLE_FIREBASE_STORAGE_BUCKET?: string;
+  APPLE_FIREBASE_MESSAGING_SENDER_ID?: string;
+  APPLE_FIREBASE_APP_ID?: string;
+  X_OAUTH_CLIENT_ID?: string;
+  X_OAUTH_CLIENT_SECRET?: string;
+  DISCORD_OAUTH_CLIENT_ID?: string;
+  DISCORD_OAUTH_CLIENT_SECRET?: string;
+  TELEGRAM_BOT_USERNAME?: string;
+  TELEGRAM_BOT_TOKEN?: string;
   CURRENT_COFI_INTERNAL_SECRET?: string;
   CLAIM_SIGNING_SECRET?: string;
   CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY?: `0x${string}`;
@@ -78,6 +91,19 @@ export function getServerConfig(): ServerConfig {
       CIRCLE_ENTITY_SECRET: optional("CIRCLE_ENTITY_SECRET"),
       GOOGLE_OAUTH_CLIENT_ID: optional("GOOGLE_OAUTH_CLIENT_ID"),
       CIRCLE_EMAIL_OTP_ENABLED: enabled("CIRCLE_EMAIL_OTP_ENABLED"),
+      FACEBOOK_APP_ID: optional("FACEBOOK_APP_ID"),
+      APPLE_FIREBASE_API_KEY: optional("APPLE_FIREBASE_API_KEY"),
+      APPLE_FIREBASE_AUTH_DOMAIN: optional("APPLE_FIREBASE_AUTH_DOMAIN"),
+      APPLE_FIREBASE_PROJECT_ID: optional("APPLE_FIREBASE_PROJECT_ID"),
+      APPLE_FIREBASE_STORAGE_BUCKET: optional("APPLE_FIREBASE_STORAGE_BUCKET"),
+      APPLE_FIREBASE_MESSAGING_SENDER_ID: optional("APPLE_FIREBASE_MESSAGING_SENDER_ID"),
+      APPLE_FIREBASE_APP_ID: optional("APPLE_FIREBASE_APP_ID"),
+      X_OAUTH_CLIENT_ID: optional("X_OAUTH_CLIENT_ID"),
+      X_OAUTH_CLIENT_SECRET: optional("X_OAUTH_CLIENT_SECRET"),
+      DISCORD_OAUTH_CLIENT_ID: optional("DISCORD_OAUTH_CLIENT_ID"),
+      DISCORD_OAUTH_CLIENT_SECRET: optional("DISCORD_OAUTH_CLIENT_SECRET"),
+      TELEGRAM_BOT_USERNAME: optional("TELEGRAM_BOT_USERNAME"),
+      TELEGRAM_BOT_TOKEN: optional("TELEGRAM_BOT_TOKEN"),
       CURRENT_COFI_INTERNAL_SECRET: secret("CURRENT_COFI_INTERNAL_SECRET"),
       CLAIM_SIGNING_SECRET: secret("CLAIM_SIGNING_SECRET"),
       CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY: optional("CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY") as `0x${string}` | undefined,
@@ -125,6 +151,20 @@ export function getPublicConfig() {
         config.CIRCLE_API_KEY &&
         config.CIRCLE_APP_ID &&
         config.CIRCLE_EMAIL_OTP_ENABLED,
+      ),
+      appleLogin: Boolean(
+        config.CIRCLE_API_KEY &&
+        config.CIRCLE_APP_ID &&
+        config.APPLE_FIREBASE_API_KEY &&
+        config.APPLE_FIREBASE_AUTH_DOMAIN &&
+        config.APPLE_FIREBASE_PROJECT_ID &&
+        config.APPLE_FIREBASE_APP_ID
+      ),
+      facebookLogin: Boolean(config.CIRCLE_API_KEY && config.CIRCLE_APP_ID && config.FACEBOOK_APP_ID),
+      externalIdentityLinking: Boolean(
+        (config.X_OAUTH_CLIENT_ID && config.X_OAUTH_CLIENT_SECRET) ||
+        (config.DISCORD_OAUTH_CLIENT_ID && config.DISCORD_OAUTH_CLIENT_SECRET) ||
+        (config.TELEGRAM_BOT_USERNAME && config.TELEGRAM_BOT_TOKEN)
       ),
       identityClaims: Boolean(config.CLAIM_SIGNING_SECRET),
       productionMutations: Boolean(config.DATABASE_URL && config.CLAIM_SIGNING_SECRET),

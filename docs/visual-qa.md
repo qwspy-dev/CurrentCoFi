@@ -87,3 +87,12 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Live Arc integration: reproduced the official Arc Testnet USDC control baseline through the public RPC with schema `1.1`, stable runtime bytecode, a dedicated control digest, and a separate full review digest.
 - Static production build, type checking, linting, the dedicated token-monitor test, the asset-trust test, and all portfolio, social-payment, developer-security, grant, proof, settlement, agent, and observability regressions passed.
 - Evidence captures: `qa-asset-trust-desktop.png` and `qa-asset-trust-mobile.png`.
+
+## Identity and access QA — 2026-08-03
+
+- Desktop 1440×900: verified the walletless claim route clearly presents Google, email OTP, Apple, and Facebook without implying that credential-gated methods are live.
+- Desktop identity settings: verified the Circle wallet-login layer, community-identity layer, readiness states, and wallet-authority boundary remain scannable inside the existing Current application shell.
+- Mobile 390×844: corrected the settings navigation to a one-column composition, verified all identity cards stay inside the viewport, and confirmed zero horizontal overflow.
+- Browser integrity: no framework overlay or error-level browser logs appeared during the claim or identity-management render.
+- Security verification: lint, TypeScript, production build, encrypted OAuth-state tests, PKCE checks, identity-binding tests, adversarial security tests, and the reproducible audit manifest pass.
+- Evidence captures: `qa-identity-claim-desktop.png`, `qa-identity-settings-desktop.png`, and `qa-identity-settings-mobile-final.png`.
