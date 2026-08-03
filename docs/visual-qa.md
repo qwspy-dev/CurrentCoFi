@@ -130,3 +130,12 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Browser inspection reported zero console errors and exact body/viewport width parity at both sizes.
 - Confirmed the public/private vesting routes, public proof copy, unlock-aware claim states, and reduced mobile density are present in the rendered bundle.
 - Captures: `qa-vesting-desktop.png` and `qa-vesting-mobile.png` (local QA artifacts; not release assets).
+
+## Proof-gated public activation drops QA — 2026-08-03
+
+- Desktop 1440×900: verified the activation-first product hierarchy, proof boundary, event configuration, instructions, and reward handoff remain scannable without relying on motion.
+- Mobile 390×844: verified the hero, metric stack, proof configuration, action fields, and continuation controls recompose into one touch-friendly column with exact viewport-width parity.
+- Interaction: verified the activation step opens from the primary action, can be cancelled, can disable the proof requirement, and hands its normalized values into the existing funded-drop flow.
+- Trust copy explicitly states that a scoped project key attests the offchain action and that Current rejects missing, expired, reused, or wallet-mismatched proofs.
+- Browser integrity: meaningful content rendered, no framework error overlay appeared, and the mobile document width remained 390px.
+- Captures: `qa-proof-gated-drops-config-desktop.png` and `qa-proof-gated-drops-config-mobile.png` (local QA artifacts; not release assets).

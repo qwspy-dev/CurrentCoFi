@@ -45,7 +45,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v19";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v20";
 
 type Criterion = {
   id: string;
@@ -472,8 +472,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     privacy: "Only masked aggregate entry and referral evidence is exported. Raw entrant identities and private winner claim credentials are excluded.",
   };
   const publicDropEvidence = {
-    totals: { drops: publicDropRows.length, funded: publicDropRows.filter((row) => ["active", "completed"].includes(row.distribution.status)).length, reserved: publicDropSlotRows.filter((row) => Boolean(row.slot.identityHash)).length, claimed: publicDropSlotRows.filter((row) => row.allocationStatus === "confirmed").length, referrals: publicDropSlotRows.filter((row) => Boolean(row.slot.referredByCode)).length },
-    items: publicDropRows.map((row) => ({ id: row.drop.id, title: row.drop.title, status: row.distribution.status, maxClaims: row.drop.maxClaims, reserved: publicDropSlotRows.filter((slot) => slot.dropId === row.drop.id && Boolean(slot.slot.identityHash)).length, claimed: publicDropSlotRows.filter((slot) => slot.dropId === row.drop.id && slot.allocationStatus === "confirmed").length, reward: { amount: formatAtomic(row.drop.claimAmountAtomic, row.token.decimals), symbol: row.token.symbol, address: row.token.contractAddress }, anchors: { distributionId: row.distribution.id, merkleRoot: row.distribution.merkleRoot, fundingTransactionHash: row.distribution.fundingTxHash } })),
+    totals: { drops: publicDropRows.length, proofGated: publicDropRows.filter((row) => Boolean((row.distribution.rules as Record<string, unknown>).claimCondition)).length, funded: publicDropRows.filter((row) => ["active", "completed"].includes(row.distribution.status)).length, reserved: publicDropSlotRows.filter((row) => Boolean(row.slot.identityHash)).length, claimed: publicDropSlotRows.filter((row) => row.allocationStatus === "confirmed").length, referrals: publicDropSlotRows.filter((row) => Boolean(row.slot.referredByCode)).length },
+    items: publicDropRows.map((row) => ({ id: row.drop.id, title: row.drop.title, status: row.distribution.status, maxClaims: row.drop.maxClaims, claimCondition: (row.distribution.rules as Record<string, unknown>).claimCondition ?? null, reserved: publicDropSlotRows.filter((slot) => slot.dropId === row.drop.id && Boolean(slot.slot.identityHash)).length, claimed: publicDropSlotRows.filter((slot) => slot.dropId === row.drop.id && slot.allocationStatus === "confirmed").length, reward: { amount: formatAtomic(row.drop.claimAmountAtomic, row.token.decimals), symbol: row.token.symbol, address: row.token.contractAddress }, anchors: { distributionId: row.distribution.id, merkleRoot: row.distribution.merkleRoot, fundingTransactionHash: row.distribution.fundingTxHash } })),
     privacy: "Only aggregate capacity, reservations, referrals, claims, and public Arc anchors are exported. Encrypted email identities and private claim credentials are excluded.",
   };
   const treasuryEvidence = {
@@ -770,7 +770,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       label: "Public walletless mass drops",
       weight: 10,
       passed: publicDropEvidence.totals.funded > 0 && publicDropEvidence.totals.claimed > 0,
-      evidence: `${publicDropEvidence.totals.funded} funded public drop${publicDropEvidence.totals.funded === 1 ? "" : "s"}, ${publicDropEvidence.totals.reserved} encrypted reservation${publicDropEvidence.totals.reserved === 1 ? "" : "s"}, ${publicDropEvidence.totals.claimed} Arc claim${publicDropEvidence.totals.claimed === 1 ? "" : "s"}, and ${publicDropEvidence.totals.referrals} attributed referral${publicDropEvidence.totals.referrals === 1 ? "" : "s"}.`,
+      evidence: `${publicDropEvidence.totals.funded} funded public drop${publicDropEvidence.totals.funded === 1 ? "" : "s"}, ${publicDropEvidence.totals.proofGated} proof-gated activation pool${publicDropEvidence.totals.proofGated === 1 ? "" : "s"}, ${publicDropEvidence.totals.reserved} encrypted reservation${publicDropEvidence.totals.reserved === 1 ? "" : "s"}, ${publicDropEvidence.totals.claimed} Arc claim${publicDropEvidence.totals.claimed === 1 ? "" : "s"}, and ${publicDropEvidence.totals.referrals} attributed referral${publicDropEvidence.totals.referrals === 1 ? "" : "s"}.`,
     },
     {
       id: "walletless-launch-vesting",
@@ -934,6 +934,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       giveawayReferrals: giveawayEvidence.totals.referrals,
       giveawayDraws: giveawayEvidence.totals.drawn,
       publicDrops: publicDropEvidence.totals.drops,
+      proofGatedPublicDrops: publicDropEvidence.totals.proofGated,
       fundedPublicDrops: publicDropEvidence.totals.funded,
       publicDropReservations: publicDropEvidence.totals.reserved,
       publicDropClaims: publicDropEvidence.totals.claimed,

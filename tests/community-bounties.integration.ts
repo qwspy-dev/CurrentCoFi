@@ -35,7 +35,7 @@ assert.match(repository, /bounty\.awarded/);
 assert.match(schema, /bounty_submissions_bounty_contact_unique/);
 assert.match(developer, /verifySignedDeveloperRequest/);
 assert.match(publicApi, /publicBounty/);
-assert.match(evidence, /current-evidence-v18/);
+assert.match(evidence, /current-evidence-v20/);
 assert.match(evidence, /Prize-backed contributor bounties/);
 assert.match(sdk, /readonly bounties/);
 assert.match(mcp, /current_create_community_bounty/);

@@ -879,6 +879,12 @@ export type CreatePublicDropInput = {
     maxClaims: number;
     expiresInHours?: number;
     tokenAddress?: string;
+    claimCondition?: {
+        eventType: string;
+        label: string;
+        description?: string;
+        proofWindowMinutes?: number;
+    };
 };
 export type PublicDropWorkspace = {
     drops: Array<{

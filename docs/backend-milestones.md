@@ -33,3 +33,10 @@ External proof still required: run the first funded public testnet drop with out
 8. **Readiness** — external review, pilots, grant evidence, mainnet deployment controls.
 9. **Expansion** — merchant checkout, milestone escrow, recurring USDC subscriptions, and cross-chain USDC funding are implemented on Arc testnet.
 10. **Recurring operations and grant proof** — deduplicated renewal lifecycle notices, due/past-due webhooks, scheduled reconciliation, and checkout/subscription settlement evidence are implemented.
+# Milestone: Proof-gated public activation drops (complete)
+
+- Public USDC and Arc project-token drops now accept a bounded action condition.
+- Claims remain locked until a fresh project-signed proof matches the distribution, Arc wallet, and event type.
+- Proofs are replay protected and consumed only after confirmed settlement.
+- Workspace, REST, SDK, MCP, hosted proof copy, OpenAPI, and privacy-safe grant evidence share the same condition contract.
+- Rendered desktop and mobile QA, security checks, package builds, and production-build verification pass.

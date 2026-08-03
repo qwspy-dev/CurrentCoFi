@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.10.0-public-walletless-mass-drops",
+    version: "3.11.0-proof-gated-public-drops",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -170,7 +170,7 @@ export default withApi((request) => ok(request, {
     },
     "/developer/drops": {
       get: { summary: "Read project public mass drops with a scoped API key" },
-      post: { summary: "Create an HMAC-signed capped public drop; funding remains a separate Circle-wallet action" },
+      post: { summary: "Create an HMAC-signed capped public drop with an optional wallet-bound action-proof gate; funding remains a separate Circle-wallet action" },
     },
     "/developer/vesting": {
       get: { summary: "Read project launch vesting, masked recipients, funding, unlocks, and claims with a scoped API key" },

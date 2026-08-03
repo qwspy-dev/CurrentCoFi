@@ -148,7 +148,7 @@ export function createCurrentMcpServer(input: CurrentMcpConfig = configFromEnv()
 
   server.registerTool("current_list_public_mass_drops", {
     title: "Read project public mass drops",
-    description: "Read fully funded first-come pools, reward capacity, encrypted reservations, claims, and referral attribution.",
+    description: "Read fully funded first-come pools, optional action-proof gates, reward capacity, encrypted reservations, claims, and referral attribution.",
     inputSchema: noInput,
     annotations: readOnly,
   }, async () => {
@@ -158,8 +158,8 @@ export function createCurrentMcpServer(input: CurrentMcpConfig = configFromEnv()
 
   server.registerTool("current_create_public_mass_drop", {
     title: "Create a walletless public mass drop",
-    description: "Prepare a capped first-come USDC or project-token pool. Funding remains a separate authorized Circle wallet action.",
-    inputSchema: { title: z.string().min(3).max(100), description: z.string().min(12).max(1_000), claimAmount: z.string().regex(/^\d+(\.\d{1,18})?$/), maxClaims: z.number().int().min(2).max(500), expiresInHours: z.number().int().min(1).max(720).optional(), tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(), approval: z.literal("I_APPROVE_CURRENT_PUBLIC_DROP") },
+    description: "Prepare a capped first-come USDC or project-token pool, optionally gated by a project-signed action proof. Funding remains a separate authorized Circle wallet action.",
+    inputSchema: { title: z.string().min(3).max(100), description: z.string().min(12).max(1_000), claimAmount: z.string().regex(/^\d+(\.\d{1,18})?$/), maxClaims: z.number().int().min(2).max(500), expiresInHours: z.number().int().min(1).max(720).optional(), tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(), claimCondition: z.object({ eventType: z.string().min(3).max(100), label: z.string().min(3).max(80), description: z.string().max(240).optional(), proofWindowMinutes: z.number().int().min(5).max(1_440).optional() }).optional(), approval: z.literal("I_APPROVE_CURRENT_PUBLIC_DROP") },
     annotations: mutation,
   }, async ({ approval: _approval, ...value }) => {
     void _approval;

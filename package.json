@@ -25,6 +25,7 @@
     "giveaway:test": "tsx tests/verifiable-giveaways.integration.ts",
     "vesting:test": "tsx tests/walletless-launch-vesting.integration.ts",
     "drops:test": "tsx tests/public-walletless-drops.integration.ts",
+    "activation-drops:test": "tsx tests/proof-gated-public-drops.integration.ts",
     "audit:manifest": "node scripts/security/audit-manifest.mjs --write",
     "audit:verify": "node scripts/security/audit-manifest.mjs",
     "db:generate": "drizzle-kit generate",

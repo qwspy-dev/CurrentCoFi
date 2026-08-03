@@ -296,7 +296,7 @@ export type TreasuryWorkspace = {
 export type CreateTreasuryProposalInput = { treasuryId: string; budgetId?: string; title: string; description: string; category: string; recipientAddress: string; amount: string; tokenAddress?: string; proofUrl?: string };
 
 export type CreateGiveawayInput = { title: string; description: string; amount: string; tokenAddress?: string; entryDeadline: string; maxEntries?: number };
-export type CreatePublicDropInput = { title: string; description: string; claimAmount: string; maxClaims: number; expiresInHours?: number; tokenAddress?: string };
+export type CreatePublicDropInput = { title: string; description: string; claimAmount: string; maxClaims: number; expiresInHours?: number; tokenAddress?: string; claimCondition?: { eventType: string; label: string; description?: string; proofWindowMinutes?: number } };
 export type PublicDropWorkspace = {
   drops: Array<{ id: string; slug: string; title: string; description: string; status: string; distributionId: string; publicUrl: string; reward: { amount: string; symbol: string; address: string }; capacity: { maximum: number; reserved: number; claimed: number; remaining: number; percentReserved: number }; funding: { status: string; fullyFunded: boolean; transactionHash: string | null; merkleRoot: string | null; totalAmount: string }; referrals: number }>;
   totals: { drops: number; open: number; reserved: number; claimed: number; referrals: number }; privacy: string;

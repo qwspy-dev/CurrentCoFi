@@ -3,6 +3,7 @@ import { allocations, auditEvents, distributions, projects, publicDrops, publicD
 import { getDb } from "../db/client.js";
 import { ApiError } from "../http.js";
 import { createCampaign, formatAtomic, projectAccess, toAtomic } from "../campaigns/repository.js";
+import { parseClaimCondition } from "../campaigns/conditions.js";
 import { normalizeBoundIdentity } from "../claims/identity-binding.js";
 import { openSecret, randomSecret, sealSecret, sha256 } from "../security/crypto.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
@@ -33,7 +34,7 @@ export function publicDropState(funding: string, expiresAt: Date | null, reserve
 
 export async function createPublicDrop(input: {
   userId: string; displayName: string; projectId: string; refundAddress: string; origin: string;
-  title: string; description: string; claimAmount: string; maxClaims: number; expiresInHours: number; tokenAddress?: string;
+  title: string; description: string; claimAmount: string; maxClaims: number; expiresInHours: number; tokenAddress?: string; claimCondition?: unknown;
 }) {
   await projectAccess(input.userId, input.projectId);
   const title = clean(input.title, "Title", 3, 100);
@@ -41,16 +42,18 @@ export async function createPublicDrop(input: {
   if (!Number.isInteger(input.maxClaims) || input.maxClaims < 2 || input.maxClaims > 500) throw new ApiError(400, "INVALID_DROP_CAP", "Public drops require 2–500 claim slots.");
   if (!Number.isInteger(input.expiresInHours) || input.expiresInHours < 1 || input.expiresInHours > 720) throw new ApiError(400, "INVALID_DROP_EXPIRY", "Public drops may remain open for 1–720 hours.");
   const id = crypto.randomUUID();
+  const claimCondition = parseClaimCondition(input.claimCondition);
   const campaign = await createCampaign({
     userId: input.userId, displayName: input.displayName, projectId: input.projectId, refundAddress: input.refundAddress,
     origin: input.origin, name: `Public drop · ${title}`, tokenAddress: input.tokenAddress, expiresInHours: input.expiresInHours,
     activationEvent: "public_drop.claimed", claimMode: "identity-bound",
+    claimCondition,
     recipients: Array.from({ length: input.maxClaims }, (_, position) => ({ identityType: "custom" as const, identity: `public-drop:${id}:slot:${position}`, amount: input.claimAmount })),
   });
   const claimAmountAtomic = toAtomic(input.claimAmount, campaign.asset.decimals);
   const [drop] = await getDb().insert(publicDrops).values({
     id, projectId: input.projectId, creatorUserId: input.userId, distributionId: campaign.id, publicSlug: slug(title), title, description,
-    claimAmountAtomic, maxClaims: input.maxClaims, metadata: { mode: "first-come", identityBinding: "verified-email", fullyFundedBeforeOpen: true },
+    claimAmountAtomic, maxClaims: input.maxClaims, metadata: { mode: "first-come", identityBinding: "verified-email", fullyFundedBeforeOpen: true, actionGated: Boolean(claimCondition) },
   }).returning();
   await getDb().insert(publicDropSlots).values(await Promise.all(campaign.links.map(async (link, position) => {
     const claimToken = new URL(link.claimUrl).searchParams.get("claim");
@@ -78,6 +81,7 @@ async function serialize(row: Awaited<ReturnType<typeof dropRow>>, origin: strin
   const reserved = slots.filter(({ slot }) => Boolean(slot.identityHash));
   const claimed = slots.filter(({ allocationStatus }) => allocationStatus === "confirmed");
   const status = publicDropState(row.distribution.status, row.distribution.expiresAt, reserved.length, row.drop.maxClaims);
+  const claimCondition = parseClaimCondition((row.distribution.rules as Record<string, unknown>).claimCondition);
   return {
     id: row.drop.id, slug: row.drop.publicSlug, title: row.drop.title, description: row.drop.description, status,
     project: { name: row.project.name, logoUrl: row.project.logoUrl }, distributionId: row.distribution.id,
@@ -85,7 +89,8 @@ async function serialize(row: Awaited<ReturnType<typeof dropRow>>, origin: strin
     capacity: { maximum: row.drop.maxClaims, reserved: reserved.length, claimed: claimed.length, remaining: Math.max(0, row.drop.maxClaims - reserved.length), percentReserved: Math.round((reserved.length / row.drop.maxClaims) * 10_000) / 100 },
     funding: { status: row.distribution.status, fullyFunded: ["active", "completed"].includes(row.distribution.status), transactionHash: row.distribution.fundingTxHash, merkleRoot: row.distribution.merkleRoot, totalAmount: formatAtomic(row.distribution.totalAmountAtomic, row.token.decimals) },
     expiresAt: row.distribution.expiresAt?.toISOString() ?? null,
-    proof: { mode: "first-come", identityBinding: "verified-email", oneClaimPerIdentity: true, recipientPaysGas: false, boundary: "Every reward slot is committed in the campaign Merkle root before the drop opens. A verified email can reserve once; settlement still requires the matching Current account." },
+    claimCondition,
+    proof: { mode: claimCondition ? "proof-gated-first-come" : "first-come", identityBinding: "verified-email", oneClaimPerIdentity: true, recipientPaysGas: false, boundary: claimCondition ? `Every reward is committed before opening. A verified email can reserve once, but settlement remains locked until “${claimCondition.label}” is proven by a fresh project-signed, wallet-bound authorization.` : "Every reward slot is committed in the campaign Merkle root before the drop opens. A verified email can reserve once; settlement still requires the matching Current account." },
     recipients: owner ? reserved.map(({ slot, allocationStatus }) => ({ displayName: slot.displayName, maskedIdentity: slot.maskedIdentity, referralCode: slot.referralCode, referredByCode: slot.referredByCode, status: allocationStatus, reservedAt: slot.reservedAt?.toISOString() ?? null })) : undefined,
     referrals: reserved.filter(({ slot }) => Boolean(slot.referredByCode)).length,
     publicUrl: `${origin}/?drop=${encodeURIComponent(row.drop.publicSlug)}#/drop`, canReserve: status === "open",

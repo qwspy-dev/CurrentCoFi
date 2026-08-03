@@ -15,6 +15,6 @@ export default withApi(async (request) => {
   return ok(request, await createPublicDrop({
     userId: account.userId, displayName: session.displayName, projectId: project.id, refundAddress: wallet.address, origin,
     title: requiredString(body, "title", 100), description: requiredString(body, "description", 1_000), claimAmount: requiredString(body, "claimAmount", 60),
-    maxClaims: Number(body.maxClaims ?? 100), expiresInHours: Number(body.expiresInHours ?? 168), tokenAddress: typeof body.tokenAddress === "string" ? body.tokenAddress : undefined,
+    maxClaims: Number(body.maxClaims ?? 100), expiresInHours: Number(body.expiresInHours ?? 168), tokenAddress: typeof body.tokenAddress === "string" ? body.tokenAddress : undefined, claimCondition: body.claimCondition,
   }), 201);
 }, ["GET", "POST"]);
