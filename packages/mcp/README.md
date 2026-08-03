@@ -44,7 +44,11 @@ For project mode, add `CURRENT_API_KEY` and `CURRENT_SIGNING_SECRET` from a scop
 - `current_get_community_treasury`
 - `current_create_treasury_proposal`
 - `current_create_community_bounty`
+- `current_list_verifiable_giveaways`
+- `current_create_verifiable_giveaway`
 - `current_propose_reward_distribution`
 - `current_submit_activation`
 
 Treasury agents can read published budgets and propose spending only after the exact `I_APPROVE_CURRENT_TREASURY_PROPOSAL` phrase. They cannot execute a payment; the configured Circle treasury wallet must approve the final transfer.
+
+Giveaway agents can read masked entry totals, referral attribution, and public draw proof. Creation requires the exact `I_APPROVE_CURRENT_GIVEAWAY` phrase. Prize funding remains a separate Circle-wallet action, and the MCP server never receives the private winner claim.

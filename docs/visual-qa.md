@@ -114,3 +114,11 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Browser integrity: no framework overlay or error-level browser logs appeared during the desktop or mobile render.
 - Engineering verification: lint, TypeScript, production build, treasury security checks, SDK integration, eleven-tool MCP integration, and the complete developer/grant regression suite pass.
 - Evidence captures: `qa-treasury-desktop.png` and `qa-treasury-mobile.png`.
+
+## Verifiable walletless giveaways QA — 2026-08-03
+
+- Desktop 1440×900: verified the giveaway workspace presents its activation promise, four outcome metrics, commit–fund–reveal boundary, and account gate in one clear hierarchy without horizontal overflow.
+- Mobile 390×844: verified the navigation is fully off-canvas after its transition, the current-line hero remains legible, cards collapse deliberately, and the proof boundary remains understandable without clipping.
+- Browser checks: no console errors; document widths exactly matched both 1440px and 390px viewports.
+- Engineering verification: lint, TypeScript, production build, deterministic-draw checks, bounty/treasury regressions, thirteen-tool MCP integration, SDK integration, and the complete developer/grant suite pass.
+- Evidence captures: `qa-giveaways-desktop.png` and `qa-giveaways-mobile.png`.

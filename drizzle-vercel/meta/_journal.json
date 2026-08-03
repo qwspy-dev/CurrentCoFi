@@ -169,6 +169,13 @@
       "when": 1785790522731,
       "tag": "0023_marvelous_maverick",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785793910359,
+      "tag": "0024_easy_gauntlet",
+      "breakpoints": true
     }
   ]
 }

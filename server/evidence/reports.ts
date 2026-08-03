@@ -19,6 +19,8 @@ import {
   distributions,
   evidenceReports,
   gatewayFundingIntents,
+  giveawayEntries,
+  giveaways,
   identityAttestations,
   merchantAccounts,
   projectMembers,
@@ -38,7 +40,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v16";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v17";
 
 type Criterion = {
   id: string;
@@ -210,6 +212,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       .where(eq(bounties.projectId, projectId)).orderBy(desc(bounties.createdAt)),
     db.select({ submission: bountySubmissions, bountyId: bounties.id })
       .from(bountySubmissions).innerJoin(bounties, eq(bounties.id, bountySubmissions.bountyId)).where(eq(bounties.projectId, projectId)),
+  ]);
+  const giveawayPromise = Promise.all([
+    db.select({ giveaway: giveaways, distribution: distributions, token: tokens })
+      .from(giveaways).innerJoin(distributions, eq(distributions.id, giveaways.distributionId)).innerJoin(tokens, eq(tokens.id, distributions.tokenId))
+      .where(eq(giveaways.projectId, projectId)).orderBy(desc(giveaways.createdAt)),
+    db.select({ entry: giveawayEntries, giveawayId: giveaways.id })
+      .from(giveawayEntries).innerJoin(giveaways, eq(giveaways.id, giveawayEntries.giveawayId)).where(eq(giveaways.projectId, projectId)),
   ]);
   const treasuryPromise = Promise.all([
     db.select().from(communityTreasuries).where(eq(communityTreasuries.projectId, projectId)),
@@ -392,6 +401,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   ]);
   const commerce = await commercePromise;
   const [bountyRows, bountySubmissionRows] = await bountyPromise;
+  const [giveawayRows, giveawayEntryRows] = await giveawayPromise;
   const [treasuryRows, treasuryBudgetRows, treasuryProposalRows] = await treasuryPromise;
   const bountyEvidence = {
     totals: {
@@ -411,6 +421,28 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       anchors: { distributionId: row.distribution.id, merkleRoot: row.distribution.merkleRoot, fundingTransactionHash: row.distribution.fundingTxHash },
       awardedAt: row.bounty.awardedAt?.toISOString() ?? null,
     })),
+  };
+  const giveawayEvidence = {
+    totals: {
+      giveaways: giveawayRows.length,
+      funded: giveawayRows.filter((row) => ["active", "completed"].includes(row.distribution.status)).length,
+      entries: giveawayEntryRows.length,
+      referrals: giveawayEntryRows.filter((row) => Boolean(row.entry.referredByCode)).length,
+      drawn: giveawayRows.filter((row) => row.giveaway.status === "drawn" && Boolean(row.giveaway.drawDigest)).length,
+    },
+    items: giveawayRows.map((row) => ({
+      id: row.giveaway.id,
+      title: row.giveaway.title,
+      status: row.giveaway.status,
+      entryDeadline: row.giveaway.entryDeadline.toISOString(),
+      entryCount: giveawayEntryRows.filter((entry) => entry.giveawayId === row.giveaway.id).length,
+      referralCount: giveawayEntryRows.filter((entry) => entry.giveawayId === row.giveaway.id && Boolean(entry.entry.referredByCode)).length,
+      prize: { amount: formatAtomic(row.distribution.totalAmountAtomic, row.token.decimals), symbol: row.token.symbol, address: row.token.contractAddress },
+      anchors: { distributionId: row.distribution.id, merkleRoot: row.distribution.merkleRoot, fundingTransactionHash: row.distribution.fundingTxHash },
+      proof: { method: "SHA-256 commit-reveal", randomnessCommitment: row.giveaway.randomnessCommitment, entrySetDigest: row.giveaway.entrySetDigest, drawDigest: row.giveaway.drawDigest, revealPublished: Boolean(row.giveaway.revealedRandomness), deterministic: Boolean(row.giveaway.entrySetDigest && row.giveaway.drawDigest && row.giveaway.revealedRandomness) },
+      drawnAt: row.giveaway.drawnAt?.toISOString() ?? null,
+    })),
+    privacy: "Only masked aggregate entry and referral evidence is exported. Raw entrant identities and private winner claim credentials are excluded.",
   };
   const treasuryEvidence = {
     totals: {
@@ -671,6 +703,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       evidence: `${bountyEvidence.totals.funded} funded bount${bountyEvidence.totals.funded === 1 ? "y" : "ies"}, ${bountyEvidence.totals.submissions} tamper-evident submission${bountyEvidence.totals.submissions === 1 ? "" : "s"}, and ${bountyEvidence.totals.awarded} award${bountyEvidence.totals.awarded === 1 ? "" : "s"}.`,
     },
     {
+      id: "verifiable-giveaways",
+      label: "Verifiable walletless giveaways",
+      weight: 10,
+      passed: giveawayEvidence.totals.drawn > 0,
+      evidence: `${giveawayEvidence.totals.funded} funded giveaway${giveawayEvidence.totals.funded === 1 ? "" : "s"}, ${giveawayEvidence.totals.entries} encrypted entr${giveawayEvidence.totals.entries === 1 ? "y" : "ies"}, ${giveawayEvidence.totals.referrals} attributed referral${giveawayEvidence.totals.referrals === 1 ? "" : "s"}, and ${giveawayEvidence.totals.drawn} reproducible draw${giveawayEvidence.totals.drawn === 1 ? "" : "s"}.`,
+    },
+    {
       id: "transparent-community-treasury",
       label: "Transparent community treasury",
       weight: 10,
@@ -819,6 +858,11 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       fundedBounties: bountyEvidence.totals.funded,
       bountySubmissions: bountyEvidence.totals.submissions,
       bountyAwards: bountyEvidence.totals.awarded,
+      giveaways: giveawayEvidence.totals.giveaways,
+      fundedGiveaways: giveawayEvidence.totals.funded,
+      giveawayEntries: giveawayEvidence.totals.entries,
+      giveawayReferrals: giveawayEvidence.totals.referrals,
+      giveawayDraws: giveawayEvidence.totals.drawn,
       communityTreasuries: treasuryEvidence.totals.treasuries,
       treasuryBudgets: treasuryEvidence.totals.budgets,
       treasuryProposals: treasuryEvidence.totals.proposals,
@@ -826,6 +870,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     },
     commerce,
     bounties: bountyEvidence,
+    giveaways: giveawayEvidence,
     treasury: treasuryEvidence,
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({

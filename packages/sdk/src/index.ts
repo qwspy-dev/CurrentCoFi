@@ -295,6 +295,13 @@ export type TreasuryWorkspace = {
 
 export type CreateTreasuryProposalInput = { treasuryId: string; budgetId?: string; title: string; description: string; category: string; recipientAddress: string; amount: string; tokenAddress?: string; proofUrl?: string };
 
+export type CreateGiveawayInput = { title: string; description: string; amount: string; tokenAddress?: string; entryDeadline: string; maxEntries?: number };
+export type GiveawayWorkspace = {
+  giveaways: Array<{ id: string; slug: string; title: string; description: string; status: string; entryDeadline: string; maxEntries: number; entryCount: number; distributionId: string; publicUrl: string; referrals: number; prize: { amount: string; symbol: string; address: string }; funding: { status: string; fullyFunded: boolean; transactionHash: string | null; merkleRoot: string | null }; proof: { randomnessCommitment: string; entrySetDigest: string | null; drawDigest: string | null; revealedRandomness: string | null; deterministic: boolean }; winner: { displayName: string; maskedIdentity: string; entryDigest: string } | null }>;
+  totals: { giveaways: number; open: number; entries: number; referrals: number; drawn: number };
+  privacy: string;
+};
+
 export type ActivationResult = {
   id?: string;
   duplicate: boolean;
@@ -778,6 +785,12 @@ export class Current {
     setup: (input: { name: string; description?: string }) => this.signedPost<TreasuryWorkspace["treasury"]>("/api/v1/developer/treasury", { action: "setup", ...input }),
     createBudget: (input: { treasuryId: string; category: string; limit: string; tokenAddress?: string; periodStart: string; periodEnd: string }) => this.signedPost<{ id: string }>("/api/v1/developer/treasury", { action: "budget", ...input }),
     createProposal: (input: CreateTreasuryProposalInput) => this.signedPost<{ id: string }>("/api/v1/developer/treasury", { action: "proposal", ...input }),
+  };
+
+  readonly giveaways = {
+    list: () => this.get<GiveawayWorkspace>("/api/v1/developer/giveaways"),
+    create: (input: CreateGiveawayInput) => this.signedPost<GiveawayWorkspace["giveaways"][number] & { campaign: CreatedDistribution }>("/api/v1/developer/giveaways", input),
+    draw: (giveawayId: string) => this.signedPost<{ giveawayId: string; status: "drawn"; claimUrl: string }>("/api/v1/developer/giveaways", { action: "draw", giveawayId }),
   };
 
   readonly activations = {

@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.7.0-community-treasury",
+    version: "3.8.0-verifiable-giveaways",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -66,6 +66,14 @@ export default withApi((request) => ok(request, {
     "/bounties/public": {
       get: { summary: "Resolve a public bounty and verify its Arc prize funding" },
       post: { summary: "Submit public HTTPS work proof with an encrypted contact identity" },
+    },
+    "/giveaways": {
+      get: { summary: "Read project-owned verifiable giveaways, masked entrants, referral attribution, and draw proof" },
+      post: { summary: "Create a prize-backed giveaway, reveal its committed randomness after close, or retrieve the private winner claim" },
+    },
+    "/giveaways/public": {
+      get: { summary: "Read a public giveaway, Arc prize status, commitment, entry totals, and revealed draw proof" },
+      post: { summary: "Enter once with an encrypted identity and optional referral attribution" },
     },
     "/treasury": {
       get: { summary: "Read the signed-in project's non-custodial community treasury, budgets, proposals, and Arc receipts" },
@@ -142,6 +150,10 @@ export default withApi((request) => ok(request, {
     "/developer/bounties": {
       get: { summary: "Read project bounties and masked submissions with a scoped API key" },
       post: { summary: "Create or award an HMAC-signed, prize-backed community bounty" },
+    },
+    "/developer/giveaways": {
+      get: { summary: "Read project giveaways, masked entries, referrals, and deterministic draw proof with a scoped API key" },
+      post: { summary: "Create or draw a giveaway with an HMAC-signed request; prize funding remains a separate Circle-wallet action" },
     },
     "/developer/treasury": {
       get: { summary: "Read a project's community treasury with a scoped API key" },
@@ -241,7 +253,7 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "community-bounties", "bounty-submissions", "walletless-bounty-awards", "transparent-community-treasury", "treasury-budgets", "treasury-proposals", "treasury-payment-receipts", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "community-bounties", "bounty-submissions", "walletless-bounty-awards", "verifiable-giveaways", "encrypted-giveaway-entries", "giveaway-referrals", "commit-reveal-draw-proof", "walletless-winner-claims", "transparent-community-treasury", "treasury-budgets", "treasury-proposals", "treasury-payment-receipts", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "builder-integration-manifest", "integration-conformance", "portable-integration-certificates", "public-network-proof", "verified-testnet-traction", "public-campaign-proof-explorer", "privacy-safe-campaign-evidence", "account-free-reviewer-demo", "non-mutating-verified-replay", "public-project-token-proof", "arbitrary-erc20-testnet-evidence", "completed-project-token-settlement", "continuous-grant-proof-health", "public-grant-dossier",

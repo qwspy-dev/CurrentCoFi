@@ -864,6 +864,60 @@ export type CreateTreasuryProposalInput = {
     tokenAddress?: string;
     proofUrl?: string;
 };
+export type CreateGiveawayInput = {
+    title: string;
+    description: string;
+    amount: string;
+    tokenAddress?: string;
+    entryDeadline: string;
+    maxEntries?: number;
+};
+export type GiveawayWorkspace = {
+    giveaways: Array<{
+        id: string;
+        slug: string;
+        title: string;
+        description: string;
+        status: string;
+        entryDeadline: string;
+        maxEntries: number;
+        entryCount: number;
+        distributionId: string;
+        publicUrl: string;
+        referrals: number;
+        prize: {
+            amount: string;
+            symbol: string;
+            address: string;
+        };
+        funding: {
+            status: string;
+            fullyFunded: boolean;
+            transactionHash: string | null;
+            merkleRoot: string | null;
+        };
+        proof: {
+            randomnessCommitment: string;
+            entrySetDigest: string | null;
+            drawDigest: string | null;
+            revealedRandomness: string | null;
+            deterministic: boolean;
+        };
+        winner: {
+            displayName: string;
+            maskedIdentity: string;
+            entryDigest: string;
+        } | null;
+    }>;
+    totals: {
+        giveaways: number;
+        open: number;
+        entries: number;
+        referrals: number;
+        drawn: number;
+    };
+    privacy: string;
+};
 export type ActivationResult = {
     id?: string;
     duplicate: boolean;
@@ -1632,6 +1686,52 @@ export declare class Current {
         }>;
         createProposal: (input: CreateTreasuryProposalInput) => Promise<{
             id: string;
+        }>;
+    };
+    readonly giveaways: {
+        list: () => Promise<GiveawayWorkspace>;
+        create: (input: CreateGiveawayInput) => Promise<{
+            id: string;
+            slug: string;
+            title: string;
+            description: string;
+            status: string;
+            entryDeadline: string;
+            maxEntries: number;
+            entryCount: number;
+            distributionId: string;
+            publicUrl: string;
+            referrals: number;
+            prize: {
+                amount: string;
+                symbol: string;
+                address: string;
+            };
+            funding: {
+                status: string;
+                fullyFunded: boolean;
+                transactionHash: string | null;
+                merkleRoot: string | null;
+            };
+            proof: {
+                randomnessCommitment: string;
+                entrySetDigest: string | null;
+                drawDigest: string | null;
+                revealedRandomness: string | null;
+                deterministic: boolean;
+            };
+            winner: {
+                displayName: string;
+                maskedIdentity: string;
+                entryDigest: string;
+            } | null;
+        } & {
+            campaign: CreatedDistribution;
+        }>;
+        draw: (giveawayId: string) => Promise<{
+            giveawayId: string;
+            status: "drawn";
+            claimUrl: string;
         }>;
     };
     readonly activations: {

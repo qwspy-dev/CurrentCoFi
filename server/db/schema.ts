@@ -246,6 +246,55 @@ export const bountySubmissions = pgTable("bounty_submissions", {
   index("bounty_submissions_bounty_status_idx").on(table.bountyId, table.status, table.createdAt),
 ]);
 
+export const giveaways = pgTable("giveaways", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "restrict" }).notNull(),
+  publicSlug: text("public_slug").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  status: text("status").default("awaiting_funding").notNull(),
+  entryDeadline: timestamp("entry_deadline", { withTimezone: true }).notNull(),
+  maxEntries: integer("max_entries").default(1000).notNull(),
+  claimTokenCiphertext: text("claim_token_ciphertext").notNull(),
+  randomnessCiphertext: text("randomness_ciphertext").notNull(),
+  randomnessCommitment: text("randomness_commitment").notNull(),
+  entrySetDigest: text("entry_set_digest"),
+  drawDigest: text("draw_digest"),
+  revealedRandomness: text("revealed_randomness"),
+  winnerEntryId: uuid("winner_entry_id"),
+  drawnAt: timestamp("drawn_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("giveaways_public_slug_unique").on(table.publicSlug),
+  uniqueIndex("giveaways_distribution_unique").on(table.distributionId),
+  index("giveaways_project_status_idx").on(table.projectId, table.status, table.createdAt),
+  index("giveaways_deadline_idx").on(table.status, table.entryDeadline),
+]);
+
+export const giveawayEntries = pgTable("giveaway_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  giveawayId: uuid("giveaway_id").references(() => giveaways.id, { onDelete: "cascade" }).notNull(),
+  displayName: text("display_name").notNull(),
+  identityType: text("identity_type").notNull(),
+  identityHash: text("identity_hash").notNull(),
+  identityCiphertext: text("identity_ciphertext").notNull(),
+  maskedIdentity: text("masked_identity").notNull(),
+  referralCode: text("referral_code").notNull(),
+  referredByCode: text("referred_by_code"),
+  entryDigest: text("entry_digest").notNull(),
+  status: text("status").default("entered").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("giveaway_entries_identity_unique").on(table.giveawayId, table.identityHash),
+  uniqueIndex("giveaway_entries_referral_unique").on(table.giveawayId, table.referralCode),
+  index("giveaway_entries_status_idx").on(table.giveawayId, table.status, table.createdAt),
+  index("giveaway_entries_referred_idx").on(table.giveawayId, table.referredByCode),
+]);
+
 export const communityTreasuries = pgTable("community_treasuries", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

@@ -240,14 +240,14 @@ const mockFetch: typeof fetch = async (input, init) => {
   if (String(input).endsWith("/developer/grant") && init?.method === "POST") {
     return Response.json({ ok: true, data: {
       schemaVersion: "current-grant-review-v1", digest: "grant_digest_sdk",
-      evidence: { id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v16", digest: "digest_sdk", integrity: { valid: true, recalculatedDigest: "digest_sdk" }, generatedAt: "2026-08-14T00:00:00.000Z" },
+      evidence: { id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v17", digest: "digest_sdk", integrity: { valid: true, recalculatedDigest: "digest_sdk" }, generatedAt: "2026-08-14T00:00:00.000Z" },
       application: { project: "Current CoFi", website: "https://current.test", oneLiner: "Walletless activation", problem: "Wallet friction", solution: "Embedded claims", whyArc: "Settlement", ecosystemValue: "Reusable infrastructure" },
       officialCriteria: [], architecture: [], proof: { readinessScore: 80 }, shipped: [], proposedMilestones: [], honestGaps: [], reviewerLinks: {}, privacy: "Aggregate only",
     } }, { status: 201 });
   }
   if (String(input).endsWith("/developer/grant")) {
     return Response.json({ ok: true, data: { packages: [{
-      id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v16", digest: "digest_sdk", distributionId: null, readinessScore: 80,
+      id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v17", digest: "digest_sdk", distributionId: null, readinessScore: 80,
       project: { name: "Current CoFi", slug: "current-cofi" }, totals: { campaigns: 1, recipients: 10, claims: 8, activations: 4 }, createdAt: "2026-08-14T00:00:00.000Z",
     }] } });
   }

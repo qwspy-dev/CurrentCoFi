@@ -120,6 +120,37 @@ export function createCurrentMcpServer(input = configFromEnv()) {
             return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the bounty.");
         }
     });
+    server.registerTool("current_list_verifiable_giveaways", {
+        title: "Read project verifiable giveaways",
+        description: "Read prize funding, encrypted-entry totals, referral attribution, commitments, revealed draw proofs, and winners.",
+        inputSchema: noInput,
+        annotations: readOnly,
+    }, async () => {
+        try {
+            return success(await requireProject().giveaways.list());
+        }
+        catch (error) {
+            return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Project giveaways are unavailable.");
+        }
+    });
+    server.registerTool("current_create_verifiable_giveaway", {
+        title: "Create a verifiable walletless giveaway",
+        description: "Precommit randomness and prepare a fully allocated USDC or Arc project-token prize. Funding and drawing remain separate authorized actions.",
+        inputSchema: {
+            title: z.string().min(3).max(100), description: z.string().min(20).max(1_000), amount: z.string().regex(/^\d+(\.\d{1,18})?$/),
+            tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(), entryDeadline: z.string().datetime(), maxEntries: z.number().int().min(2).max(100_000).optional(),
+            approval: z.literal("I_APPROVE_CURRENT_GIVEAWAY"),
+        },
+        annotations: mutation,
+    }, async ({ approval: _approval, ...value }) => {
+        void _approval;
+        try {
+            return success(await requireProject().giveaways.create(value));
+        }
+        catch (error) {
+            return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the giveaway.");
+        }
+    });
     server.registerTool("current_get_community_treasury", {
         title: "Read the community treasury",
         description: "Read transparent budgets, proposal decisions, and Arc settlement receipts for the configured project.",
@@ -203,6 +234,6 @@ export function createCurrentMcpServer(input = configFromEnv()) {
             return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the activation.");
         }
     });
-    return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 11, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
+    return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 13, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
 }
 //# sourceMappingURL=server.js.map

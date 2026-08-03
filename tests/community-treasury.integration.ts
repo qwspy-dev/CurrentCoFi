@@ -26,9 +26,9 @@ assert.match(ui, /Current never takes custody/);
 assert.match(sdk, /createProposal/);
 assert.match(mcp, /I_APPROVE_CURRENT_TREASURY_PROPOSAL/);
 assert.match(meta, /transparent-community-treasury/);
-assert.match(openapi, /3\.7\.0-community-treasury/);
+assert.match(openapi, /3\.8\.0-verifiable-giveaways/);
 assert.match(openapi, /\/developer\/treasury/);
-assert.match(evidence, /current-evidence-v16/);
+assert.match(evidence, /current-evidence-v17/);
 assert.match(evidence, /Recipient addresses are excluded/);
 
 console.log("Community treasury verified: governed budgets, non-custodial proposals, Circle wallet authorization, public receipts, SDK/MCP access, and privacy-safe grant evidence.");

@@ -133,6 +133,7 @@ async function packageFromEvidence(report: EvidenceReport) {
       "USDC and arbitrary Arc project-token campaigns with identity-bound and allowlist allocations",
       "CCTP and Gateway campaign funding evidence",
       "Referral attribution, signed activation events, campaign quality controls, and retention analytics",
+      "Prize-backed community bounties and commit-reveal walletless giveaways with privacy-safe evidence",
       "Merchant checkout, subscriber-approved recurring USDC, and milestone escrow",
       "TypeScript SDK, React embed, signed webhooks, API keys, and policy-bound AI agent runtime",
       "Governed $CURRENT fee routing, liquidity, partner reserves, venue qualification, and release rehearsal",
