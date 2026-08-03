@@ -60,6 +60,7 @@ async function create(request: Request) {
     expiresInHours: expiration(body.expiresInHours),
     activationEvent: typeof body.activationEvent === "string" ? body.activationEvent : undefined,
     referralReward: typeof body.referralReward === "string" ? body.referralReward : undefined,
+    claimCondition: body.claimCondition,
     claimMode: parseCampaignClaimMode(body.mode),
   });
   await queueWebhookEvent(project.id, "campaign.created", {

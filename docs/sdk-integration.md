@@ -25,6 +25,12 @@ const distribution = await current.distributions.create({
     { identityType: "email", identity: "builder@example.com", amount: "25.00" },
   ],
   activationEvent: "game.first_match",
+  claimCondition: {
+    eventType: "game.completed_3",
+    label: "Complete 3 matches",
+    description: "Finish three qualifying matches to unlock this reward.",
+    proofWindowMinutes: 60,
+  },
 });
 ```
 
@@ -57,6 +63,22 @@ import { CurrentClaimEmbed } from "@currentcofi/react";
 ```
 
 The component safely resolves the public claim preview and sends the recipient into the hosted Current CoFi walletless onboarding flow. Projects may use `onOpen` to layer their own analytics before navigation.
+
+## Verify a required action
+
+```ts
+await current.conditions.verify({
+  externalEventId: "match-series-8472",
+  distributionId: distribution.id,
+  eventType: "game.completed_3",
+  identityType: "email",
+  identity: "builder@example.com",
+  walletAddress: "0x...",
+  evidence: { method: "server-score", reference: "match-series-8472" },
+});
+```
+
+This server-only call creates a short-lived proof for the exact allocation and recipient wallet. Current refuses settlement until it exists and consumes it after a confirmed claim, preventing replay.
 
 ## Verify webhooks
 

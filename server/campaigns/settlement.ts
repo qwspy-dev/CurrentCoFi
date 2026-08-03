@@ -31,6 +31,11 @@ import {
   consumeIdentityAttestation,
 } from "../developer/identity-attestations.js";
 import { assertDistributionTokenTrust } from "../tokens/monitor.js";
+import {
+  activeClaimConditionProof,
+  consumeClaimConditionProof,
+  parseClaimCondition,
+} from "./conditions.js";
 
 const FINAL_TRANSACTION_STATES = new Set(["COMPLETE", "CONFIRMED"]);
 const FAILED_TRANSACTION_STATES = new Set(["FAILED", "DENIED", "CANCELLED"]);
@@ -252,6 +257,10 @@ export async function createCampaignClaimChallenge(
   if (!wallet) throw new ApiError(409, "ARC_WALLET_REQUIRED", "Your Arc wallet is not ready.");
   const row = await campaignClaimRow(tokenValue);
   await assertDistributionTokenTrust(row.distributionId, "claim");
+  const existing = await db.query.claims.findFirst({ where: eq(claims.allocationId, row.allocationId) });
+  if (existing?.status === "confirmed") {
+    return { complete: true, status: "confirmed", transactionHash: existing.transactionHash };
+  }
   const rules = row.rules as Record<string, unknown>;
   const claimMode: CampaignClaimMode = rules.claimMode === "identity-bound" ? "identity-bound" : "allowlist";
   const externalAttestation = claimMode === "identity-bound" &&
@@ -276,9 +285,18 @@ export async function createCampaignClaimChallenge(
       }
       : null,
   });
-  const existing = await db.query.claims.findFirst({ where: eq(claims.allocationId, row.allocationId) });
-  if (existing?.status === "confirmed") {
-    return { complete: true, status: "confirmed", transactionHash: existing.transactionHash };
+  const claimCondition = parseClaimCondition(rules.claimCondition);
+  const conditionProof = claimCondition ? await activeClaimConditionProof({
+    allocationId: row.allocationId,
+    walletAddress: sessionWallet.address,
+    eventType: claimCondition.eventType,
+  }) : null;
+  if (claimCondition && !conditionProof) {
+    throw new ApiError(409, "CLAIM_CONDITION_REQUIRED", `Complete “${claimCondition.label}” before claiming.`, {
+      eventType: claimCondition.eventType,
+      label: claimCondition.label,
+      description: claimCondition.description,
+    });
   }
   if (row.allocationStatus !== "available" && !existing) {
     throw new ApiError(409, "CLAIM_UNAVAILABLE", "This claim is already being processed.");
@@ -338,6 +356,12 @@ export async function createCampaignClaimChallenge(
     authorizationDeadline,
     merkleProof: tree.proof(row.allocationIndex),
     identityBinding: identityProof,
+    claimCondition: claimCondition && conditionProof ? {
+      proofId: conditionProof.id,
+      eventType: claimCondition.eventType,
+      label: claimCondition.label,
+      verifiedAt: conditionProof.createdAt.toISOString(),
+    } : null,
   };
   if (existing) {
     await db.update(claims).set({
@@ -398,6 +422,17 @@ export async function confirmCampaignClaimChallenge(
       typeof identityBinding.attestationId === "string"
     ) {
       await consumeIdentityAttestation(identityBinding.attestationId);
+    }
+    const claimCondition = metadata?.claimCondition as Record<string, unknown> | undefined;
+    if (typeof claimCondition?.proofId === "string") {
+      await consumeClaimConditionProof(claimCondition.proofId);
+      await queueWebhookEvent(row.projectId, "claim.condition-consumed", {
+        proofId: claimCondition.proofId,
+        distributionId: row.distributionId,
+        allocationId: row.allocationId,
+        eventType: claimCondition.eventType,
+        transactionHash: result.transactionHash,
+      });
     }
     await db.update(allocations).set({ status: "confirmed", updatedAt: new Date() })
       .where(eq(allocations.id, row.allocationId));

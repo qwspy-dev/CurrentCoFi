@@ -70,6 +70,9 @@ export class Current {
     identities = {
         attest: (input) => this.signedPost("/api/v1/developer/identity-attestations", input),
     };
+    conditions = {
+        verify: (input) => this.signedPost("/api/v1/developer/claim-conditions", input),
+    };
     analytics = {
         get: () => this.get("/api/v1/developer/analytics"),
     };

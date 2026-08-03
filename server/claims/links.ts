@@ -13,6 +13,7 @@ import { ApiError } from "../http.js";
 import { parseClaimToken, sha256, signClaimToken } from "../security/crypto.js";
 import { formatAtomic, resolveToken, toAtomic } from "../campaigns/repository.js";
 import { keccak256 } from "viem";
+import { parseClaimCondition } from "../campaigns/conditions.js";
 
 export async function createClaimLink(input: {
   userId: string;
@@ -165,6 +166,7 @@ export async function resolveClaimLink(tokenValue: string) {
   const metadata = row.message as Record<string, unknown>;
   const rules = row.rules as Record<string, unknown>;
   const identityBound = rules.claimMode === "identity-bound";
+  const claimCondition = parseClaimCondition(rules.claimCondition);
   const recipientLabels = metadata.recipientLabels as Record<string, string> | undefined;
   const tokenMetadata = row.tokenMetadata as Record<string, unknown>;
   const trust = tokenMetadata.trust as Record<string, unknown> | undefined;
@@ -202,5 +204,13 @@ export async function resolveClaimLink(tokenValue: string) {
           ? "current-session"
           : "link-secret",
     },
+    claimCondition: claimCondition ? {
+      required: true,
+      eventType: claimCondition.eventType,
+      label: claimCondition.label,
+      description: claimCondition.description,
+      proofWindowMinutes: claimCondition.proofWindowMinutes,
+      status: "verification-required",
+    } : { required: false, status: "not-required" },
   };
 }

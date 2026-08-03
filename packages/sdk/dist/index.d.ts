@@ -157,6 +157,7 @@ export type CampaignProofExplorer = {
         };
         targeting: {
             claimMode: string;
+            claimCondition: Record<string, unknown> | null;
             recipients: number;
             allocationStates: Record<string, number>;
         };
@@ -478,6 +479,12 @@ export type CreateDistributionInput = {
     activationEvent?: string;
     referralReward?: string;
     mode?: "allowlist" | "identity-bound";
+    claimCondition?: {
+        eventType: string;
+        label: string;
+        description?: string;
+        proofWindowMinutes?: number;
+    };
 };
 export type CreatedDistribution = {
     id: string;
@@ -494,8 +501,15 @@ export type CreatedDistribution = {
     totalAmountAtomic: string;
     merkleRoot: string;
     claimMode: "allowlist" | "identity-bound";
+    claimCondition: null | {
+        eventType: string;
+        label: string;
+        description: string;
+        proofWindowMinutes: number;
+    };
     expiresAt: string;
     links: Array<{
+        allocationId: string;
         identity: string;
         identityType: string;
         amount: string;
@@ -768,6 +782,33 @@ export type IdentityAttestationResult = {
     duplicate: boolean;
     status: "verified" | "consumed" | "expired";
     identityType: string;
+    walletAddress: string;
+    expiresAt: string;
+    createdAt?: string;
+};
+export type ClaimConditionProofInput = {
+    externalEventId: string;
+    distributionId: string;
+    eventType: string;
+    identityType: "email" | "wallet" | "x" | "game" | "custom";
+    identity: string;
+    walletAddress: `0x${string}`;
+    expiresInMinutes?: number;
+    evidence?: {
+        method?: string;
+        provider?: string;
+        verifiedAt?: string;
+        scope?: string;
+        reference?: string;
+    };
+};
+export type ClaimConditionProofResult = {
+    id: string;
+    duplicate: boolean;
+    status: "verified" | "consumed" | "expired";
+    distributionId: string;
+    allocationId: string;
+    eventType: string;
     walletAddress: string;
     expiresAt: string;
     createdAt?: string;
@@ -1405,6 +1446,9 @@ export declare class Current {
     };
     readonly identities: {
         attest: (input: IdentityAttestationInput) => Promise<IdentityAttestationResult>;
+    };
+    readonly conditions: {
+        verify: (input: ClaimConditionProofInput) => Promise<ClaimConditionProofResult>;
     };
     readonly analytics: {
         get: () => Promise<DeveloperAnalytics>;

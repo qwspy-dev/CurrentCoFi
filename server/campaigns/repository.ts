@@ -21,6 +21,7 @@ import { sha256, signClaimToken } from "../security/crypto.js";
 import { normalizeBoundIdentity, type CampaignClaimMode } from "../claims/identity-binding.js";
 import { inspectArcTokenTrust } from "../tokens/trust.js";
 import { buildCampaignTree } from "./merkle.js";
+import { parseClaimCondition } from "./conditions.js";
 
 const AMOUNT_PATTERN = /^\d{1,30}(?:\.\d{1,18})?$/;
 export type CampaignRecipientInput = {
@@ -115,6 +116,7 @@ export async function createCampaign(input: {
   activationEvent?: string;
   referralReward?: string;
   claimMode?: CampaignClaimMode;
+  claimCondition?: unknown;
 }) {
   if (!input.name.trim() || input.name.length > 100) {
     throw new ApiError(400, "INVALID_CAMPAIGN_NAME", "Campaign names must contain 1–100 characters.");
@@ -123,6 +125,7 @@ export async function createCampaign(input: {
     throw new ApiError(400, "INVALID_RECIPIENT_COUNT", "Campaigns require 1–1,000 recipients.");
   }
   const claimMode = input.claimMode ?? "allowlist";
+  const claimCondition = parseClaimCondition(input.claimCondition);
   await projectAccess(input.userId, input.projectId);
   const db = getDb();
   const token = await resolveToken(input.projectId, input.tokenAddress);
@@ -178,6 +181,7 @@ export async function createCampaign(input: {
       recipientPaysGas: false,
       activationEvent: input.activationEvent?.slice(0, 100) || null,
       referralReward: input.referralReward?.slice(0, 100) || null,
+      claimCondition,
     },
     metadata: {
       creatorDisplayName: input.displayName,
@@ -212,6 +216,7 @@ export async function createCampaign(input: {
     },
   });
   const links = await Promise.all(prepared.map(async (recipient) => ({
+    allocationId: recipient.allocationId,
     identity: recipient.identity,
     identityType: recipient.identityType,
     amount: formatAtomic(recipient.amountAtomic, token.decimals),
@@ -232,6 +237,7 @@ export async function createCampaign(input: {
     totalAmountAtomic,
     merkleRoot: tree.root,
     claimMode,
+    claimCondition,
     expiresAt: expiresAt.toISOString(),
     links,
   };
@@ -308,6 +314,7 @@ export async function listCampaigns(userId: string) {
       ? "identity-bound"
       : "allowlist"),
     activationEvent: (row.rules as Record<string, unknown>).activationEvent ?? null,
+    claimCondition: (row.rules as Record<string, unknown>).claimCondition ?? null,
     refundTransactionHash: (row.metadata as Record<string, unknown>).refundTransactionHash ?? null,
   }));
 }

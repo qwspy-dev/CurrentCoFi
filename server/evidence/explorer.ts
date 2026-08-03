@@ -63,6 +63,7 @@ export function assembleCampaignProofExplorer(input: CampaignProofExplorerInput)
       asset: { ...distribution.token, amountAtomic: distribution.totalAmountAtomic, claimedAmountAtomic: distribution.claimedAmountAtomic },
       targeting: {
         claimMode: typeof rules.claimMode === "string" ? rules.claimMode : "allowlist",
+        claimCondition: rules.claimCondition && typeof rules.claimCondition === "object" ? rules.claimCondition : null,
         recipients: allocationRows.length || distribution.recipientCount,
         allocationStates: countBy(allocationRows, (row) => row.status),
       },

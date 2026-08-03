@@ -25,6 +25,7 @@ const manifestBody = {
     { method: "POST", path: "/api/v1/developer/social-payments", purpose: "Create a non-custodial USDC or project-token request, tip, or split", permission: "campaigns:write", signed: true },
     { method: "POST", path: "/api/v1/developer/distributions", purpose: "Create identity-bound USDC or project-token distributions", permission: "distributions:write", signed: true },
     { method: "POST", path: "/api/v1/developer/identity-attestations", purpose: "Bind an offchain identity to an exact recipient wallet", permission: "identities:write", signed: true },
+    { method: "POST", path: "/api/v1/developer/claim-conditions", purpose: "Verify a wallet-bound action before campaign settlement", permission: "identities:write", signed: true },
     { method: "POST", path: "/api/v1/developer/activations", purpose: "Attribute valuable post-claim actions", permission: "activations:write", signed: true },
     { method: "GET", path: "/api/v1/developer/analytics", purpose: "Read claim, activation, referral, and retention outcomes", permission: "analytics:read", signed: false },
     { method: "GET", path: "/api/v1/developer/integration-readiness", purpose: "Read the project integration checklist", permission: "analytics:read", signed: false },

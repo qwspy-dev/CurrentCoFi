@@ -46,7 +46,7 @@ export type CampaignProofExplorer = {
   campaigns: Array<{
     proofRef: string; label: string; status: string; kind: string; digest: string;
     asset: { symbol: string; name: string; decimals: number; contractAddress: string; verified: boolean; amountAtomic: string; claimedAmountAtomic: string };
-    targeting: { claimMode: string; recipients: number; allocationStates: Record<string, number> };
+    targeting: { claimMode: string; claimCondition: Record<string, unknown> | null; recipients: number; allocationStates: Record<string, number> };
     settlement: { confirmedClaims: number; remainingAtomic: string; claimTransactions: Array<{ hash: string; confirmedAt: string|null }> };
     activation: { events: number; distinctUsers: number; eventTypes: Record<string, number> };
     identity: { attestations: number; consumed: number; types: Record<string, number> };
@@ -120,6 +120,12 @@ export type CreateDistributionInput = {
   activationEvent?: string;
   referralReward?: string;
   mode?: "allowlist" | "identity-bound";
+  claimCondition?: {
+    eventType: string;
+    label: string;
+    description?: string;
+    proofWindowMinutes?: number;
+  };
 };
 
 export type CreatedDistribution = {
@@ -132,8 +138,10 @@ export type CreatedDistribution = {
   totalAmountAtomic: string;
   merkleRoot: string;
   claimMode: "allowlist" | "identity-bound";
+  claimCondition: null | { eventType: string; label: string; description: string; proofWindowMinutes: number };
   expiresAt: string;
   links: Array<{
+    allocationId: string;
     identity: string;
     identityType: string;
     amount: string;
@@ -285,6 +293,29 @@ export type IdentityAttestationResult = {
   duplicate: boolean;
   status: "verified" | "consumed" | "expired";
   identityType: string;
+  walletAddress: string;
+  expiresAt: string;
+  createdAt?: string;
+};
+
+export type ClaimConditionProofInput = {
+  externalEventId: string;
+  distributionId: string;
+  eventType: string;
+  identityType: "email" | "wallet" | "x" | "game" | "custom";
+  identity: string;
+  walletAddress: `0x${string}`;
+  expiresInMinutes?: number;
+  evidence?: { method?: string; provider?: string; verifiedAt?: string; scope?: string; reference?: string };
+};
+
+export type ClaimConditionProofResult = {
+  id: string;
+  duplicate: boolean;
+  status: "verified" | "consumed" | "expired";
+  distributionId: string;
+  allocationId: string;
+  eventType: string;
   walletAddress: string;
   expiresAt: string;
   createdAt?: string;
@@ -717,6 +748,13 @@ export class Current {
   readonly identities = {
     attest: (input: IdentityAttestationInput) => this.signedPost<IdentityAttestationResult>(
       "/api/v1/developer/identity-attestations",
+      input,
+    ),
+  };
+
+  readonly conditions = {
+    verify: (input: ClaimConditionProofInput) => this.signedPost<ClaimConditionProofResult>(
+      "/api/v1/developer/claim-conditions",
       input,
     ),
   };

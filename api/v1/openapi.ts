@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.2.0-continuous-asset-trust",
+    version: "3.3.0-conditional-campaigns",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -114,6 +114,9 @@ export default withApi((request) => ok(request, {
     "/developer/identity-attestations": {
       post: { summary: "Bind a verified X, game, or custom project identity to a recipient Arc wallet" },
     },
+    "/developer/claim-conditions": {
+      post: { summary: "Submit a replay-safe, wallet-bound pre-claim action proof" },
+    },
     "/developer/distributions": {
       post: { summary: "Create a signed walletless USDC or project-token distribution" },
     },
@@ -218,6 +221,7 @@ export default withApi((request) => ok(request, {
       "project-access-tiers", "buyback-governance",
       "identity-bound-email-claims", "identity-bound-wallet-claims",
       "project-identity-attestations", "x-identity-adapters", "game-identity-adapters",
+      "preclaim-action-conditions", "wallet-bound-condition-proofs", "condition-proof-replay-protection", "conditional-campaign-webhooks",
       "grant-evidence-reports", "public-evidence-verification", "evidence-digests", "commerce-settlement-proof", "subscription-cycle-proof", "protocol-owned-liquidity", "partner-token-vaults", "partner-funded-campaigns", "liquidity-venue-registry", "adapter-bytecode-attestation", "venue-risk-policy",
       "pilot-operations", "partner-attestations", "pilot-readiness", "partner-intake-links", "encrypted-pilot-applications", "pilot-application-review", "automatic-pilot-handoff",
       "campaign-quality-policies", "explainable-referral-risk", "manual-review-queues", "eligible-retention-cohorts",

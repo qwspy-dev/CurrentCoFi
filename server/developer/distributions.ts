@@ -15,6 +15,7 @@ type DistributionInput = {
   expiresInHours?: unknown;
   activationEvent?: unknown;
   referralReward?: unknown;
+  claimCondition?: unknown;
   mode?: unknown;
 };
 
@@ -106,6 +107,7 @@ export async function createDeveloperDistribution(
     expiresInHours,
     activationEvent: optionalString(input.activationEvent, 100),
     referralReward: optionalString(input.referralReward, 100),
+    claimCondition: input.claimCondition,
     claimMode: parseCampaignClaimMode(input.mode),
   });
   await queueWebhookEvent(projectId, "campaign.created", {

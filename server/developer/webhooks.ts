@@ -8,6 +8,8 @@ export const webhookEventTypes = [
   "campaign.created",
   "campaign.funded",
   "identity.verified",
+  "claim.condition-verified",
+  "claim.condition-consumed",
   "claim.completed",
   "activation.completed",
   "referral.attributed",
