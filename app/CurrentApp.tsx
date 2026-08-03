@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "campaigns"
-  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
+  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -61,8 +61,10 @@ type WalletActionResult = {
 };
 
 type AssetTrustSignal={id:string;label:string;status:"verified"|"observed"|"caution"|"unavailable";detail:string};
-type AssetTrust={schemaVersion:string;network:string;address:string;symbol:string;name:string;decimals:number;totalSupply:string;totalSupplyAtomic:string;codeHash:string;codeSizeBytes:number;owner:string|null;proxyImplementation:string|null;observedCapabilities:string[];verified:boolean;posture:"circle-verified"|"review-required"|"standard-observations";distributionPolicy:"allowed"|"allowed-with-disclosure";signals:AssetTrustSignal[];reviewDigest:string;inspectedAt:string;explorerUrl:string;boundary:string};
+type AssetTrust={schemaVersion:string;network:string;address:string;symbol:string;name:string;decimals:number;totalSupply:string;totalSupplyAtomic:string;codeHash:string;codeSizeBytes:number;owner:string|null;proxyImplementation:string|null;observedCapabilities:string[];verified:boolean;posture:"circle-verified"|"review-required"|"standard-observations";distributionPolicy:"allowed"|"allowed-with-disclosure";signals:AssetTrustSignal[];controlDigest:string;reviewDigest:string;inspectedAt:string;explorerUrl:string;boundary:string};
 type InspectedToken = {address:string;symbol:string;name:string;decimals:number;verified:boolean;network:string;warning:string|null;trust:AssetTrust};
+
+type AssetTrustWorkspace={schemaVersion:string;network:string;policy:{freshnessSeconds:number;enforcementPoints:string[]};totals:{assets:number;stable:number;changed:number;stale:number;protectedCampaigns:number};assets:Array<{tokenId:string;address:string;symbol:string;name:string;verified:boolean;status:"stable"|"changed"|"stale";changedFields:string[];campaigns:number;activeCampaigns:number;current:null|{posture:string;reviewDigest:string;controlDigest:string|null;inspectedAt:string;explorerUrl:string;signals:AssetTrustSignal[]};approved:null|{reviewDigest:string;controlDigest:string|null;inspectedAt:string};history:Array<{phase?:string;status?:string;changedFields?:string[];currentReviewDigest?:string;inspectedAt?:string;acknowledgedAt?:string}>}>};
 
 type SocialPayment = {
   id:string;slug:string;kind:"send"|"request"|"tip"|"split";title:string;note:string|null;status:string;
@@ -973,9 +975,13 @@ function formatAtomic(value:string) {
   return numeric.toLocaleString(undefined,{maximumFractionDigits:6});
 }
 
+function compactAddress(value:string) {
+  return `${value.slice(0,7)}…${value.slice(-5)}`;
+}
+
 const validViews = new Set<View>([
   "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "campaigns",
-  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
+  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -1003,7 +1009,7 @@ const appNav = [
     ["evidence", "Grant evidence", FileCheck2], ["grant", "Grant review room", BadgeCheck],
   ]},
   { label: "Protocol", items: [
-    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["operations", "Operations", Activity], ["security", "Security", ShieldCheck], ["developers", "Developers", Code2], ["integration-lab", "Integration lab", Braces],
+    ["token", "$CURRENT", CircleDollarSign], ["partners", "Partner vault", Handshake], ["venues", "Liquidity venues", Network], ["launch", "Launch readiness", Rocket], ["operations", "Operations", Activity], ["asset-trust", "Asset trust", Fingerprint], ["security", "Security", ShieldCheck], ["developers", "Developers", Code2], ["integration-lab", "Integration lab", Braces],
     ["agents", "AI agents", Bot],
   ]},
 ] as const;
@@ -2733,6 +2739,37 @@ function OperationsDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     <p className="economy-disclaimer"><Activity/>Request logs, Web Analytics, Core Web Vitals, scheduled checks, and the incident ledger form one operational evidence layer.</p></>;
 }
 
+function AssetTrustDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [state,setState]=useState<AssetTrustWorkspace|null>(null);
+  const [loading,setLoading]=useState(false);
+  const [busy,setBusy]=useState<string|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(async()=>{
+    if(!auth.account){setState(null);return}
+    setLoading(true);
+    try{setState(await currentApi.get<AssetTrustWorkspace>("/asset-trust"));setError(null)}
+    catch(reason){setError(reason instanceof Error?reason.message:"Asset controls could not be reviewed.")}
+    finally{setLoading(false)}
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const act=async(tokenId:string,action:"recheck"|"acknowledge")=>{
+    if(action==="acknowledge"&&!window.confirm("Approve the currently observed contract controls and resume campaigns paused by this specific drift?"))return;
+    setBusy(`${tokenId}:${action}`);setError(null);
+    try{await currentApi.post("/asset-trust",{tokenId,action});await refresh()}
+    catch(reason){setError(reason instanceof Error?reason.message:"The token review could not be completed.")}
+    finally{setBusy(null)}
+  };
+  return <><PageHero eyebrow="CONTINUOUS ASSET TRUST" title="Contract controls never stay assumed." copy="Current rechecks every distributed Arc asset before funding and claim authorization. If bytecode, ownership, proxy implementation, or monitored privileges change, affected campaigns stop until the project reviews the new state." mode="branches"><Button tone="blue" disabled={loading||!auth.account} onClick={()=>void refresh()}>{loading?"Reading records…":"Refresh workspace"}<RefreshCw/></Button></PageHero>
+    {!auth.account?<div className="portfolio-locked trust-locked"><FluidCanvas mode="orbit"/><span><Fingerprint/></span><Eyebrow light>PROJECT CONTROL PLANE</Eyebrow><h2>Open your workspace to monitor asset controls.</h2><p>Only project members can recheck or acknowledge a token baseline. Recipient-facing disclosures remain visible on each claim.</p><Button tone="light" onClick={()=>go("claim")}>Sign in to continue <ArrowRight/></Button></div>:<>
+      {error?<p className="auth-system-note is-error"><ShieldAlert/>{error}</p>:null}
+      <div className="trust-monitor-metrics"><MetricCard label="Monitored assets" value={(state?.totals.assets??0).toLocaleString()} icon={Fingerprint}/><MetricCard label="Stable baselines" value={(state?.totals.stable??0).toLocaleString()} icon={ShieldCheck}/><MetricCard label="Control changes" value={(state?.totals.changed??0).toLocaleString()} icon={ShieldAlert}/><MetricCard label="Protected campaigns" value={(state?.totals.protectedCampaigns??0).toLocaleString()} icon={Layers3}/></div>
+      <section className="trust-policy-strip"><span><Radio/></span><div><small>ENFORCEMENT POLICY</small><b>Funding · claim authorization · scheduled review</b><p>Reviews remain fresh for {Math.round((state?.policy.freshnessSeconds??900)/60)} minutes. Supply changes are recorded but do not pause campaigns; control-plane changes do.</p></div><Status tone={state?.totals.changed?"red":"green"}>{state?.totals.changed?"Action required":"Controls aligned"}</Status></section>
+      <section className="trust-asset-list">{loading&&!state?<div className="portfolio-loading">{[1,2,3].map(item=><i key={item}/>)}</div>:state?.assets.map(asset=><article className={`trust-asset-card is-${asset.status}`} key={asset.tokenId}><header><span className="trust-asset-mark">{asset.symbol.slice(0,2)}</span><div><small>{asset.verified?"CIRCLE VERIFIED ASSET":"ARC PROJECT ASSET"}</small><h3>{asset.name} <em>{asset.symbol}</em></h3><a href={asset.current?.explorerUrl} target="_blank" rel="noreferrer">{compactAddress(asset.address)} <ExternalLink/></a></div><Status tone={asset.status==="stable"?"green":asset.status==="changed"?"red":"cyan"}>{asset.status}</Status></header><div className="trust-asset-body"><div className="trust-digest-pair"><span><small>APPROVED CONTROL BASELINE</small><code>{asset.approved?.controlDigest?.slice(0,20)??"Not established"}</code><em>{asset.approved?.inspectedAt?new Date(asset.approved.inspectedAt).toLocaleString():"Waiting for review"}</em></span><ArrowRight/><span><small>CURRENT ARC OBSERVATION</small><code>{asset.current?.controlDigest?.slice(0,20)??"Review required"}</code><em>{asset.current?.inspectedAt?new Date(asset.current.inspectedAt).toLocaleString():"Not inspected"}</em></span></div>{asset.changedFields.length?<div className="trust-drift-alert"><ShieldAlert/><div><b>Control drift detected</b><p>{asset.changedFields.map(field=>field.replaceAll("-"," ")).join(" · ")}</p></div></div>:null}<div className="trust-signal-grid">{asset.current?.signals.map(signal=><span className={signal.status} key={signal.id}><i>{signal.status==="caution"?<ShieldAlert/>:<Check/>}</i><b>{signal.label}</b><small>{signal.detail}</small></span>)}</div></div><footer><div><small>CAMPAIGN COVERAGE</small><b>{asset.activeCampaigns} protected · {asset.campaigns} total</b></div><div><button disabled={Boolean(busy)} onClick={()=>void act(asset.tokenId,"recheck")}><RefreshCw className={busy===`${asset.tokenId}:recheck`?"spin":""}/>{busy===`${asset.tokenId}:recheck`?"Reviewing":"Recheck now"}</button>{asset.status==="changed"?<button className="acknowledge" disabled={Boolean(busy)} onClick={()=>void act(asset.tokenId,"acknowledge")}><ShieldCheck/>{busy===`${asset.tokenId}:acknowledge`?"Verifying":"Review & acknowledge"}</button>:null}</div></footer>{asset.history.length?<details><summary>Review history <ChevronDown/></summary>{asset.history.map((event,index)=><div className="trust-history-row" key={`${event.currentReviewDigest??event.acknowledgedAt}-${index}`}><span className={event.status}/><b>{event.status??"review"}</b><small>{event.phase??"manual"}{event.changedFields?.length?` · ${event.changedFields.join(", ")}`:""}</small><time>{event.inspectedAt||event.acknowledgedAt?new Date(event.inspectedAt??event.acknowledgedAt??"").toLocaleString():"—"}</time></div>)}</details>:null}</article>)}{!loading&&!state?.assets.length?<div className="campaign-empty"><Fingerprint/><h3>No distributed assets yet</h3><p>Inspect a project token or create a USDC campaign. Its approved baseline and continuous history will appear here.</p><Button tone="blue" onClick={()=>go("new-campaign")}>Create a campaign <ArrowRight/></Button></div>:null}</section>
+      <aside className="portfolio-boundary"><ShieldCheck/><div><b>Evidence, not a safety label</b><p>Current compares reproducible onchain controls. It does not audit business logic, guarantee transfer behavior, predict market value, or endorse a token. Acknowledgement records who accepted a changed baseline and when.</p></div></aside>
+    </>}
+  </>;
+}
+
 function SecurityDashboard({go}:{go:(v:View)=>void}) {
   const [snapshot,setSnapshot]=useState<SecurityPostureState>(securityPreview);
   const [loading,setLoading]=useState(true);
@@ -3242,6 +3279,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "venues":page=<VenueRegistryDashboard go={go}/>;break;
     case "launch":page=<LaunchReadinessDashboard go={go}/>;break;
     case "operations":page=<OperationsDashboard auth={auth} go={go}/>;break;
+    case "asset-trust":page=<AssetTrustDashboard auth={auth} go={go}/>;break;
     case "security":page=<SecurityDashboard go={go}/>;break;
     case "escrow":page=<MilestoneEscrow auth={auth} go={go}/>;break;
     case "commerce":page=<MerchantCommerce auth={auth} go={go}/>;break;

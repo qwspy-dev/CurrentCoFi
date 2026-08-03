@@ -16,6 +16,7 @@
     "social:test": "tsx tests/social-payments.integration.ts",
     "portfolio:test": "tsx tests/portfolio.integration.ts",
     "token-trust:test": "tsx tests/token-trust.integration.ts",
+    "token-monitor:test": "tsx tests/token-monitor.integration.ts",
     "db:generate": "drizzle-kit generate",
     "db:generate:vercel": "drizzle-kit generate --config=drizzle.config.vercel.ts",
     "db:migrate:vercel": "drizzle-kit migrate --config=drizzle.config.vercel.ts",

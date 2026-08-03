@@ -19,6 +19,7 @@ import { ApiError } from "../http.js";
 import { parseClaimToken, sha256 } from "../security/crypto.js";
 import type { CurrentSession } from "../auth/session.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
+import { assertDistributionTokenTrust } from "../tokens/monitor.js";
 
 const FINAL_TRANSACTION_STATES = new Set(["COMPLETE", "CONFIRMED"]);
 const FAILED_TRANSACTION_STATES = new Set(["FAILED", "DENIED", "CANCELLED"]);
@@ -118,6 +119,7 @@ export async function createFundingChallenge(
   if (row.status !== "awaiting_funding") {
     throw new ApiError(409, "DISTRIBUTION_NOT_FUNDABLE", "This distribution is not awaiting funding.");
   }
+  await assertDistributionTokenTrust(row.id, "funding");
   const params: {
     contractAddress: string;
     abiFunctionSignature: string;
@@ -230,6 +232,7 @@ export async function createClaimChallenge(
   });
   if (!wallet) throw new ApiError(409, "ARC_WALLET_REQUIRED", "Your Arc wallet is not ready.");
   const row = await claimRow(tokenValue);
+  await assertDistributionTokenTrust(row.distributionId, "claim");
   const existing = await db.query.claims.findFirst({ where: eq(claims.allocationId, row.allocationId) });
   if (existing?.status === "confirmed") {
     return { complete: true, status: "confirmed", transactionHash: existing.transactionHash };

@@ -78,3 +78,12 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Browser integrity: no framework overlay or error-level browser logs after render.
 - Live Arc integration: reproduced a six-signal USDC contract observation from the public Arc Testnet RPC and generated a stable review digest.
 - Evidence captures: `qa-token-trust-create-desktop.png` and `qa-token-trust-create-mobile.png`.
+
+## Continuous asset trust QA — 2026-08-03
+
+- Desktop 1440×900: verified the Asset Trust route presents the monitoring policy, review boundary, and signed-out control plane with a deliberate two-scene composition.
+- Mobile 390×844: verified the hero and workspace gate stack cleanly, type remains readable, controls remain touch-friendly, and document overflow is zero.
+- Browser integrity: the page contains meaningful content, exposes the expected interactive navigation, and has no framework error overlay or error-level browser logs.
+- Live Arc integration: reproduced the official Arc Testnet USDC control baseline through the public RPC with schema `1.1`, stable runtime bytecode, a dedicated control digest, and a separate full review digest.
+- Static production build, type checking, linting, the dedicated token-monitor test, the asset-trust test, and all portfolio, social-payment, developer-security, grant, proof, settlement, agent, and observability regressions passed.
+- Evidence captures: `qa-asset-trust-desktop.png` and `qa-asset-trust-mobile.png`.

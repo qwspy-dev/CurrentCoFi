@@ -39,7 +39,7 @@ export type AssetTrustSignal = {
 };
 
 export type ArcTokenTrust = {
-  schemaVersion: "1.0";
+  schemaVersion: "1.1";
   network: typeof ARC_TESTNET.network;
   address: string;
   symbol: string;
@@ -56,6 +56,7 @@ export type ArcTokenTrust = {
   posture: "circle-verified" | "review-required" | "standard-observations";
   distributionPolicy: "allowed" | "allowed-with-disclosure";
   signals: AssetTrustSignal[];
+  controlDigest: string;
   reviewDigest: string;
   inspectedAt: string;
   explorerUrl: string;
@@ -120,14 +121,15 @@ export async function inspectArcTokenTrust(value: string): Promise<ArcTokenTrust
     { id: "proxy", label: "Proxy storage", status: proxyImplementation ? "caution" : "observed", detail: proxyImplementation ? `EIP-1967 implementation ${proxyImplementation.slice(0, 8)}…${proxyImplementation.slice(-6)}` : "No EIP-1967 implementation address was observed." },
     { id: "capabilities", label: "Privileged selectors", status: capabilities.length ? "caution" : "observed", detail: capabilities.length ? `${capabilities.join(", ")} selectors appear in runtime code; presence does not prove reachability or authority.` : "No monitored mint, pause, blacklist, or upgrade selectors were observed." },
   ];
-  const digestInput = { network: ARC_TESTNET.network, address: address.toLowerCase(), codeHash: keccak256(bytecode), symbol, name, decimals, totalSupplyAtomic, owner, proxyImplementation, capabilities };
+  const controlInput = { network: ARC_TESTNET.network, address: address.toLowerCase(), codeHash: keccak256(bytecode), owner, proxyImplementation, capabilities };
+  const digestInput = { ...controlInput, symbol, name, decimals, totalSupplyAtomic };
   return {
-    schemaVersion: "1.0", network: ARC_TESTNET.network, address: address.toLowerCase(), symbol, name, decimals,
+    schemaVersion: "1.1", network: ARC_TESTNET.network, address: address.toLowerCase(), symbol, name, decimals,
     totalSupply: supply === null ? "unavailable" : formatUnits(supply, decimals), totalSupplyAtomic,
     codeHash: keccak256(bytecode), codeSizeBytes: (bytecode.length - 2) / 2, owner, proxyImplementation,
     observedCapabilities: capabilities, verified, posture,
     distributionPolicy: verified ? "allowed" : "allowed-with-disclosure",
-    signals, reviewDigest: await sha256(JSON.stringify(digestInput)), inspectedAt: new Date().toISOString(),
+    signals, controlDigest: await sha256(JSON.stringify(controlInput)), reviewDigest: await sha256(JSON.stringify(digestInput)), inspectedAt: new Date().toISOString(),
     explorerUrl: `${ARC_TESTNET.explorerUrl}/address/${address}`,
     boundary: "These are reproducible contract observations, not an audit, endorsement, fraud determination, or guarantee of transfer behavior or market value.",
   };

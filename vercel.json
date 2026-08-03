@@ -21,6 +21,10 @@
     {
       "path": "/api/v1/internal/proof-monitor",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/v1/internal/token-monitor",
+      "schedule": "45 8 * * *"
     }
   ],
   "headers": [

@@ -78,8 +78,14 @@ export async function resolveToken(projectId: string, requestedAddress?: string)
   const address = requestedAddress?.trim() || ARC_TESTNET.usdcAddress;
   if (!isAddress(address)) throw new ApiError(400, "INVALID_TOKEN", "Enter a valid Arc token contract address.");
   const contractAddress = getAddress(address);
+  const existing = await db.query.tokens.findFirst({
+    where: and(eq(tokens.chainCode, ARC_TESTNET.network), eq(tokens.contractAddress, contractAddress.toLowerCase())),
+  });
   const trust = await inspectArcTokenTrust(contractAddress);
   const { symbol, name, decimals, verified } = trust;
+  const existingMetadata = existing?.metadata as Record<string, unknown> | undefined;
+  const approvedTrust = existingMetadata?.approvedTrust ?? existingMetadata?.trust ?? trust;
+  const metadata = { ...existingMetadata, source: verified ? "circle" : "onchain", network: ARC_TESTNET.network, trust, approvedTrust };
   const [token] = await db.insert(tokens).values({
     projectId,
     chainCode: ARC_TESTNET.network,
@@ -88,10 +94,10 @@ export async function resolveToken(projectId: string, requestedAddress?: string)
     name,
     decimals,
     verified,
-    metadata: { source: verified ? "circle" : "onchain", network: ARC_TESTNET.network, trust },
+    metadata,
   }).onConflictDoUpdate({
     target: [tokens.chainCode, tokens.contractAddress],
-    set: { symbol, name, decimals, metadata: { source: verified ? "circle" : "onchain", network: ARC_TESTNET.network, trust }, updatedAt: new Date() },
+    set: { symbol, name, decimals, metadata, updatedAt: new Date() },
   }).returning();
   return token;
 }

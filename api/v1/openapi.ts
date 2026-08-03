@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.1.0-security-review-readiness",
+    version: "3.2.0-continuous-asset-trust",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -33,6 +33,10 @@ export default withApi((request) => ok(request, {
     },
     "/portfolio": { get: { summary: "Read verified Arc token balances and unified signed-in account activity" } },
     "/tokens/inspect": { post: { summary: "Read Arc ERC-20 metadata, bytecode integrity, proxy, ownership, supply, and monitored control signals" } },
+    "/asset-trust": {
+      get: { summary: "List approved and current Arc token-control baselines, campaign coverage, drift, and review history" },
+      post: { summary: "Recheck a project token or explicitly acknowledge its latest observed control baseline" },
+    },
     "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
     "/social-payments": {
       get: { summary: "List social payment requests, split progress, and sent-payment receipts" },

@@ -30,6 +30,7 @@ import {
   activeIdentityAttestation,
   consumeIdentityAttestation,
 } from "../developer/identity-attestations.js";
+import { assertDistributionTokenTrust } from "../tokens/monitor.js";
 
 const FINAL_TRANSACTION_STATES = new Set(["COMPLETE", "CONFIRMED"]);
 const FAILED_TRANSACTION_STATES = new Set(["FAILED", "DENIED", "CANCELLED"]);
@@ -131,6 +132,7 @@ export async function createCampaignFundingChallenge(
   if (row.status !== "awaiting_funding") {
     throw new ApiError(409, "CAMPAIGN_NOT_FUNDABLE", "This campaign is not awaiting funding.");
   }
+  await assertDistributionTokenTrust(row.id, "funding");
   const parameters = action === "approve"
     ? {
       contractAddress: row.tokenAddress,
@@ -249,6 +251,7 @@ export async function createCampaignClaimChallenge(
   });
   if (!wallet) throw new ApiError(409, "ARC_WALLET_REQUIRED", "Your Arc wallet is not ready.");
   const row = await campaignClaimRow(tokenValue);
+  await assertDistributionTokenTrust(row.distributionId, "claim");
   const rules = row.rules as Record<string, unknown>;
   const claimMode: CampaignClaimMode = rules.claimMode === "identity-bound" ? "identity-bound" : "allowlist";
   const externalAttestation = claimMode === "identity-bound" &&
