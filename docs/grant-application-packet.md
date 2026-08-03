@@ -4,6 +4,8 @@ Current CoFi publishes a submission-ready Circle Developer Grant packet at `/#/g
 
 The packet maps Current CoFi to Circle's four public selection criteria, turns the canonical grant dossier into concise application answers, includes measurable milestone acceptance evidence, and preserves direct reviewer links to public Arc testnet proof.
 
+Its ecosystem-infrastructure evidence includes Current's TypeScript SDK and fifteen-tool MCP server, plus walletless launch vesting for fully funded, identity-bound USDC or Arc project-token allocations with public proof and time-enforced claims.
+
 ## Integrity
 
 The JSON packet is canonicalized and assigned a SHA-256 digest. Tests verify the digest, answer boundaries, Markdown export, public evidence counts, and the absence of recipient identities, wallet addresses, API keys, private partner contacts, founder details, or invented funding amounts.

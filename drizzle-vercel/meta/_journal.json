@@ -176,6 +176,13 @@
       "when": 1785793910359,
       "tag": "0024_easy_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785795457999,
+      "tag": "0025_curvy_zaladane",
+      "breakpoints": true
     }
   ]
 }

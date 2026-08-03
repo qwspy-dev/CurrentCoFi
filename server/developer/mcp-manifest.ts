@@ -27,6 +27,8 @@ const body = {
     { name: "current_create_community_bounty", access: "scoped-project-key", kind: "write", approval: "I_APPROVE_CURRENT_BOUNTY", purpose: "Prepare a prize-backed community bounty for authorized wallet funding." },
     { name: "current_list_verifiable_giveaways", access: "scoped-project-key", kind: "read", purpose: "Read funded giveaways, referrals, commitments, and deterministic draw proof." },
     { name: "current_create_verifiable_giveaway", access: "scoped-project-key", kind: "write", approval: "I_APPROVE_CURRENT_GIVEAWAY", purpose: "Precommit randomness and prepare a walletless USDC or project-token giveaway." },
+    { name: "current_list_launch_vesting", access: "scoped-project-key", kind: "read", purpose: "Read funded vesting batches, masked recipients, unlocks, and claims." },
+    { name: "current_create_launch_vesting", access: "scoped-project-key", kind: "write", approval: "I_APPROVE_CURRENT_VESTING", purpose: "Prepare identity-bound, time-locked USDC or project-token launch allocations." },
     { name: "current_get_community_treasury", access: "scoped-project-key", kind: "read", purpose: "Read budgets, proposals, and Arc payment receipts." },
     { name: "current_create_treasury_proposal", access: "scoped-project-key", kind: "write", approval: "I_APPROVE_CURRENT_TREASURY_PROPOSAL", purpose: "Create a transparent non-custodial spending proposal." },
     { name: "current_propose_reward_distribution", access: "scoped-project-key", kind: "write", approval: "I_APPROVE_CURRENT_DISTRIBUTION", purpose: "Propose a policy-bound walletless reward campaign." },

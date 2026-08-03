@@ -214,6 +214,7 @@ async function campaignClaimRow(tokenValue: string, allowCompleted = false) {
     allocationStatus: allocations.status,
     storedSecretHash: allocations.claimSecretHash,
     amountAtomic: allocations.amountAtomic,
+    availableAt: allocations.availableAt,
     identityType: allocations.identityType,
     identityHash: allocations.identityHash,
     walletAddress: allocations.walletAddress,
@@ -238,6 +239,9 @@ async function campaignClaimRow(tokenValue: string, allowCompleted = false) {
   }
   if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) {
     throw new ApiError(410, "CLAIM_EXPIRED", "This campaign claim has expired.");
+  }
+  if (row.availableAt && row.availableAt.getTime() > Date.now()) {
+    throw new ApiError(409, "ALLOCATION_LOCKED", "This launch allocation has not reached its published unlock time.", { availableAt: row.availableAt.toISOString() });
   }
   return { ...row, allocationIndex: row.allocationIndex };
 }

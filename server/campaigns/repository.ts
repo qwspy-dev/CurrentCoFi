@@ -28,6 +28,7 @@ export type CampaignRecipientInput = {
   identityType: "email" | "wallet" | "x" | "game" | "custom";
   identity: string;
   amount: string;
+  availableAt?: Date;
 };
 
 export function toAtomic(amount: string, decimals: number) {
@@ -117,6 +118,7 @@ export async function createCampaign(input: {
   referralReward?: string;
   claimMode?: CampaignClaimMode;
   claimCondition?: unknown;
+  allowDuplicateIdentities?: boolean;
 }) {
   if (!input.name.trim() || input.name.length > 100) {
     throw new ApiError(400, "INVALID_CAMPAIGN_NAME", "Campaign names must contain 1–100 characters.");
@@ -135,10 +137,13 @@ export async function createCampaign(input: {
   const prepared = await Promise.all(input.recipients.map(async (recipient, index) => {
     const identity = normalizeIdentity(recipient.identityType, recipient.identity);
     const identityHash = await sha256(`${recipient.identityType}:${identity}`);
-    if (seen.has(identityHash)) {
+    if (seen.has(identityHash) && !input.allowDuplicateIdentities) {
       throw new ApiError(400, "DUPLICATE_RECIPIENT", `Recipient ${index + 1} appears more than once.`);
     }
     seen.add(identityHash);
+    if (recipient.availableAt && (!Number.isFinite(recipient.availableAt.getTime()) || recipient.availableAt.getTime() >= expiresAt.getTime())) {
+      throw new ApiError(400, "INVALID_ALLOCATION_UNLOCK", `Recipient ${index + 1} must unlock before the campaign expires.`);
+    }
     const secret = keccak256(crypto.getRandomValues(new Uint8Array(32)));
     const allocationId = crypto.randomUUID();
     return {
@@ -152,6 +157,7 @@ export async function createCampaign(input: {
       secret,
       secretHash: keccak256(secret),
       amountAtomic: toAtomic(recipient.amount, token.decimals),
+      availableAt: recipient.availableAt ?? null,
     };
   }));
   const totalAmountAtomic = prepared
@@ -198,6 +204,7 @@ export async function createCampaign(input: {
     claimSecretHash: recipient.secretHash,
     amountAtomic: recipient.amountAtomic,
     merkleIndex: recipient.index,
+    availableAt: recipient.availableAt,
     expiresAt,
   })));
   await db.insert(auditEvents).values({

@@ -44,6 +44,7 @@ export const webhookEventTypes = [
   "giveaway.created",
   "giveaway.entered",
   "giveaway.drawn",
+  "vesting.created",
   "treasury.created",
   "treasury.budget_created",
   "treasury.proposal_created",

@@ -122,3 +122,11 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Browser checks: no console errors; document widths exactly matched both 1440px and 390px viewports.
 - Engineering verification: lint, TypeScript, production build, deterministic-draw checks, bounty/treasury regressions, thirteen-tool MCP integration, SDK integration, and the complete developer/grant suite pass.
 - Evidence captures: `qa-giveaways-desktop.png` and `qa-giveaways-mobile.png`.
+# Walletless launch vesting — 2026-08-03
+
+- Inspected `/#/vesting` at 1440×900 and 390×844 against the Current design system.
+- Desktop composition preserves the full workspace hierarchy, current-field hero art, four proof metrics, security assurance, and signed-out boundary without horizontal overflow.
+- Mobile deliberately collapses the sidebar, stacks proof metrics, preserves the hero current visualization, and keeps the primary action above the fold.
+- Browser inspection reported zero console errors and exact body/viewport width parity at both sizes.
+- Confirmed the public/private vesting routes, public proof copy, unlock-aware claim states, and reduced mobile density are present in the rendered bundle.
+- Captures: `qa-vesting-desktop.png` and `qa-vesting-mobile.png` (local QA artifacts; not release assets).

@@ -19,6 +19,7 @@ const fixtures: Record<string, unknown> = {
   "/api/v1/developer/bounties": { bounties: [{ id: "bounty_mcp", title: "Build the launch reel", status: "open", submissionCount: 2 }], totals: { bounties: 1, open: 1, submissions: 2, awarded: 0 }, privacy: "masked" },
   "/api/v1/developer/treasury": { treasury: { id: "treasury_mcp", name: "Community Treasury" }, budgets: [], proposals: [], totals: { proposals: 0, pending: 0, executed: 0, categories: 0 } },
   "/api/v1/developer/giveaways": { giveaways: [{ id: "giveaway_mcp", title: "Launch current", status: "open", entryCount: 24 }], totals: { giveaways: 1, open: 1, entries: 24, referrals: 7, drawn: 0 }, privacy: "masked" },
+  "/api/v1/developer/vesting": { batches: [{ id: "vesting_mcp", name: "Founding allocation", status: "vesting", totals: { tranches: 4, claimed: 0 } }], totals: { batches: 1, recipients: 1, tranches: 4, claimed: 0 }, privacy: "encrypted" },
 };
 
 const httpServer = createServer(async (request, response) => {
@@ -35,6 +36,9 @@ const httpServer = createServer(async (request, response) => {
   }
   if (request.method === "POST" && url === "/api/v1/developer/activations") {
     data = { id: "activation_mcp", status: "accepted", duplicate: false };
+  }
+  if (request.method === "POST" && url === "/api/v1/developer/vesting") {
+    data = { id: "vesting_mcp_created", campaign: { id: "distribution_vesting", status: "awaiting_funding" }, recipientLinks: [] };
   }
   response.writeHead(data ? 200 : 404, { "content-type": "application/json" });
   response.end(JSON.stringify(data ? { ok: true, data } : { ok: false, error: { code: "NOT_FOUND", message: "Missing fixture" } }));
@@ -65,9 +69,9 @@ const client = new Client({ name: "current-mcp-integration-test", version: "0.1.
 try {
   await client.connect(transport);
   const toolList = await client.listTools();
-  assert.equal(toolList.tools.length, 13);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 8);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 5);
+  assert.equal(toolList.tools.length, 15);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 9);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 6);
   const rewardSchema = toolList.tools.find((tool) => tool.name === "current_propose_reward_distribution")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
   assert.equal(rewardSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_DISTRIBUTION");
   const bountySchema = toolList.tools.find((tool) => tool.name === "current_create_community_bounty")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
@@ -76,6 +80,8 @@ try {
   assert.equal(treasurySchema?.properties?.approval?.const, "I_APPROVE_CURRENT_TREASURY_PROPOSAL");
   const giveawaySchema = toolList.tools.find((tool) => tool.name === "current_create_verifiable_giveaway")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
   assert.equal(giveawaySchema?.properties?.approval?.const, "I_APPROVE_CURRENT_GIVEAWAY");
+  const vestingSchema = toolList.tools.find((tool) => tool.name === "current_create_launch_vesting")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
+  assert.equal(vestingSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_VESTING");
 
   const proof = await client.callTool({ name: "current_get_proof_health", arguments: {} });
   assert.equal((proof.structuredContent as { digest: string }).digest, "proof-health-digest");
@@ -89,6 +95,8 @@ try {
   assert.equal((treasury.structuredContent as { treasury: { name: string } }).treasury.name, "Community Treasury");
   const giveaways = await client.callTool({ name: "current_list_verifiable_giveaways", arguments: {} });
   assert.equal((giveaways.structuredContent as { totals: { entries: number } }).totals.entries, 24);
+  const vesting = await client.callTool({ name: "current_list_launch_vesting", arguments: {} });
+  assert.equal((vesting.structuredContent as { totals: { tranches: number } }).totals.tranches, 4);
 
   const distribution = await client.callTool({
     name: "current_propose_reward_distribution",
@@ -131,7 +139,7 @@ try {
   const unapproved = await client.callTool({ name: "current_propose_reward_distribution", arguments: { idempotencyKey: "mcp-reward-0002", name: "No approval", recipients: [{ identityType: "email", identity: "person@example.com", amount: "5" }] } });
   assert.equal(unapproved.isError, true);
   assert.match(JSON.stringify(unapproved.content), /approval/i);
-  console.log("Current MCP integration test passed: 13 tools, public proof, authenticated analytics, bounties, treasury and giveaways, signed proposals, signed activations, and explicit approval validation.");
+  console.log("Current MCP integration test passed: 15 tools, public proof, authenticated analytics, bounties, treasury, giveaways and launch vesting, signed proposals, signed activations, and explicit approval validation.");
 } finally {
   await client.close().catch(() => undefined);
   httpServer.close();

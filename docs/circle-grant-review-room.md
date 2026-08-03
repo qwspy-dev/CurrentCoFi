@@ -8,6 +8,8 @@ Current CoFi's review room converts an immutable evidence report into one review
 
 The public page requires no Current CoFi account. The package exposes aggregate product metrics, public Arc anchors, architecture, shipped infrastructure, proposed milestones, and honest gaps. It excludes raw identities, private pilot contacts, login data, secrets, API keys, and recipient-level records.
 
+Launch-vesting evidence includes funded batch, masked recipient, tranche, unlock, and confirmed-claim totals plus the campaign Merkle root and Arc funding receipt. Recipient identities, private schedule access credentials, and tranche claim tokens are never included.
+
 ## Integrity model
 
 - The underlying evidence report is canonical JSON with a stored SHA-256 digest.

@@ -3,6 +3,7 @@ import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import {
   activationEvents, agentActions, allocations, apiKeys, claims, distributions,
   evidenceReports, identityAttestations, webhookDeliveries, webhookEndpoints,
+  vestingBatches,
 } from "../db/schema.js";
 import { getDb } from "../db/client.js";
 
@@ -28,6 +29,8 @@ const manifestBody = {
     { method: "GET", path: "/api/v1/developer/bounties", purpose: "Read masked bounty submissions and Arc prize status", permission: "analytics:read", signed: false },
     { method: "POST", path: "/api/v1/developer/giveaways", purpose: "Create or draw a verifiable walletless giveaway", permission: "campaigns:write", signed: true },
     { method: "GET", path: "/api/v1/developer/giveaways", purpose: "Read masked entries, referral attribution, funding, and draw proof", permission: "analytics:read", signed: false },
+    { method: "POST", path: "/api/v1/developer/vesting", purpose: "Create walletless USDC or project-token launch vesting with enforced unlocks", permission: "campaigns:write", signed: true },
+    { method: "GET", path: "/api/v1/developer/vesting", purpose: "Read masked recipients, funding, tranche unlocks, and claims", permission: "analytics:read", signed: false },
     { method: "GET", path: "/api/v1/developer/treasury", purpose: "Read published budgets, spending proposals, and Arc receipts", permission: "analytics:read", signed: false },
     { method: "POST", path: "/api/v1/developer/treasury", purpose: "Configure budgets or create a proposal without granting fund-moving authority", permission: "campaigns:write", signed: true },
     { method: "POST", path: "/api/v1/developer/identity-attestations", purpose: "Bind an offchain identity to an exact recipient wallet", permission: "identities:write", signed: true },
@@ -36,7 +39,7 @@ const manifestBody = {
     { method: "GET", path: "/api/v1/developer/analytics", purpose: "Read claim, activation, referral, and retention outcomes", permission: "analytics:read", signed: false },
     { method: "GET", path: "/api/v1/developer/integration-readiness", purpose: "Read the project integration checklist", permission: "analytics:read", signed: false },
   ],
-  webhookEvents: ["identity.verified", "claim.completed", "activation.completed", "referral.credited", "campaign.expired", "refund.completed", "bounty.created", "bounty.submitted", "bounty.awarded", "giveaway.created", "giveaway.entered", "giveaway.drawn", "treasury.created", "treasury.budget_created", "treasury.proposal_created", "treasury.proposal_approved", "treasury.proposal_rejected", "treasury.payment_executed"],
+  webhookEvents: ["identity.verified", "claim.completed", "activation.completed", "referral.credited", "campaign.expired", "refund.completed", "bounty.created", "bounty.submitted", "bounty.awarded", "giveaway.created", "giveaway.entered", "giveaway.drawn", "vesting.created", "treasury.created", "treasury.budget_created", "treasury.proposal_created", "treasury.proposal_approved", "treasury.proposal_rejected", "treasury.payment_executed"],
   security: ["Hashed API keys", "HMAC-signed mutations", "Five-minute replay window", "Project-scoped permissions", "Idempotent write operations", "Signed webhook delivery"],
 } as const;
 
@@ -54,7 +57,7 @@ type Check = { id: string; label: string; detail: string; weight: number; comple
 
 export async function integrationReadiness(projectId: string) {
   const db = getDb();
-  const [activeKey, usedKey, webhook, delivered, campaign, confirmedClaim, activation, identity, agent, evidence] = await Promise.all([
+  const [activeKey, usedKey, webhook, delivered, campaign, confirmedClaim, activation, identity, agent, evidence, vesting] = await Promise.all([
     db.select({ total: count() }).from(apiKeys).where(and(eq(apiKeys.projectId, projectId), isNull(apiKeys.revokedAt))),
     db.select({ total: count() }).from(apiKeys).where(and(eq(apiKeys.projectId, projectId), isNull(apiKeys.revokedAt), isNotNull(apiKeys.lastUsedAt))),
     db.select({ total: count() }).from(webhookEndpoints).where(and(eq(webhookEndpoints.projectId, projectId), eq(webhookEndpoints.enabled, true))),
@@ -65,6 +68,7 @@ export async function integrationReadiness(projectId: string) {
     db.select({ total: count() }).from(identityAttestations).where(eq(identityAttestations.projectId, projectId)),
     db.select({ total: count() }).from(agentActions).where(eq(agentActions.projectId, projectId)),
     db.select({ total: count() }).from(evidenceReports).where(eq(evidenceReports.projectId, projectId)),
+    db.select({ total: count() }).from(vestingBatches).where(eq(vestingBatches.projectId, projectId)),
   ]);
   const item = (id: string, label: string, detail: string, weight: number, rows: Array<{ total: number }>): Check => ({ id, label, detail, weight, count: rows[0]?.total ?? 0, complete: (rows[0]?.total ?? 0) > 0 });
   const checks = [
@@ -72,7 +76,8 @@ export async function integrationReadiness(projectId: string) {
     item("authenticated-call", "Complete an authenticated request", "Prove the key is connected to a real integration.", 10, usedKey),
     item("webhook", "Enable a signed webhook", "Receive durable lifecycle events in your product.", 10, webhook),
     item("webhook-delivery", "Verify one webhook delivery", "Prove end-to-end event handling and replay safety.", 10, delivered),
-    item("campaign", "Create a funded distribution", "Create a walletless USDC or project-token current.", 15, campaign),
+    item("campaign", "Create a funded distribution", "Create a walletless USDC or project-token current.", 10, campaign),
+    item("launch-vesting", "Commit a launch vesting schedule", "Prove a project-token or USDC allocation can be funded before authorizer-enforced unlocks.", 5, vesting),
     item("identity", "Attest an offchain identity", "Bind the user your product knows to an exact Arc wallet.", 10, identity),
     item("claim", "Confirm a walletless claim", "Settle a recipient allocation on Arc.", 15, confirmedClaim),
     item("activation", "Report a post-claim activation", "Measure the action that makes the user valuable.", 10, activation),

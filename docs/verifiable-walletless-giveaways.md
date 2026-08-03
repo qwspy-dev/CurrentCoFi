@@ -17,7 +17,7 @@ Current CoFi giveaways turn a public community campaign into a fully funded Arc 
 - Public mobile-first entry page with no wallet requirement, encrypted identity entry, one-level referral attribution, prize custody status, and public draw proof.
 - Scoped developer API and TypeScript SDK for project integrations.
 - MCP tools for agent discovery and explicitly approved creation. Funding remains a separate Circle-wallet action.
-- Privacy-safe aggregate evidence in `current-evidence-v17` for Circle grant review.
+- Privacy-safe aggregate evidence in `current-evidence-v18` for Circle grant review.
 
 ## Boundaries
 

@@ -81,6 +81,10 @@ const mockFetch: typeof fetch = async (input, init) => {
       proposals: [], totals: { proposals: 0, pending: 0, executed: 0, categories: 1 },
     } });
   }
+  if (String(input).endsWith("/developer/vesting")) {
+    const batch = { id: "vesting_sdk", name: "Founding allocation", status: "vesting", distributionId: "dist_vesting_sdk", cliffAt: "2026-09-01T00:00:00.000Z", releaseCount: 4, intervalDays: 30, totals: { recipients: 1, tranches: 4, claimed: 0, amount: "1000" }, asset: { symbol: "TIDE", address: "0x2222222222222222222222222222222222222222", decimals: 18 }, schedules: [] };
+    return Response.json({ ok: true, data: init?.method === "POST" ? { id: batch.id, campaign: { id: batch.distributionId, status: "awaiting_funding" }, publicProofUrl: "https://current.test/?vestingProof=founding#/vesting-claim", recipientLinks: [] } : { batches: [batch], totals: { batches: 1, recipients: 1, tranches: 4, claimed: 0 }, privacy: "encrypted" } }, { status: init?.method === "POST" ? 201 : 200 });
+  }
   if (String(input).endsWith("/developer/activations")) {
     return Response.json({ ok: true, data: { duplicate: false, status: "accepted" } });
   }
@@ -240,14 +244,14 @@ const mockFetch: typeof fetch = async (input, init) => {
   if (String(input).endsWith("/developer/grant") && init?.method === "POST") {
     return Response.json({ ok: true, data: {
       schemaVersion: "current-grant-review-v1", digest: "grant_digest_sdk",
-      evidence: { id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v17", digest: "digest_sdk", integrity: { valid: true, recalculatedDigest: "digest_sdk" }, generatedAt: "2026-08-14T00:00:00.000Z" },
+      evidence: { id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v18", digest: "digest_sdk", integrity: { valid: true, recalculatedDigest: "digest_sdk" }, generatedAt: "2026-08-14T00:00:00.000Z" },
       application: { project: "Current CoFi", website: "https://current.test", oneLiner: "Walletless activation", problem: "Wallet friction", solution: "Embedded claims", whyArc: "Settlement", ecosystemValue: "Reusable infrastructure" },
       officialCriteria: [], architecture: [], proof: { readinessScore: 80 }, shipped: [], proposedMilestones: [], honestGaps: [], reviewerLinks: {}, privacy: "Aggregate only",
     } }, { status: 201 });
   }
   if (String(input).endsWith("/developer/grant")) {
     return Response.json({ ok: true, data: { packages: [{
-      id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v17", digest: "digest_sdk", distributionId: null, readinessScore: 80,
+      id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v18", digest: "digest_sdk", distributionId: null, readinessScore: 80,
       project: { name: "Current CoFi", slug: "current-cofi" }, totals: { campaigns: 1, recipients: 10, claims: 8, activations: 4 }, createdAt: "2026-08-14T00:00:00.000Z",
     }] } });
   }
@@ -472,6 +476,11 @@ assert.equal(treasury.budgets[0]?.remaining, "750");
 const treasuryProposal = await current.treasury.createProposal({ treasuryId: "treasury_sdk", budgetId: "budget_sdk", title: "Creator launch reel", description: "Pay the contributor after the community launch reel is delivered.", category: "Creators", recipientAddress: "0x2222222222222222222222222222222222222222", amount: "250" });
 assert.equal(treasuryProposal.id, "proposal_sdk");
 assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).action, "proposal");
+assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
+const vesting = await current.vesting.list();
+assert.equal(vesting.totals.tranches, 4);
+const createdVesting = await current.vesting.create({ name: "Founding allocation", description: "A transparent founding allocation with enforced unlocks.", tokenAddress: "0x2222222222222222222222222222222222222222", cliffAt: "2026-09-01T00:00:00.000Z", releaseCount: 4, intervalDays: 30, recipients: [{ displayName: "Founding artist", identityType: "email", identity: "artist@example.com", totalAmount: "1000" }] });
+assert.equal(createdVesting.id, "vesting_sdk");
 assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
 const publicApplication = await current.dossier.application();
 assert.equal(publicApplication.digest, "application_digest_sdk");

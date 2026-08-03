@@ -601,6 +601,7 @@ export const allocations = pgTable("allocations", {
   claimSecretHash: text("claim_secret_hash"),
   amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
   merkleIndex: integer("merkle_index"),
+  availableAt: timestamp("available_at", { withTimezone: true }),
   status: claimStatus("status").default("available").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   ...timestamps,
@@ -623,6 +624,61 @@ export const claims = pgTable("claims", {
 }, (table) => [
   uniqueIndex("claims_allocation_unique").on(table.allocationId),
   index("claims_claimant_idx").on(table.claimantUserId),
+]);
+
+export const vestingBatches = pgTable("vesting_batches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "restrict" }).notNull(),
+  publicSlug: text("public_slug").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  status: text("status").default("awaiting_funding").notNull(),
+  cliffAt: timestamp("cliff_at", { withTimezone: true }).notNull(),
+  releaseCount: integer("release_count").notNull(),
+  intervalDays: integer("interval_days").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("vesting_batches_distribution_unique").on(table.distributionId),
+  uniqueIndex("vesting_batches_slug_unique").on(table.publicSlug),
+  index("vesting_batches_project_status_idx").on(table.projectId, table.status, table.createdAt),
+]);
+
+export const vestingSchedules = pgTable("vesting_schedules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  batchId: uuid("batch_id").references(() => vestingBatches.id, { onDelete: "cascade" }).notNull(),
+  displayName: text("display_name").notNull(),
+  identityType: text("identity_type").notNull(),
+  identityHash: text("identity_hash").notNull(),
+  identityCiphertext: text("identity_ciphertext").notNull(),
+  maskedIdentity: text("masked_identity").notNull(),
+  accessTokenHash: text("access_token_hash").notNull(),
+  accessTokenCiphertext: text("access_token_ciphertext").notNull(),
+  totalAmountAtomic: numeric("total_amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("vesting_schedules_batch_identity_unique").on(table.batchId, table.identityHash),
+  uniqueIndex("vesting_schedules_access_unique").on(table.accessTokenHash),
+  index("vesting_schedules_batch_idx").on(table.batchId, table.createdAt),
+]);
+
+export const vestingTranches = pgTable("vesting_tranches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scheduleId: uuid("schedule_id").references(() => vestingSchedules.id, { onDelete: "cascade" }).notNull(),
+  allocationId: uuid("allocation_id").references(() => allocations.id, { onDelete: "cascade" }).notNull(),
+  position: integer("position").notNull(),
+  unlockAt: timestamp("unlock_at", { withTimezone: true }).notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  claimTokenCiphertext: text("claim_token_ciphertext").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("vesting_tranches_allocation_unique").on(table.allocationId),
+  uniqueIndex("vesting_tranches_schedule_position_unique").on(table.scheduleId, table.position),
+  index("vesting_tranches_schedule_unlock_idx").on(table.scheduleId, table.unlockAt),
 ]);
 
 export const referralCodes = pgTable("referral_codes", {

@@ -8,6 +8,8 @@ Current CoFi exposes one account-free Circle reviewer entry point:
 
 The dossier combines the product thesis, Arc and Circle architecture, shipped infrastructure, aggregate network proof, release verification, security posture, selection-criteria mapping, proposed grant milestones, and an honest external-gap register. The response is canonicalized and receives a SHA-256 digest.
 
+The shipped scope now includes walletless launch vesting: projects can commit and fund USDC or project-token allocations with encrypted offchain identities, public schedules, Merkle-committed tranches, authorizer-enforced cliffs, gas-sponsored claims, and developer/agent access. Aggregate proof is exported through `current-evidence-v18` without private recipient credentials.
+
 ## Claims boundary
 
 The dossier distinguishes three kinds of evidence:

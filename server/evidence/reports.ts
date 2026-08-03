@@ -34,13 +34,16 @@ import {
   tokens,
   treasuryBudgets,
   treasuryProposals,
+  vestingBatches,
+  vestingSchedules,
+  vestingTranches,
   webhookEndpoints,
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v17";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v18";
 
 type Criterion = {
   id: string;
@@ -231,6 +234,22 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       .innerJoin(tokens, eq(tokens.id, treasuryProposals.tokenId))
       .where(eq(communityTreasuries.projectId, projectId)).orderBy(desc(treasuryProposals.createdAt)),
   ]);
+  const vestingPromise = Promise.all([
+    db.select({ batch: vestingBatches, distribution: distributions, token: tokens })
+      .from(vestingBatches)
+      .innerJoin(distributions, eq(distributions.id, vestingBatches.distributionId))
+      .innerJoin(tokens, eq(tokens.id, distributions.tokenId))
+      .where(eq(vestingBatches.projectId, projectId)).orderBy(desc(vestingBatches.createdAt)),
+    db.select({ schedule: vestingSchedules, batchId: vestingBatches.id })
+      .from(vestingSchedules).innerJoin(vestingBatches, eq(vestingBatches.id, vestingSchedules.batchId))
+      .where(eq(vestingBatches.projectId, projectId)),
+    db.select({ tranche: vestingTranches, scheduleId: vestingSchedules.id, batchId: vestingBatches.id, allocationStatus: allocations.status })
+      .from(vestingTranches)
+      .innerJoin(vestingSchedules, eq(vestingSchedules.id, vestingTranches.scheduleId))
+      .innerJoin(vestingBatches, eq(vestingBatches.id, vestingSchedules.batchId))
+      .innerJoin(allocations, eq(allocations.id, vestingTranches.allocationId))
+      .where(eq(vestingBatches.projectId, projectId)),
+  ]);
 
   const [
     allocationRows,
@@ -403,6 +422,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const [bountyRows, bountySubmissionRows] = await bountyPromise;
   const [giveawayRows, giveawayEntryRows] = await giveawayPromise;
   const [treasuryRows, treasuryBudgetRows, treasuryProposalRows] = await treasuryPromise;
+  const [vestingBatchRows, vestingScheduleRows, vestingTrancheRows] = await vestingPromise;
   const bountyEvidence = {
     totals: {
       bounties: bountyRows.length,
@@ -466,6 +486,30 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       executedAt: row.proposal.executedAt?.toISOString() ?? null,
     })),
     privacy: "Proposal purpose, category, amounts, approvals, and public Arc receipts only. Recipient addresses are excluded from grant evidence.",
+  };
+  const vestingEvidence = {
+    totals: {
+      batches: vestingBatchRows.length,
+      funded: vestingBatchRows.filter((row) => ["active", "completed"].includes(row.distribution.status)).length,
+      recipients: vestingScheduleRows.length,
+      tranches: vestingTrancheRows.length,
+      unlocked: vestingTrancheRows.filter((row) => row.tranche.unlockAt.getTime() <= Date.now()).length,
+      claimed: vestingTrancheRows.filter((row) => row.allocationStatus === "confirmed").length,
+    },
+    items: vestingBatchRows.map((row) => ({
+      id: row.batch.id,
+      name: row.batch.name,
+      status: row.distribution.status,
+      cliffAt: row.batch.cliffAt.toISOString(),
+      releaseCount: row.batch.releaseCount,
+      intervalDays: row.batch.intervalDays,
+      recipientCount: vestingScheduleRows.filter((schedule) => schedule.batchId === row.batch.id).length,
+      trancheCount: vestingTrancheRows.filter((tranche) => tranche.batchId === row.batch.id).length,
+      claimedTranches: vestingTrancheRows.filter((tranche) => tranche.batchId === row.batch.id && tranche.allocationStatus === "confirmed").length,
+      asset: { amount: formatAtomic(row.distribution.totalAmountAtomic, row.token.decimals), symbol: row.token.symbol, address: row.token.contractAddress },
+      anchors: { distributionId: row.distribution.id, merkleRoot: row.distribution.merkleRoot, fundingTransactionHash: row.distribution.fundingTxHash },
+    })),
+    privacy: "Recipient identities, access credentials, and private tranche claim tokens are excluded. Only aggregate schedules, unlocks, masked counts, and public Arc anchors are exported.",
   };
 
   const allocationsByCampaign = new Map(allocationRows.map((row) => [row.distributionId, row]));
@@ -710,6 +754,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       evidence: `${giveawayEvidence.totals.funded} funded giveaway${giveawayEvidence.totals.funded === 1 ? "" : "s"}, ${giveawayEvidence.totals.entries} encrypted entr${giveawayEvidence.totals.entries === 1 ? "y" : "ies"}, ${giveawayEvidence.totals.referrals} attributed referral${giveawayEvidence.totals.referrals === 1 ? "" : "s"}, and ${giveawayEvidence.totals.drawn} reproducible draw${giveawayEvidence.totals.drawn === 1 ? "" : "s"}.`,
     },
     {
+      id: "walletless-launch-vesting",
+      label: "Walletless launch vesting",
+      weight: 10,
+      passed: vestingEvidence.totals.funded > 0 && vestingEvidence.totals.tranches > 0,
+      evidence: `${vestingEvidence.totals.funded} funded vesting batch${vestingEvidence.totals.funded === 1 ? "" : "es"}, ${vestingEvidence.totals.recipients} masked recipient schedule${vestingEvidence.totals.recipients === 1 ? "" : "s"}, and ${vestingEvidence.totals.tranches} authorizer-enforced tranche${vestingEvidence.totals.tranches === 1 ? "" : "s"}.`,
+    },
+    {
       id: "transparent-community-treasury",
       label: "Transparent community treasury",
       weight: 10,
@@ -863,6 +914,11 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       giveawayEntries: giveawayEvidence.totals.entries,
       giveawayReferrals: giveawayEvidence.totals.referrals,
       giveawayDraws: giveawayEvidence.totals.drawn,
+      vestingBatches: vestingEvidence.totals.batches,
+      fundedVestingBatches: vestingEvidence.totals.funded,
+      vestingRecipients: vestingEvidence.totals.recipients,
+      vestingTranches: vestingEvidence.totals.tranches,
+      claimedVestingTranches: vestingEvidence.totals.claimed,
       communityTreasuries: treasuryEvidence.totals.treasuries,
       treasuryBudgets: treasuryEvidence.totals.budgets,
       treasuryProposals: treasuryEvidence.totals.proposals,
@@ -871,6 +927,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     commerce,
     bounties: bountyEvidence,
     giveaways: giveawayEvidence,
+    vesting: vestingEvidence,
     treasury: treasuryEvidence,
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({

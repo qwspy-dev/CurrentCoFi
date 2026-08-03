@@ -302,6 +302,13 @@ export type GiveawayWorkspace = {
   privacy: string;
 };
 
+export type CreateVestingInput = { name: string; description: string; tokenAddress?: string; cliffAt: string; releaseCount: number; intervalDays: number; recipients: Array<{ displayName: string; identityType: "email" | "wallet" | "x" | "game" | "custom"; identity: string; totalAmount: string }> };
+export type VestingWorkspace = {
+  batches: Array<{ id: string; name: string; description: string; status: string; distributionId: string; cliffAt: string; releaseCount: number; intervalDays: number; lastUnlockAt: string; publicProofUrl: string; asset: { symbol: string; name: string; address: string }; funding: { status: string; fullyFunded: boolean; merkleRoot: string | null; transactionHash: string | null }; totals: { recipients: number; tranches: number; unlocked: number; claimed: number; amount: string }; schedules: Array<{ id: string; displayName: string; identityType: string; maskedIdentity: string; totalAmount: string; claimed: number; recipientUrl?: string }> }>;
+  totals: { batches: number; recipients: number; tranches: number; claimed: number };
+  privacy: string;
+};
+
 export type ActivationResult = {
   id?: string;
   duplicate: boolean;
@@ -791,6 +798,11 @@ export class Current {
     list: () => this.get<GiveawayWorkspace>("/api/v1/developer/giveaways"),
     create: (input: CreateGiveawayInput) => this.signedPost<GiveawayWorkspace["giveaways"][number] & { campaign: CreatedDistribution }>("/api/v1/developer/giveaways", input),
     draw: (giveawayId: string) => this.signedPost<{ giveawayId: string; status: "drawn"; claimUrl: string }>("/api/v1/developer/giveaways", { action: "draw", giveawayId }),
+  };
+
+  readonly vesting = {
+    list: () => this.get<VestingWorkspace>("/api/v1/developer/vesting"),
+    create: (input: CreateVestingInput) => this.signedPost<{ id: string; campaign: CreatedDistribution; publicProofUrl: string; recipientLinks: Array<{ displayName: string; maskedIdentity: string; url: string }> }>("/api/v1/developer/vesting", input),
   };
 
   readonly activations = {

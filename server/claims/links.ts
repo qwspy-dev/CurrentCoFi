@@ -138,6 +138,7 @@ export async function resolveClaimLink(tokenValue: string) {
     claimSecretHash: allocations.claimSecretHash,
     identityType: allocations.identityType,
     amountAtomic: allocations.amountAtomic,
+    availableAt: allocations.availableAt,
     expiresAt: allocations.expiresAt,
     distributionId: distributions.id,
     distributionStatus: distributions.status,
@@ -163,6 +164,7 @@ export async function resolveClaimLink(tokenValue: string) {
     throw new ApiError(404, "CLAIM_NOT_FOUND", "This claim link is invalid or no longer available.");
   }
   const expired = Boolean(row.expiresAt && row.expiresAt.getTime() <= Date.now());
+  const locked = Boolean(row.availableAt && row.availableAt.getTime() > Date.now());
   const metadata = row.message as Record<string, unknown>;
   const rules = row.rules as Record<string, unknown>;
   const identityBound = rules.claimMode === "identity-bound";
@@ -173,9 +175,9 @@ export async function resolveClaimLink(tokenValue: string) {
   return {
     id: row.distributionId,
     allocationId: row.allocationId,
-    status: expired ? "expired" : row.allocationStatus,
+    status: expired ? "expired" : locked ? "locked" : row.allocationStatus,
     fundingStatus: row.distributionStatus,
-    claimable: !expired && row.allocationStatus === "available" && row.distributionStatus === "active",
+    claimable: !expired && !locked && row.allocationStatus === "available" && row.distributionStatus === "active",
     amount: formatAtomic(row.amountAtomic, row.decimals),
     asset: row.symbol,
     assetTrust: trust ? {
@@ -192,6 +194,7 @@ export async function resolveClaimLink(tokenValue: string) {
     message: typeof metadata.message === "string" ? metadata.message : "",
     sender: typeof metadata.creatorDisplayName === "string" ? metadata.creatorDisplayName : row.projectName,
     expiresAt: row.expiresAt?.toISOString() ?? null,
+    availableAt: row.availableAt?.toISOString() ?? null,
     identityBinding: {
       required: identityBound,
       type: identityBound ? row.identityType : null,

@@ -151,6 +151,37 @@ export function createCurrentMcpServer(input = configFromEnv()) {
             return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the giveaway.");
         }
     });
+    server.registerTool("current_list_launch_vesting", {
+        title: "Read walletless launch vesting",
+        description: "Read project-token or USDC vesting batches, masked recipients, funded Merkle proof, unlocked tranches, and claim progress.",
+        inputSchema: noInput,
+        annotations: readOnly,
+    }, async () => {
+        try {
+            return success(await requireProject().vesting.list());
+        }
+        catch (error) {
+            return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Launch vesting is unavailable.");
+        }
+    });
+    server.registerTool("current_create_launch_vesting", {
+        title: "Create walletless launch vesting",
+        description: "Prepare identity-bound, time-locked USDC or project-token launch allocations. Funding remains a separate Circle-wallet action.",
+        inputSchema: {
+            name: z.string().min(3).max(100), description: z.string().min(20).max(1_000), tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(), cliffAt: z.string().datetime(), releaseCount: z.number().int().min(2).max(24), intervalDays: z.number().int().min(1).max(90),
+            recipients: z.array(z.object({ displayName: z.string().min(2).max(80), identityType: z.enum(["email", "wallet", "x", "game", "custom"]), identity: z.string().min(1).max(320), totalAmount: z.string().regex(/^\d+(\.\d{1,18})?$/) })).min(1).max(100),
+            approval: z.literal("I_APPROVE_CURRENT_VESTING"),
+        },
+        annotations: mutation,
+    }, async ({ approval: _approval, ...value }) => {
+        void _approval;
+        try {
+            return success(await requireProject().vesting.create(value));
+        }
+        catch (error) {
+            return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the vesting batch.");
+        }
+    });
     server.registerTool("current_get_community_treasury", {
         title: "Read the community treasury",
         description: "Read transparent budgets, proposal decisions, and Arc settlement receipts for the configured project.",
