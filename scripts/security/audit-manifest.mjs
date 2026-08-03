@@ -4,6 +4,7 @@ import { basename, join } from "node:path";
 
 const root = process.cwd();
 const manifestPath = join(root, "security", "audit-manifest.json");
+const modulePath = join(root, "server", "security", "audit-manifest.generated.ts");
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const read = (path) => readFile(join(root, path));
 
@@ -49,12 +50,15 @@ async function buildManifest() {
 
 const manifest = await buildManifest();
 const output = `${JSON.stringify(manifest, null, 2)}\n`;
+const moduleOutput = `const auditManifest = ${JSON.stringify(manifest, null, 2)} as const;\n\nexport default auditManifest;\n`;
 if (process.argv.includes("--write")) {
   await writeFile(manifestPath, output);
+  await writeFile(modulePath, moduleOutput);
   console.log(`Wrote ${manifest.sources.length} scoped contract records to security/audit-manifest.json.`);
 } else {
   const committed = await readFile(manifestPath, "utf8").catch(() => "");
-  if (committed !== output) {
+  const committedModule = await readFile(modulePath, "utf8").catch(() => "");
+  if (committed !== output || committedModule !== moduleOutput) {
     console.error("Audit manifest drift detected. Run pnpm audit:manifest and review the scope changes.");
     process.exit(1);
   }

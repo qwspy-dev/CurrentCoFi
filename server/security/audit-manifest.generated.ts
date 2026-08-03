@@ -1,0 +1,226 @@
+const auditManifest = {
+  "schemaVersion": "current-audit-manifest-v1",
+  "product": "Current CoFi",
+  "network": "Arc testnet",
+  "assurance": "internal-review-only",
+  "mainnetApproved": false,
+  "compiler": {
+    "package": "solc",
+    "versionRange": "^0.8.36",
+    "optimizer": {
+      "enabled": true,
+      "runs": 10000
+    }
+  },
+  "scope": {
+    "path": "security/audit-scope.json",
+    "sha256": "814f07532f7a5591eb0ee3c075c7fdce1d73f7d279a3f9afc05b29b49eb49d0c",
+    "contracts": 16,
+    "serverBoundaries": 11,
+    "priorityProperties": 7
+  },
+  "sources": [
+    {
+      "path": "contracts/CurrentMilestoneEscrow.sol",
+      "bytes": 10814,
+      "sha256": "c11cc5a27b390481faaf3e691f28a908981e9223f703046c2c23de383333caf1",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentMilestoneEscrow.json",
+        "sha256": "080543deaffeb4c912f4ff188b397aad89299d44d980d540fb512444846dc9fe",
+        "creationBytecodeSha256": "5ac63d5a2823ec2ca87f86573d01dda5500830df31d518a8d5528e8fd9254b6c",
+        "abiEntries": 50
+      }
+    },
+    {
+      "path": "contracts/CurrentAccessManager.sol",
+      "bytes": 3762,
+      "sha256": "b5c7fd9ecd8c7491cc16cc33ec224ba9a4f36809f7a58466f5c3cf929aa48f40",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentAccessManager.json",
+        "sha256": "a7c7329a65003220519519c2b44c0a13f70ad851c51121d6e3a63a415700d605",
+        "creationBytecodeSha256": "10718a7310f984bb5648fcfa56637e7cc1a4dacdafb89a349095fd857fae27ba",
+        "abiEntries": 16
+      }
+    },
+    {
+      "path": "contracts/CurrentClaimVault.sol",
+      "bytes": 6825,
+      "sha256": "552b3152f892df84498c2071096578805c61206006248328b7d1a163e89e577e",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentClaimVault.json",
+        "sha256": "5548625cdea4abe2f70c4e18271d5e09c0358fba769aa7618774d64ec4cb3c7b",
+        "creationBytecodeSha256": "71241650cf42ff1ffc12e1abf612aa274b6fa28b5e5035649c1ee17520b2ca31",
+        "abiEntries": 44
+      }
+    },
+    {
+      "path": "contracts/CurrentCampaignVault.sol",
+      "bytes": 8606,
+      "sha256": "9d8bb74ab725b6bdd9be43cec7abcfd3ae654c40b477a7d0eec0b0f630f2c638",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentCampaignVault.json",
+        "sha256": "9b2153c6beb22a28bf27f175e3fdb02801664c14169b0dd5aee8e690e604ed85",
+        "creationBytecodeSha256": "f1a20cad84a2b998575f6958cfcfeefbc272f07e2ccb5dbabd8d598b46912356",
+        "abiEntries": 47
+      }
+    },
+    {
+      "path": "contracts/CurrentToken.sol",
+      "bytes": 955,
+      "sha256": "c268d0917b6160296dadf6d6742b8326b10825595102cd4327615e9df2fd8232",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentToken.json",
+        "sha256": "3abab473017de17c173362c9b975a19e5f48f13947b434bcd675e9a214976758",
+        "creationBytecodeSha256": "32037e9c00efa4b5205e865d679290efda09248e750d509a0707c69107310808",
+        "abiEntries": 40
+      }
+    },
+    {
+      "path": "contracts/CurrentLockVault.sol",
+      "bytes": 3763,
+      "sha256": "75edbc87ec80fcb127fd3ed602f2ee27e88fd06aa7a05ddce80f7045f14640c9",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentLockVault.json",
+        "sha256": "825a6d22af9e22bb79cd433832d570510ad1d1f2a28ef18e812bd971a0f7916e",
+        "creationBytecodeSha256": "7305125f605fb9fad57257fc74db168b4e27c7f25987588ea7a5ad5102c724a2",
+        "abiEntries": 33
+      }
+    },
+    {
+      "path": "contracts/CurrentFeeRouter.sol",
+      "bytes": 8480,
+      "sha256": "5eee9c42b4ca011033ec5d85db9409527b153057b35a7299c4499c4b6079027e",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentFeeRouter.json",
+        "sha256": "66ac776d2d22bb19e22bfa05fecccd9bae81bd5c9804adecbb93b50e9d689d01",
+        "creationBytecodeSha256": "fa637fdbcae93693117e439eef7729e3389402161376eb702ac9c921536bf45f",
+        "abiEntries": 54
+      }
+    },
+    {
+      "path": "contracts/CurrentBuybackGovernor.sol",
+      "bytes": 7522,
+      "sha256": "ec9b31925108b5b3ac819f1d6ee59925bda2ff92ed74f4708822029e3b1a618b",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentBuybackGovernor.json",
+        "sha256": "00ffecd94730191388054df08a8a14a217f2d529b57cdfaf58d5f2e3b7901fd5",
+        "creationBytecodeSha256": "eb90b26a94b561155afa2baa63b2657c1cd87f138359026cdddf423eee172553",
+        "abiEntries": 41
+      }
+    },
+    {
+      "path": "contracts/CurrentLiquidityVault.sol",
+      "bytes": 5961,
+      "sha256": "77fe6d788e41bec94984448d1aa7ab0bb47169b8b15f470e26595191784c0017",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentLiquidityVault.json",
+        "sha256": "7fb0fefd3e3cf77bb6858ebe88ed992bb2584feb0b299068caf3f2bb4a0afb00",
+        "creationBytecodeSha256": "2c7bb2c516b5c46ce55140098f80f8fce7c52f782db189c0a47652fa656315a9",
+        "abiEntries": 41
+      }
+    },
+    {
+      "path": "contracts/CurrentLiquidityGovernor.sol",
+      "bytes": 7328,
+      "sha256": "23766c576d0e79acec68b10e8a9dac8749e012067b3271f096bf89fdac8f5e46",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentLiquidityGovernor.json",
+        "sha256": "190b52d8f1efffc7c032ee6f6c96f8ef267c5a25a24c4629fe70e57e1dc9e629",
+        "creationBytecodeSha256": "37f1458116156e81578d48471ab6552df51f61bb6c5d0a51c918fb59f3c1de42",
+        "abiEntries": 42
+      }
+    },
+    {
+      "path": "contracts/CurrentPartnerVault.sol",
+      "bytes": 4737,
+      "sha256": "0bb48914aa99a0639a34c42652270472beb6f597516984370d200e2e4e58a8b5",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentPartnerVault.json",
+        "sha256": "9be4cc65f89a8dda1b7c6734cb8fdc69521991f9d98b348e67d3e307becd8885",
+        "creationBytecodeSha256": "1aaaf0bac13bed187dd8aa21767a2e6ce673a17145cc7ed92698f071c3f7816f",
+        "abiEntries": 33
+      }
+    },
+    {
+      "path": "contracts/CurrentPartnerGovernor.sol",
+      "bytes": 6134,
+      "sha256": "39f539423520ea33cab0fa83c39a36ca8aede27a07c02d23435b22d61e227728",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentPartnerGovernor.json",
+        "sha256": "a8c0f0eed0e8225345efa9fe87ad2626a2feb60fc053e6ab4b82375a340bd7a6",
+        "creationBytecodeSha256": "9c274a17d7ce4c132b0bfabf77c480f4fa5aa02836cfb8c2a3240f8e9631faa4",
+        "abiEntries": 41
+      }
+    },
+    {
+      "path": "contracts/CurrentLiquidityVenueRegistry.sol",
+      "bytes": 3632,
+      "sha256": "11ea4bda2d0631cbc11235774b681d8a1844cfc4d30c2602c508458f5216bb72",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentLiquidityVenueRegistry.json",
+        "sha256": "0ca3a1e165ca68839ae6e51a341e8fd75f10ae7fa105d0d770f8d5b58e5c9f27",
+        "creationBytecodeSha256": "c081814b7b6806f0756f3eb640fe76ba2143a67ff7e215982291f9b15821f0c4",
+        "abiEntries": 23
+      }
+    },
+    {
+      "path": "contracts/CurrentVenueRegistryGovernor.sol",
+      "bytes": 4492,
+      "sha256": "877e27f78fe9f69b29bd733b4c511508db6e4574310b8eb1efac2cc4ba68b5b5",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentVenueRegistryGovernor.json",
+        "sha256": "4948fac156bbabbe3dd91f48e86aecc81268ffbb9ff6615ab2932f8a86d15c61",
+        "creationBytecodeSha256": "ba4430bc18fbbbc5f801eddf44a7fbf7c5270e08da501dedaa5ddee00e7753ab",
+        "abiEntries": 37
+      }
+    },
+    {
+      "path": "contracts/CurrentReleaseRegistry.sol",
+      "bytes": 3700,
+      "sha256": "49ad1159ee3d8625de93bb22a4053781ad83abf1f64a9cd8498312c2e07e1e4b",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentReleaseRegistry.json",
+        "sha256": "2b41d54f4589e0bdca11e40b88f65c03fe5f70911bd5ea7947794e4181033882",
+        "creationBytecodeSha256": "37b0e27956ab8f78ebf5df2ff8da3432f28a8c5b99914419e6e328dfabb2bfd4",
+        "abiEntries": 23
+      }
+    },
+    {
+      "path": "contracts/CurrentReleaseGovernor.sol",
+      "bytes": 4720,
+      "sha256": "4e2009c382dd75878c160400089acc8e6d28cbe73e05d240e7c4aa436872ab53",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentReleaseGovernor.json",
+        "sha256": "ea1a883c8e12b1ecbcdb037d39d519a4ecf089a6aa24d8d7d0eae7d24787a2f3",
+        "creationBytecodeSha256": "99ff6e75f50175b40f947ac90bf7eaad03c455c5471ae0ee1d48babe0ba6992c",
+        "abiEntries": 38
+      }
+    }
+  ],
+  "reproducibility": {
+    "lockfile": {
+      "path": "pnpm-lock.yaml",
+      "sha256": "9e8d30b2d4524fef9fc1c653da6dc0d695fe0b36446404f18464a343eb47645c"
+    },
+    "deployment": {
+      "path": "deployments/arc-testnet.json",
+      "sha256": "37bd15bfcd4f8036d7b2f683f7d0cadf04fa6f0787b46579a62b29392a073520"
+    },
+    "commands": [
+      "pnpm contracts:compile",
+      "pnpm contracts:test",
+      "pnpm developer:test",
+      "pnpm security:test",
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm vercel:build"
+    ]
+  },
+  "boundaries": [
+    "No independent audit report is claimed.",
+    "No mainnet approval is claimed.",
+    "Third-party Circle, Arc, OAuth, CCTP, Gateway, and venue implementations remain outside this source manifest."
+  ]
+} as const;
+
+export default auditManifest;

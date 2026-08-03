@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import auditManifest from "../../security/audit-manifest.json";
+import auditManifest from "./audit-manifest.generated.js";
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
