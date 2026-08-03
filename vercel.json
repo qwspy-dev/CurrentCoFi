@@ -19,6 +19,10 @@
       "schedule": "15 8 * * *"
     },
     {
+      "path": "/api/v1/internal/payroll/lifecycle",
+      "schedule": "20 8 * * *"
+    },
+    {
       "path": "/api/v1/internal/proof-monitor",
       "schedule": "30 8 * * *"
     },

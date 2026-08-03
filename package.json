@@ -19,6 +19,7 @@
     "token-trust:test": "tsx tests/token-trust.integration.ts",
     "token-monitor:test": "tsx tests/token-monitor.integration.ts",
     "conditions:test": "tsx tests/conditional-campaigns.integration.ts",
+    "payroll:test": "tsx tests/community-payroll.integration.ts",
     "audit:manifest": "node scripts/security/audit-manifest.mjs --write",
     "audit:verify": "node scripts/security/audit-manifest.mjs",
     "db:generate": "drizzle-kit generate",

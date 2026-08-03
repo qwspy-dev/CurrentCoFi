@@ -151,6 +151,58 @@ export const distributions = pgTable("distributions", {
   index("distributions_expires_idx").on(table.expiresAt),
 ]);
 
+export const payrollSchedules = pgTable("payroll_schedules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
+  tokenId: uuid("token_id").references(() => tokens.id, { onDelete: "restrict" }).notNull(),
+  name: text("name").notNull(),
+  status: text("status").default("active").notNull(),
+  cadenceDays: integer("cadence_days").notNull(),
+  nextRunAt: timestamp("next_run_at", { withTimezone: true }).notNull(),
+  claimExpiresHours: integer("claim_expires_hours").default(168).notNull(),
+  refundAddress: text("refund_address").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  index("payroll_schedules_project_status_idx").on(table.projectId, table.status, table.nextRunAt),
+  index("payroll_schedules_due_idx").on(table.status, table.nextRunAt),
+]);
+
+export const payrollMembers = pgTable("payroll_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scheduleId: uuid("schedule_id").references(() => payrollSchedules.id, { onDelete: "cascade" }).notNull(),
+  identityType: text("identity_type").notNull(),
+  identityHash: text("identity_hash").notNull(),
+  identityCiphertext: text("identity_ciphertext").notNull(),
+  maskedIdentity: text("masked_identity").notNull(),
+  displayName: text("display_name").notNull(),
+  role: text("role"),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  status: text("status").default("active").notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("payroll_members_schedule_identity_unique").on(table.scheduleId, table.identityHash),
+  index("payroll_members_schedule_status_idx").on(table.scheduleId, table.status),
+]);
+
+export const payrollRuns = pgTable("payroll_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scheduleId: uuid("schedule_id").references(() => payrollSchedules.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "set null" }),
+  cycleAt: timestamp("cycle_at", { withTimezone: true }).notNull(),
+  status: text("status").default("ready").notNull(),
+  memberCount: integer("member_count").notNull(),
+  totalAmountAtomic: numeric("total_amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  preparedAt: timestamp("prepared_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("payroll_runs_schedule_cycle_unique").on(table.scheduleId, table.cycleAt),
+  uniqueIndex("payroll_runs_distribution_unique").on(table.distributionId),
+  index("payroll_runs_schedule_status_idx").on(table.scheduleId, table.status, table.cycleAt),
+]);
+
 export const escrowAgreements = pgTable("escrow_agreements", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.4.0-reproducible-audit-readiness",
+    version: "3.5.0-community-payroll",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -55,6 +55,10 @@ export default withApi((request) => ok(request, {
     "/campaigns/manage": { post: { summary: "Cancel a campaign or refund an expired campaign" } },
     "/campaigns/recipients": { get: { summary: "List masked recipient allocations and settlement states" } },
     "/campaigns/analytics": { get: { summary: "Read live campaign targeting, claims, and activation totals" } },
+    "/payroll": {
+      get: { summary: "Read encrypted-roster community payroll schedules and Arc settlement runs" },
+      post: { summary: "Create, pause, resume, or prepare a walletless USDC or project-token payroll run" },
+    },
     "/escrow": {
       get: { summary: "List fully funded milestone agreements for the signed-in wallet" },
       post: { summary: "Create a USDC or project-token milestone agreement" },

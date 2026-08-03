@@ -18,7 +18,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "campaigns"
-  | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
+  | "new-campaign" | "funding" | "payroll" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -356,6 +356,16 @@ type CampaignAnalytics = {
     claimRate: number;
     activations: number;
   }>;
+};
+
+type PayrollWorkspace = {
+  schedules:Array<{
+    id:string;name:string;status:string;cadenceDays:number;nextRunAt:string;claimExpiresHours:number;
+    asset:{symbol:string;name:string;address:string;decimals:number};memberCount:number;totalAmount:string;totalAmountAtomic:string;
+    members:Array<{id:string;displayName:string;role:string|null;identityType:string;maskedIdentity:string;amount:string;status:string}>;
+    runs:Array<{id:string;distributionId:string|null;cycleAt:string;status:string;memberCount:number;totalAmount:string;preparedAt:string|null}>;
+  }>;
+  totals:{schedules:number;activeSchedules:number;contributors:number;preparedRuns:number};privacy:string;
 };
 
 type EvidenceCriterion = {
@@ -1008,7 +1018,7 @@ function compactAddress(value:string) {
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "campaigns",
-  "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
+  "new-campaign", "funding", "payroll", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -1027,7 +1037,7 @@ const appNav = [
     ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2],
     ["create", "Create link", Link2],
     ["payments", "Social payments", CircleDollarSign],
-    ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
+    ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["payroll", "Community payroll", Repeat2], ["recipients", "Recipients", Users],
     ["escrow", "Milestone escrow", Lock],
     ["commerce", "Merchant checkout", ShoppingBag],
     ["subscriptions", "Subscriptions", Repeat2],
@@ -1931,6 +1941,31 @@ function Campaigns({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
     {actionError&&<p className="auth-system-note is-error"><X/>{actionError}</p>}
     {!auth.account&&<div className="campaign-empty"><Lock/><h3>Sign in to operate campaigns</h3><p>Your live campaign data and recovery controls appear after your embedded wallet is open.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
     {auth.account&&<><CampaignTable campaigns={network.campaigns} loading={network.loading} onManage={campaign=>void manage(campaign)}/>{managing&&<div className="campaign-action-toast"><RefreshCw className="spin"/>Confirming campaign recovery on Arc…</div>}</>}</>;
+}
+
+function CommunityPayroll({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
+  const [state,setState]=useState<PayrollWorkspace|null>(null);
+  const [loading,setLoading]=useState(true);const [busy,setBusy]=useState<string|null>(null);const [error,setError]=useState<string|null>(null);
+  const [creating,setCreating]=useState(false);const [name,setName]=useState("Core community contributors");const [tokenAddress,setTokenAddress]=useState("");const [cadenceDays,setCadenceDays]=useState(14);
+  const [nextRunAt,setNextRunAt]=useState(()=>new Date(Date.now()+86_400_000).toISOString().slice(0,10));
+  const [members,setMembers]=useState([{displayName:"",role:"",identityType:"email",identity:"",amount:""}]);
+  const refresh=useCallback(async()=>{if(!auth.account){setLoading(false);return}setLoading(true);try{setState(await currentApi.get<PayrollWorkspace>("/payroll"));setError(null)}catch(reason){setError(reason instanceof Error?reason.message:"Community payroll is unavailable.")}finally{setLoading(false)}},[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const updateMember=(index:number,key:string,value:string)=>setMembers(current=>current.map((member,position)=>position===index?{...member,[key]:value}:member));
+  const create=async()=>{if(!auth.account){go("claim");return}setBusy("create");setError(null);try{await currentApi.post("/payroll",{name,tokenAddress:tokenAddress||undefined,cadenceDays,nextRunAt:new Date(`${nextRunAt}T12:00:00Z`).toISOString(),claimExpiresHours:168,members});setCreating(false);setMembers([{displayName:"",role:"",identityType:"email",identity:"",amount:""}]);await refresh()}catch(reason){setError(reason instanceof Error?reason.message:"The payroll schedule could not be created.")}finally{setBusy(null)}};
+  const prepare=async(scheduleId:string)=>{setBusy(`prepare:${scheduleId}`);setError(null);try{const result=await currentApi.post<{distributionId:string}>("/payroll",{action:"prepare",scheduleId});setBusy(`fund:${scheduleId}`);const approval=await currentApi.post<WalletActionResult>("/campaigns/fund",{distributionId:result.distributionId,action:"approve"});if(!approval.complete){if(!approval.challengeId)throw new Error("Circle did not return the payroll token approval.");await auth.executeChallenge(approval.challengeId);await confirmWalletAction("/campaigns/fund",{distributionId:result.distributionId,action:"approve"},approval.challengeId)}const deposit=await currentApi.post<WalletActionResult>("/campaigns/fund",{distributionId:result.distributionId,action:"deposit"});if(!deposit.complete){if(!deposit.challengeId)throw new Error("Circle did not return the payroll funding approval.");await auth.executeChallenge(deposit.challengeId);await confirmWalletAction("/campaigns/fund",{distributionId:result.distributionId,action:"deposit"},deposit.challengeId)}await refresh()}catch(reason){setError(reason instanceof Error?reason.message:"The payroll run could not be prepared and funded.");await refresh()}finally{setBusy(null)}};
+  const toggle=async(scheduleId:string,status:string)=>{setBusy(`status:${scheduleId}`);try{await currentApi.post("/payroll",{action:status==="active"?"pause":"resume",scheduleId});await refresh()}catch(reason){setError(reason instanceof Error?reason.message:"The payroll status could not be changed.")}finally{setBusy(null)}};
+  const totals=state?.totals;
+  return <><PageHero eyebrow="COMMUNITY PAYROLL" title="Pay the people who move the current." copy="Schedule repeat USDC or project-token payroll for contributors who can claim through email, social identity, or wallet—without needing crypto first." mode="branches"><Button tone="cyan" onClick={()=>setCreating(true)}>New payroll <Plus/></Button></PageHero>
+    <div className="campaign-summary-grid"><MetricCard label="Active schedules" value={(totals?.activeSchedules??0).toLocaleString()} icon={Repeat2}/><MetricCard label="Contributors" value={(totals?.contributors??0).toLocaleString()} icon={Users}/><MetricCard label="Prepared runs" value={(totals?.preparedRuns??0).toLocaleString()} icon={CheckCircle2}/><MetricCard label="Settlement rail" value="Arc" icon={Zap}/></div>
+    <div className="payroll-boundary"><ShieldCheck/><div><b>Recurring preparation, explicit settlement</b><small>Current prepares each encrypted roster and walletless allocation automatically. A project owner still approves funds in Circle before anything moves.</small></div><Status tone="green">Non-custodial approval</Status></div>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Open your workspace to run payroll</h3><p>Community rosters, schedules, and settlement history are private to authorized project operators.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}
+    {auth.account&&loading&&<div className="evidence-loading"><RefreshCw className="spin"/><div><b>Reconciling payroll</b><small>Reading encrypted rosters, due cycles, and Arc settlement state.</small></div></div>}
+    {auth.account&&!loading&&!state?.schedules.length&&<div className="campaign-empty"><Users/><h3>Your first contributor current starts here</h3><p>Create a reusable roster once, then prepare a fully funded walletless campaign every pay cycle.</p><Button tone="blue" onClick={()=>setCreating(true)}>Create payroll <Plus/></Button></div>}
+    {!!state?.schedules.length&&<div className="payroll-grid">{state.schedules.map(schedule=><article className="data-panel payroll-card" key={schedule.id}><header><div className="payroll-mark"><Repeat2/></div><div><Status tone={schedule.status==="active"?"green":"grey"}>{schedule.status}</Status><h3>{schedule.name}</h3><p>{schedule.asset.symbol} · every {schedule.cadenceDays} days</p></div><button className="payroll-pause" disabled={Boolean(busy)} onClick={()=>void toggle(schedule.id,schedule.status)}>{schedule.status==="active"?<><Pause/>Pause</>:<><Play/>Resume</>}</button></header><div className="payroll-stats"><span><small>NEXT RUN</small><b>{new Date(schedule.nextRunAt).toLocaleDateString(undefined,{month:"short",day:"numeric"})}</b></span><span><small>CONTRIBUTORS</small><b>{schedule.memberCount}</b></span><span><small>RUN TOTAL</small><b>{schedule.totalAmount} {schedule.asset.symbol}</b></span></div><div className="payroll-roster">{schedule.members.slice(0,4).map(member=><div key={member.id}><i>{member.displayName.slice(0,2).toUpperCase()}</i><span><b>{member.displayName}</b><small>{member.role||member.identityType} · {member.maskedIdentity}</small></span><strong>{member.amount} {schedule.asset.symbol}</strong></div>)}{schedule.members.length>4&&<small>+ {schedule.members.length-4} more contributors</small>}</div><div className="payroll-run-history">{schedule.runs.slice(0,3).map(run=><span key={run.id}><Status tone={run.status==="active"||run.status==="completed"?"green":run.status==="awaiting_funding"?"blue":"grey"}>{run.status.replaceAll("_"," ")}</Status><b>{new Date(run.cycleAt).toLocaleDateString()}</b><small>{run.totalAmount} {schedule.asset.symbol} · {run.memberCount} people</small></span>)}</div><footer><span><Lock/>Identities encrypted</span><Button tone="blue" disabled={Boolean(busy)||schedule.status!=="active"} onClick={()=>void prepare(schedule.id)}>{busy===`prepare:${schedule.id}`?"Preparing…":busy===`fund:${schedule.id}`?"Approve in Circle…":"Prepare & fund run"} <ArrowRight/></Button></footer></article>)}</div>}
+    {creating&&<div className="payroll-modal-shade" role="presentation"><section className="payroll-modal" role="dialog" aria-modal="true" aria-label="Create community payroll"><header><div><Eyebrow>NEW COMMUNITY PAYROLL</Eyebrow><h2>Build a reusable contributor roster.</h2><p>Raw identities are encrypted before storage and never returned to the dashboard.</p></div><button aria-label="Close" onClick={()=>setCreating(false)}><X/></button></header><div className="payroll-form-grid"><label>Payroll name<input value={name} onChange={event=>setName(event.target.value)} maxLength={100}/></label><label>Cadence<select value={cadenceDays} onChange={event=>setCadenceDays(Number(event.target.value))}><option value={7}>Weekly</option><option value={14}>Every two weeks</option><option value={30}>Monthly</option></select></label><label>First pay date<input type="date" value={nextRunAt} onChange={event=>setNextRunAt(event.target.value)}/></label><label>Project token contract <small>(blank = USDC)</small><input value={tokenAddress} onChange={event=>setTokenAddress(event.target.value)} placeholder="0x… or leave blank for USDC"/></label></div><div className="payroll-member-head"><div><b>Contributor roster</b><small>Email, X, wallet, game ID, or a custom identity.</small></div><button onClick={()=>setMembers(current=>[...current,{displayName:"",role:"",identityType:"email",identity:"",amount:""}])}><Plus/>Add contributor</button></div><div className="payroll-member-list">{members.map((member,index)=><div key={index}><input aria-label="Contributor name" value={member.displayName} onChange={event=>updateMember(index,"displayName",event.target.value)} placeholder="Name"/><input aria-label="Contributor role" value={member.role} onChange={event=>updateMember(index,"role",event.target.value)} placeholder="Role"/><select aria-label="Identity type" value={member.identityType} onChange={event=>updateMember(index,"identityType",event.target.value)}><option value="email">Email</option><option value="x">X account</option><option value="wallet">Wallet</option><option value="game">Game ID</option><option value="custom">Custom ID</option></select><input aria-label="Recipient identity" value={member.identity} onChange={event=>updateMember(index,"identity",event.target.value)} placeholder={member.identityType==="email"?"name@example.com":"Recipient identity"}/><input aria-label="Payroll amount" inputMode="decimal" value={member.amount} onChange={event=>updateMember(index,"amount",event.target.value)} placeholder="Amount"/><button aria-label="Remove contributor" disabled={members.length===1} onClick={()=>setMembers(current=>current.filter((_,position)=>position!==index))}><X/></button></div>)}</div><footer><div><ShieldCheck/><span><b>Walletless by default</b><small>Each pay run becomes a fully funded identity-bound Arc campaign.</small></span></div><Button tone="blue" disabled={busy==="create"||!name||members.some(member=>!member.displayName||!member.identity||!member.amount)} onClick={()=>void create()}>{busy==="create"?"Securing roster…":"Create payroll"} <ArrowRight/></Button></footer></section></div>}
+  </>;
 }
 
 function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
@@ -3320,6 +3355,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "payments":page=<SocialPayments auth={auth} go={go}/>;break;
     case "onboarding":page=<ProjectOnboarding go={go}/>;break;
     case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
+    case "payroll":page=<CommunityPayroll go={go} auth={auth}/>;break;
     case "new-campaign":page=<CampaignBuilder go={go} auth={auth}/>;break;
     case "funding":page=<CrosschainFunding go={go} auth={auth}/>;break;
     case "recipients":page=<Recipients auth={auth} go={go}/>;break;
