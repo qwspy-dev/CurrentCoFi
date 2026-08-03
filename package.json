@@ -21,6 +21,7 @@
     "conditions:test": "tsx tests/conditional-campaigns.integration.ts",
     "payroll:test": "tsx tests/community-payroll.integration.ts",
     "bounty:test": "tsx tests/community-bounties.integration.ts",
+    "treasury:test": "tsx tests/community-treasury.integration.ts",
     "audit:manifest": "node scripts/security/audit-manifest.mjs --write",
     "audit:verify": "node scripts/security/audit-manifest.mjs",
     "db:generate": "drizzle-kit generate",

@@ -285,6 +285,16 @@ export type BountyWorkspace = {
   privacy: string;
 };
 
+export type TreasuryWorkspace = {
+  treasury: null | { id: string; name: string; description: string | null; address: string; status: string; publicSlug: string; publicUrl: string };
+  balances: Array<{ symbol: string; address: string; amountAtomic: string | null; amount: string | null; decimals: number }>;
+  budgets: Array<{ id: string; category: string; status: string; limit: string; committed: string; spent: string; remaining: string; asset: string; periodStart: string; periodEnd: string }>;
+  proposals: Array<{ id: string; title: string; description: string; category: string; amount: string; status: string; recipientAddress: string; transactionHash: string | null; explorerUrl: string | null }>;
+  totals: { proposals: number; pending: number; executed: number; categories: number };
+};
+
+export type CreateTreasuryProposalInput = { treasuryId: string; budgetId?: string; title: string; description: string; category: string; recipientAddress: string; amount: string; tokenAddress?: string; proofUrl?: string };
+
 export type ActivationResult = {
   id?: string;
   duplicate: boolean;
@@ -761,6 +771,13 @@ export class Current {
     shortlist: (bountyId: string, submissionId: string) => this.signedPost<{ bountyId: string; submissionId: string; status: string }>("/api/v1/developer/bounties", { action: "shortlist", bountyId, submissionId }),
     reject: (bountyId: string, submissionId: string) => this.signedPost<{ bountyId: string; submissionId: string; status: string }>("/api/v1/developer/bounties", { action: "reject", bountyId, submissionId }),
     award: (bountyId: string, submissionId: string) => this.signedPost<{ bountyId: string; submissionId: string; status: string; claimUrl: string }>("/api/v1/developer/bounties", { action: "award", bountyId, submissionId }),
+  };
+
+  readonly treasury = {
+    get: () => this.get<TreasuryWorkspace>("/api/v1/developer/treasury"),
+    setup: (input: { name: string; description?: string }) => this.signedPost<TreasuryWorkspace["treasury"]>("/api/v1/developer/treasury", { action: "setup", ...input }),
+    createBudget: (input: { treasuryId: string; category: string; limit: string; tokenAddress?: string; periodStart: string; periodEnd: string }) => this.signedPost<{ id: string }>("/api/v1/developer/treasury", { action: "budget", ...input }),
+    createProposal: (input: CreateTreasuryProposalInput) => this.signedPost<{ id: string }>("/api/v1/developer/treasury", { action: "proposal", ...input }),
   };
 
   readonly activations = {

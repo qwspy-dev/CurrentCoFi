@@ -10,6 +10,7 @@ import {
   auditEvents,
   bounties,
   bountySubmissions,
+  communityTreasuries,
   claims,
   campaignQualityPolicies,
   checkoutLinks,
@@ -29,13 +30,15 @@ import {
   subscriptionPlans,
   subscriptions,
   tokens,
+  treasuryBudgets,
+  treasuryProposals,
   webhookEndpoints,
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v15";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v16";
 
 type Criterion = {
   id: string;
@@ -208,6 +211,17 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     db.select({ submission: bountySubmissions, bountyId: bounties.id })
       .from(bountySubmissions).innerJoin(bounties, eq(bounties.id, bountySubmissions.bountyId)).where(eq(bounties.projectId, projectId)),
   ]);
+  const treasuryPromise = Promise.all([
+    db.select().from(communityTreasuries).where(eq(communityTreasuries.projectId, projectId)),
+    db.select({ budget: treasuryBudgets, treasuryId: communityTreasuries.id })
+      .from(treasuryBudgets).innerJoin(communityTreasuries, eq(communityTreasuries.id, treasuryBudgets.treasuryId))
+      .where(eq(communityTreasuries.projectId, projectId)),
+    db.select({ proposal: treasuryProposals, token: tokens, treasuryId: communityTreasuries.id })
+      .from(treasuryProposals)
+      .innerJoin(communityTreasuries, eq(communityTreasuries.id, treasuryProposals.treasuryId))
+      .innerJoin(tokens, eq(tokens.id, treasuryProposals.tokenId))
+      .where(eq(communityTreasuries.projectId, projectId)).orderBy(desc(treasuryProposals.createdAt)),
+  ]);
 
   const [
     allocationRows,
@@ -378,6 +392,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   ]);
   const commerce = await commercePromise;
   const [bountyRows, bountySubmissionRows] = await bountyPromise;
+  const [treasuryRows, treasuryBudgetRows, treasuryProposalRows] = await treasuryPromise;
   const bountyEvidence = {
     totals: {
       bounties: bountyRows.length,
@@ -396,6 +411,29 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       anchors: { distributionId: row.distribution.id, merkleRoot: row.distribution.merkleRoot, fundingTransactionHash: row.distribution.fundingTxHash },
       awardedAt: row.bounty.awardedAt?.toISOString() ?? null,
     })),
+  };
+  const treasuryEvidence = {
+    totals: {
+      treasuries: treasuryRows.length,
+      budgets: treasuryBudgetRows.length,
+      proposals: treasuryProposalRows.length,
+      approved: treasuryProposalRows.filter((row) => ["approved", "authorizing", "executed"].includes(row.proposal.status)).length,
+      executed: treasuryProposalRows.filter((row) => row.proposal.status === "executed" && Boolean(row.proposal.transactionHash)).length,
+    },
+    items: treasuryProposalRows.map((row) => ({
+      id: row.proposal.id,
+      treasuryId: row.treasuryId,
+      title: row.proposal.title,
+      category: row.proposal.category,
+      status: row.proposal.status,
+      amount: formatAtomic(row.proposal.amountAtomic, row.token.decimals),
+      asset: { symbol: row.token.symbol, address: row.token.contractAddress },
+      approvalCount: row.proposal.approvalCount,
+      approvalsRequired: row.proposal.approvalsRequired,
+      transactionHash: row.proposal.transactionHash,
+      executedAt: row.proposal.executedAt?.toISOString() ?? null,
+    })),
+    privacy: "Proposal purpose, category, amounts, approvals, and public Arc receipts only. Recipient addresses are excluded from grant evidence.",
   };
 
   const allocationsByCampaign = new Map(allocationRows.map((row) => [row.distributionId, row]));
@@ -633,6 +671,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       evidence: `${bountyEvidence.totals.funded} funded bount${bountyEvidence.totals.funded === 1 ? "y" : "ies"}, ${bountyEvidence.totals.submissions} tamper-evident submission${bountyEvidence.totals.submissions === 1 ? "" : "s"}, and ${bountyEvidence.totals.awarded} award${bountyEvidence.totals.awarded === 1 ? "" : "s"}.`,
     },
     {
+      id: "transparent-community-treasury",
+      label: "Transparent community treasury",
+      weight: 10,
+      passed: treasuryEvidence.totals.executed > 0,
+      evidence: `${treasuryEvidence.totals.budgets} published budget${treasuryEvidence.totals.budgets === 1 ? "" : "s"}, ${treasuryEvidence.totals.proposals} proposal${treasuryEvidence.totals.proposals === 1 ? "" : "s"}, and ${treasuryEvidence.totals.executed} Circle-wallet-approved Arc payment${treasuryEvidence.totals.executed === 1 ? "" : "s"}.`,
+    },
+    {
       id: "external-pilot",
       label: "External pilot validation",
       weight: 10,
@@ -774,9 +819,14 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       fundedBounties: bountyEvidence.totals.funded,
       bountySubmissions: bountyEvidence.totals.submissions,
       bountyAwards: bountyEvidence.totals.awarded,
+      communityTreasuries: treasuryEvidence.totals.treasuries,
+      treasuryBudgets: treasuryEvidence.totals.budgets,
+      treasuryProposals: treasuryEvidence.totals.proposals,
+      treasuryPayments: treasuryEvidence.totals.executed,
     },
     commerce,
     bounties: bountyEvidence,
+    treasury: treasuryEvidence,
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({
       id: pilot.id,

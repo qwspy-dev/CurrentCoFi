@@ -70,6 +70,17 @@ const mockFetch: typeof fetch = async (input, init) => {
       },
     }, { status: 201 });
   }
+  if (String(input).endsWith("/developer/treasury")) {
+    const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : null;
+    if (body?.action === "proposal") return Response.json({ ok: true, data: { id: "proposal_sdk" } }, { status: 201 });
+    if (body?.action === "budget") return Response.json({ ok: true, data: { id: "budget_sdk" } }, { status: 201 });
+    if (body?.action === "setup") return Response.json({ ok: true, data: { id: "treasury_sdk", name: body.name } }, { status: 201 });
+    return Response.json({ ok: true, data: {
+      treasury: { id: "treasury_sdk", name: "Community current", description: "Public community budget", address: "0x1111111111111111111111111111111111111111", status: "active", publicSlug: "community-current", publicUrl: "https://current.test/?treasury=community-current#/public-treasury" },
+      balances: [], budgets: [{ id: "budget_sdk", category: "Creators", status: "active", limit: "1000", committed: "250", spent: "0", remaining: "750", asset: "USDC", periodStart: "2026-08-01T00:00:00.000Z", periodEnd: "2026-11-01T00:00:00.000Z" }],
+      proposals: [], totals: { proposals: 0, pending: 0, executed: 0, categories: 1 },
+    } });
+  }
   if (String(input).endsWith("/developer/activations")) {
     return Response.json({ ok: true, data: { duplicate: false, status: "accepted" } });
   }
@@ -229,14 +240,14 @@ const mockFetch: typeof fetch = async (input, init) => {
   if (String(input).endsWith("/developer/grant") && init?.method === "POST") {
     return Response.json({ ok: true, data: {
       schemaVersion: "current-grant-review-v1", digest: "grant_digest_sdk",
-      evidence: { id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v15", digest: "digest_sdk", integrity: { valid: true, recalculatedDigest: "digest_sdk" }, generatedAt: "2026-08-14T00:00:00.000Z" },
+      evidence: { id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v16", digest: "digest_sdk", integrity: { valid: true, recalculatedDigest: "digest_sdk" }, generatedAt: "2026-08-14T00:00:00.000Z" },
       application: { project: "Current CoFi", website: "https://current.test", oneLiner: "Walletless activation", problem: "Wallet friction", solution: "Embedded claims", whyArc: "Settlement", ecosystemValue: "Reusable infrastructure" },
       officialCriteria: [], architecture: [], proof: { readinessScore: 80 }, shipped: [], proposedMilestones: [], honestGaps: [], reviewerLinks: {}, privacy: "Aggregate only",
     } }, { status: 201 });
   }
   if (String(input).endsWith("/developer/grant")) {
     return Response.json({ ok: true, data: { packages: [{
-      id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v15", digest: "digest_sdk", distributionId: null, readinessScore: 80,
+      id: "evidence_sdk", publicSlug: "proof_sdk", schemaVersion: "current-evidence-v16", digest: "digest_sdk", distributionId: null, readinessScore: 80,
       project: { name: "Current CoFi", slug: "current-cofi" }, totals: { campaigns: 1, recipients: 10, claims: 8, activations: 4 }, createdAt: "2026-08-14T00:00:00.000Z",
     }] } });
   }
@@ -455,6 +466,13 @@ assert.equal(JSON.parse(String(attestationRequest?.init?.body)).identityType, "x
 
 const analytics = await current.analytics.get();
 assert.equal(analytics.totals.campaigns, 1);
+const treasury = await current.treasury.get();
+assert.equal(treasury.treasury?.id, "treasury_sdk");
+assert.equal(treasury.budgets[0]?.remaining, "750");
+const treasuryProposal = await current.treasury.createProposal({ treasuryId: "treasury_sdk", budgetId: "budget_sdk", title: "Creator launch reel", description: "Pay the contributor after the community launch reel is delivered.", category: "Creators", recipientAddress: "0x2222222222222222222222222222222222222222", amount: "250" });
+assert.equal(treasuryProposal.id, "proposal_sdk");
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).action, "proposal");
+assert.ok(new Headers(requests.at(-1)?.init?.headers).get("x-current-signature"));
 const publicApplication = await current.dossier.application();
 assert.equal(publicApplication.digest, "application_digest_sdk");
 assert.equal(requests.at(-1)?.url, "https://current.test/api/v1/grant-application");

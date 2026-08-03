@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.6.0-community-bounties",
+    version: "3.7.0-community-treasury",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -67,6 +67,11 @@ export default withApi((request) => ok(request, {
       get: { summary: "Resolve a public bounty and verify its Arc prize funding" },
       post: { summary: "Submit public HTTPS work proof with an encrypted contact identity" },
     },
+    "/treasury": {
+      get: { summary: "Read the signed-in project's non-custodial community treasury, budgets, proposals, and Arc receipts" },
+      post: { summary: "Configure a treasury, publish a category budget, propose spending, approve it, or authorize payment with the configured Circle wallet" },
+    },
+    "/treasury/public": { get: { summary: "Verify public category budgets, masked proposals, balances, and Arc payment receipts" } },
     "/escrow": {
       get: { summary: "List fully funded milestone agreements for the signed-in wallet" },
       post: { summary: "Create a USDC or project-token milestone agreement" },
@@ -137,6 +142,10 @@ export default withApi((request) => ok(request, {
     "/developer/bounties": {
       get: { summary: "Read project bounties and masked submissions with a scoped API key" },
       post: { summary: "Create or award an HMAC-signed, prize-backed community bounty" },
+    },
+    "/developer/treasury": {
+      get: { summary: "Read a project's community treasury with a scoped API key" },
+      post: { summary: "Configure budgets or create an HMAC-signed treasury proposal; payment execution always requires the configured Circle wallet" },
     },
     "/developer/links": { post: { summary: "Create an HMAC-signed private USDC or project-token claim link" } },
     "/developer/tokens/inspect": { post: { summary: "Inspect Arc ERC-20 metadata with an HMAC-signed request" } },
@@ -232,7 +241,7 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "community-bounties", "bounty-submissions", "walletless-bounty-awards", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "community-bounties", "bounty-submissions", "walletless-bounty-awards", "transparent-community-treasury", "treasury-budgets", "treasury-proposals", "treasury-payment-receipts", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "builder-integration-manifest", "integration-conformance", "portable-integration-certificates", "public-network-proof", "verified-testnet-traction", "public-campaign-proof-explorer", "privacy-safe-campaign-evidence", "account-free-reviewer-demo", "non-mutating-verified-replay", "public-project-token-proof", "arbitrary-erc20-testnet-evidence", "completed-project-token-settlement", "continuous-grant-proof-health", "public-grant-dossier",

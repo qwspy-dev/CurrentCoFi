@@ -136,6 +136,31 @@ export function createCurrentMcpServer(input: CurrentMcpConfig = configFromEnv()
     catch (error) { return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the bounty."); }
   });
 
+  server.registerTool("current_get_community_treasury", {
+    title: "Read the community treasury",
+    description: "Read transparent budgets, proposal decisions, and Arc settlement receipts for the configured project.",
+    inputSchema: noInput,
+    annotations: readOnly,
+  }, async () => {
+    try { return success(await requireProject().treasury.get()); }
+    catch (error) { return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Community treasury is unavailable."); }
+  });
+
+  server.registerTool("current_create_treasury_proposal", {
+    title: "Create a community treasury proposal",
+    description: "Create a transparent spending proposal. This never moves funds; authorized project members must approve it and the configured Circle wallet must execute it.",
+    inputSchema: {
+      treasuryId: z.string().uuid(), budgetId: z.string().uuid().optional(), title: z.string().min(3).max(100), description: z.string().min(20).max(2_000), category: z.string().min(2).max(50),
+      recipientAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/), amount: z.string().regex(/^\d+(\.\d{1,18})?$/), tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(), proofUrl: z.string().url().optional(),
+      approval: z.literal("I_APPROVE_CURRENT_TREASURY_PROPOSAL"),
+    },
+    annotations: mutation,
+  }, async ({ approval: _approval, ...value }) => {
+    void _approval;
+    try { return success(await requireProject().treasury.createProposal(value)); }
+    catch (error) { return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the treasury proposal."); }
+  });
+
   const recipientSchema = z.object({
     identityType: z.enum(["email", "wallet", "x", "game", "custom"]),
     identity: z.string().min(1).max(320),
@@ -182,5 +207,5 @@ export function createCurrentMcpServer(input: CurrentMcpConfig = configFromEnv()
     catch (error) { return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the activation."); }
   });
 
-  return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 9, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
+  return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 11, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
 }

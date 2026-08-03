@@ -41,6 +41,10 @@ For project mode, add `CURRENT_API_KEY` and `CURRENT_SIGNING_SECRET` from a scop
 - `current_get_integration_manifest`
 - `current_get_campaign_analytics`
 - `current_list_community_bounties`
+- `current_get_community_treasury`
+- `current_create_treasury_proposal`
 - `current_create_community_bounty`
 - `current_propose_reward_distribution`
 - `current_submit_activation`
+
+Treasury agents can read published budgets and propose spending only after the exact `I_APPROVE_CURRENT_TREASURY_PROPOSAL` phrase. They cannot execute a payment; the configured Circle treasury wallet must approve the final transfer.

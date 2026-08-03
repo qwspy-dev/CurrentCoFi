@@ -162,6 +162,13 @@
       "when": 1785788540016,
       "tag": "0022_narrow_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1785790522731,
+      "tag": "0023_marvelous_maverick",
+      "breakpoints": true
     }
   ]
 }

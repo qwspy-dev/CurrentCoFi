@@ -26,13 +26,15 @@ const manifestBody = {
     { method: "POST", path: "/api/v1/developer/distributions", purpose: "Create identity-bound USDC or project-token distributions", permission: "distributions:write", signed: true },
     { method: "POST", path: "/api/v1/developer/bounties", purpose: "Create and award fully funded community work bounties", permission: "campaigns:write", signed: true },
     { method: "GET", path: "/api/v1/developer/bounties", purpose: "Read masked bounty submissions and Arc prize status", permission: "analytics:read", signed: false },
+    { method: "GET", path: "/api/v1/developer/treasury", purpose: "Read published budgets, spending proposals, and Arc receipts", permission: "analytics:read", signed: false },
+    { method: "POST", path: "/api/v1/developer/treasury", purpose: "Configure budgets or create a proposal without granting fund-moving authority", permission: "campaigns:write", signed: true },
     { method: "POST", path: "/api/v1/developer/identity-attestations", purpose: "Bind an offchain identity to an exact recipient wallet", permission: "identities:write", signed: true },
     { method: "POST", path: "/api/v1/developer/claim-conditions", purpose: "Verify a wallet-bound action before campaign settlement", permission: "identities:write", signed: true },
     { method: "POST", path: "/api/v1/developer/activations", purpose: "Attribute valuable post-claim actions", permission: "activations:write", signed: true },
     { method: "GET", path: "/api/v1/developer/analytics", purpose: "Read claim, activation, referral, and retention outcomes", permission: "analytics:read", signed: false },
     { method: "GET", path: "/api/v1/developer/integration-readiness", purpose: "Read the project integration checklist", permission: "analytics:read", signed: false },
   ],
-  webhookEvents: ["identity.verified", "claim.completed", "activation.completed", "referral.credited", "campaign.expired", "refund.completed", "bounty.created", "bounty.submitted", "bounty.awarded"],
+  webhookEvents: ["identity.verified", "claim.completed", "activation.completed", "referral.credited", "campaign.expired", "refund.completed", "bounty.created", "bounty.submitted", "bounty.awarded", "treasury.created", "treasury.budget_created", "treasury.proposal_created", "treasury.proposal_approved", "treasury.proposal_rejected", "treasury.payment_executed"],
   security: ["Hashed API keys", "HMAC-signed mutations", "Five-minute replay window", "Project-scoped permissions", "Idempotent write operations", "Signed webhook delivery"],
 } as const;
 

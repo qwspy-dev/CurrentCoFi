@@ -22,7 +22,7 @@ Read-only mode is the default and does not need Current credentials. It exposes 
 
 ## Project setup
 
-Project mode adds authenticated analytics, community-bounty access, and three write tools. Store credentials in the agent host's secret manager, never in prompts or source control.
+Project mode adds authenticated analytics, community-bounty and community-treasury access, and four write tools. Store credentials in the agent host's secret manager, never in prompts or source control.
 
 ```json
 {
@@ -39,6 +39,8 @@ The MCP server does not hold wallet private keys or seed phrases. Reward proposa
 
 Activation submission requires the exact `I_APPROVE_CURRENT_ACTIVATION` phrase and an idempotent external event identifier. Recipient batches default to 25 and cannot exceed 500.
 
+Treasury proposal creation requires the exact `I_APPROVE_CURRENT_TREASURY_PROPOSAL` phrase. Agents can read budgets and create a proposal, but cannot move treasury funds. Approval and final settlement require the configured Circle treasury wallet in the signed-in product.
+
 ## Verification
 
 - Public manifest: `https://www.currentco.finance/api/v1/mcp-manifest`
@@ -46,4 +48,4 @@ Activation submission requires the exact `I_APPROVE_CURRENT_ACTIVATION` phrase a
 - Developer interface: `https://www.currentco.finance/#/developers`
 - Source package: `packages/mcp`
 
-The integration test launches the compiled server over stdio, connects through the official MCP client, discovers all nine tools, exercises public and authenticated reads, verifies signed write requests, and proves that missing approval is rejected.
+The integration test launches the compiled server over stdio, connects through the official MCP client, discovers all eleven tools, exercises public and authenticated reads, verifies signed write requests, and proves that missing approval is rejected.

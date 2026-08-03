@@ -105,3 +105,12 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Browser integrity: no framework overlay or error-level browser logs appeared in the workspace or creation flow.
 - Static resilience: the screen remains complete without motion; current-line decoration does not carry required meaning.
 - Evidence captures: `qa-bounties-desktop.png`, `qa-bounty-modal-desktop.png`, and `qa-bounty-modal-mobile.png`.
+
+## Transparent community treasury QA — 2026-08-03
+
+- Desktop 1440×900: verified the treasury promise, four outcome metrics, non-custodial Circle-wallet boundary, and account gate form a complete hierarchy without overflow.
+- Mobile 390×844: verified the hero current graphic, headline, primary action, and metric stack deliberately recompose into one touch-friendly column with zero horizontal overflow.
+- Static resilience: public budgets, approvals, wallet authorization, and Arc receipts remain understandable without motion or decorative current lines.
+- Browser integrity: no framework overlay or error-level browser logs appeared during the desktop or mobile render.
+- Engineering verification: lint, TypeScript, production build, treasury security checks, SDK integration, eleven-tool MCP integration, and the complete developer/grant regression suite pass.
+- Evidence captures: `qa-treasury-desktop.png` and `qa-treasury-mobile.png`.

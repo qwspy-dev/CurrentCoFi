@@ -246,6 +246,76 @@ export const bountySubmissions = pgTable("bounty_submissions", {
   index("bounty_submissions_bounty_status_idx").on(table.bountyId, table.status, table.createdAt),
 ]);
 
+export const communityTreasuries = pgTable("community_treasuries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+  publicSlug: text("public_slug").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  treasuryAddress: text("treasury_address").notNull(),
+  status: text("status").default("active").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("community_treasuries_project_unique").on(table.projectId),
+  uniqueIndex("community_treasuries_slug_unique").on(table.publicSlug),
+  index("community_treasuries_owner_idx").on(table.ownerUserId, table.createdAt),
+]);
+
+export const treasuryBudgets = pgTable("treasury_budgets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  treasuryId: uuid("treasury_id").references(() => communityTreasuries.id, { onDelete: "cascade" }).notNull(),
+  tokenId: uuid("token_id").references(() => tokens.id, { onDelete: "restrict" }).notNull(),
+  category: text("category").notNull(),
+  limitAtomic: numeric("limit_atomic", { precision: 78, scale: 0 }).notNull(),
+  periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+  periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+  status: text("status").default("active").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  index("treasury_budgets_treasury_status_idx").on(table.treasuryId, table.status, table.periodEnd),
+]);
+
+export const treasuryProposals = pgTable("treasury_proposals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  treasuryId: uuid("treasury_id").references(() => communityTreasuries.id, { onDelete: "cascade" }).notNull(),
+  budgetId: uuid("budget_id").references(() => treasuryBudgets.id, { onDelete: "set null" }),
+  creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
+  tokenId: uuid("token_id").references(() => tokens.id, { onDelete: "restrict" }).notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(),
+  recipientAddress: text("recipient_address").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  status: text("status").default("pending").notNull(),
+  approvalsRequired: integer("approvals_required").default(1).notNull(),
+  approvalCount: integer("approval_count").default(0).notNull(),
+  transferId: uuid("transfer_id").references(() => walletTransfers.id, { onDelete: "set null" }),
+  transactionHash: text("transaction_hash"),
+  proofUrl: text("proof_url"),
+  executedAt: timestamp("executed_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("treasury_proposals_transfer_unique").on(table.transferId),
+  index("treasury_proposals_treasury_status_idx").on(table.treasuryId, table.status, table.createdAt),
+  index("treasury_proposals_budget_idx").on(table.budgetId, table.createdAt),
+]);
+
+export const treasuryApprovals = pgTable("treasury_approvals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  proposalId: uuid("proposal_id").references(() => treasuryProposals.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  decision: text("decision").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("treasury_approvals_proposal_user_unique").on(table.proposalId, table.userId),
+  index("treasury_approvals_proposal_idx").on(table.proposalId, table.createdAt),
+]);
+
 export const escrowAgreements = pgTable("escrow_agreements", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

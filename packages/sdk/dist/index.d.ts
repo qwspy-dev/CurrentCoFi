@@ -806,6 +806,64 @@ export type BountyWorkspace = {
     };
     privacy: string;
 };
+export type TreasuryWorkspace = {
+    treasury: null | {
+        id: string;
+        name: string;
+        description: string | null;
+        address: string;
+        status: string;
+        publicSlug: string;
+        publicUrl: string;
+    };
+    balances: Array<{
+        symbol: string;
+        address: string;
+        amountAtomic: string | null;
+        amount: string | null;
+        decimals: number;
+    }>;
+    budgets: Array<{
+        id: string;
+        category: string;
+        status: string;
+        limit: string;
+        committed: string;
+        spent: string;
+        remaining: string;
+        asset: string;
+        periodStart: string;
+        periodEnd: string;
+    }>;
+    proposals: Array<{
+        id: string;
+        title: string;
+        description: string;
+        category: string;
+        amount: string;
+        status: string;
+        recipientAddress: string;
+        transactionHash: string | null;
+        explorerUrl: string | null;
+    }>;
+    totals: {
+        proposals: number;
+        pending: number;
+        executed: number;
+        categories: number;
+    };
+};
+export type CreateTreasuryProposalInput = {
+    treasuryId: string;
+    budgetId?: string;
+    title: string;
+    description: string;
+    category: string;
+    recipientAddress: string;
+    amount: string;
+    tokenAddress?: string;
+    proofUrl?: string;
+};
 export type ActivationResult = {
     id?: string;
     duplicate: boolean;
@@ -1546,6 +1604,34 @@ export declare class Current {
             submissionId: string;
             status: string;
             claimUrl: string;
+        }>;
+    };
+    readonly treasury: {
+        get: () => Promise<TreasuryWorkspace>;
+        setup: (input: {
+            name: string;
+            description?: string;
+        }) => Promise<{
+            id: string;
+            name: string;
+            description: string | null;
+            address: string;
+            status: string;
+            publicSlug: string;
+            publicUrl: string;
+        } | null>;
+        createBudget: (input: {
+            treasuryId: string;
+            category: string;
+            limit: string;
+            tokenAddress?: string;
+            periodStart: string;
+            periodEnd: string;
+        }) => Promise<{
+            id: string;
+        }>;
+        createProposal: (input: CreateTreasuryProposalInput) => Promise<{
+            id: string;
         }>;
     };
     readonly activations: {
