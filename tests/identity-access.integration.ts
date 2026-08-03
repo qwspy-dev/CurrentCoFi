@@ -33,7 +33,7 @@ assert.equal(publicConfig.capabilities.externalIdentityLinking, true);
 assert.deepEqual(externalIdentityAvailability(), { x: true, discord: true, telegram: true });
 
 const signedOutResponse = await sessionEndpoint.fetch(new Request("https://www.currentco.finance/api/v1/auth/session"));
-const signedOutPayload = await signedOutResponse.json();
+const signedOutPayload = await signedOutResponse.json() as { data: { authenticated: boolean } };
 assert.equal(signedOutResponse.status, 200);
 assert.deepEqual(signedOutPayload.data, { authenticated: false });
 
