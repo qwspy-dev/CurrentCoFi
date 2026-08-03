@@ -1,4 +1,5 @@
 import { resolveToken } from "../../../../server/campaigns/repository.js";
+import { inspectArcTokenTrust } from "../../../../server/tokens/trust.js";
 import { ARC_TESTNET } from "../../../../server/config.js";
 import { authenticateDeveloperKey, requireDeveloperPermission, verifySignedDeveloperRequest } from "../../../../server/developer/keys.js";
 import { ApiError, ok, withApi } from "../../../../server/http.js";
@@ -14,6 +15,7 @@ export default withApi(async (request) => {
   const address = typeof body.address === "string" ? body.address.trim() : "";
   if (!address) throw new ApiError(400, "TOKEN_ADDRESS_REQUIRED", "Enter an Arc token contract address.");
   const token = await resolveToken(key.projectId, address);
+  const trust = (token.metadata as Record<string, unknown>).trust ?? await inspectArcTokenTrust(token.contractAddress);
   return ok(request, {
     address: token.contractAddress,
     symbol: token.symbol,
@@ -21,6 +23,7 @@ export default withApi(async (request) => {
     decimals: token.decimals,
     verified: token.verified,
     network: ARC_TESTNET.network,
+    trust,
     warning: token.verified ? null : "Metadata was read onchain and is not an endorsement by Current CoFi.",
   });
 }, ["POST"]);

@@ -26,6 +26,7 @@ type PortfolioToken = {
   name: string;
   decimals: number;
   verified: boolean;
+  trustPosture: "circle-verified" | "review-required" | "standard-observations" | "not-inspected";
 };
 
 export type PortfolioActivity = {
@@ -51,6 +52,7 @@ function assetFromMetadata(request: typeof socialPaymentRequests.$inferSelect): 
     name: typeof asset.name === "string" ? asset.name : request.currency,
     decimals: typeof asset.decimals === "number" ? asset.decimals : 6,
     verified: asset.verified === true,
+    trustPosture: asset.verified === true ? "circle-verified" : "not-inspected",
   };
 }
 
@@ -66,12 +68,16 @@ async function tokenCatalog() {
   const rows = await getDb().select().from(tokens).orderBy(desc(tokens.updatedAt)).limit(100);
   const catalog = new Map<string, PortfolioToken>();
   catalog.set(ARC_TESTNET.usdcAddress.toLowerCase(), {
-    address: ARC_TESTNET.usdcAddress.toLowerCase(), symbol: "USDC", name: "USD Coin", decimals: 6, verified: true,
+    address: ARC_TESTNET.usdcAddress.toLowerCase(), symbol: "USDC", name: "USD Coin", decimals: 6, verified: true, trustPosture: "circle-verified",
   });
   for (const token of rows) {
+    const metadata = token.metadata as Record<string, unknown>;
+    const trust = metadata.trust && typeof metadata.trust === "object" && !Array.isArray(metadata.trust) ? metadata.trust as Record<string, unknown> : {};
+    const posture = ["circle-verified", "review-required", "standard-observations"].includes(String(trust.posture))
+      ? trust.posture as PortfolioToken["trustPosture"] : "not-inspected";
     catalog.set(token.contractAddress.toLowerCase(), {
       address: token.contractAddress.toLowerCase(), symbol: token.symbol, name: token.name,
-      decimals: token.decimals, verified: token.verified || token.contractAddress.toLowerCase() === ARC_TESTNET.usdcAddress.toLowerCase(),
+      decimals: token.decimals, verified: token.verified || token.contractAddress.toLowerCase() === ARC_TESTNET.usdcAddress.toLowerCase(), trustPosture: posture,
     });
   }
   return catalog;

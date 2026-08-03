@@ -147,6 +147,7 @@ export async function resolveClaimLink(tokenValue: string) {
     symbol: tokens.symbol,
     decimals: tokens.decimals,
     chainCode: tokens.chainCode,
+    tokenMetadata: tokens.metadata,
   }).from(allocations)
     .innerJoin(distributions, eq(distributions.id, allocations.distributionId))
     .innerJoin(projects, eq(projects.id, distributions.projectId))
@@ -165,6 +166,8 @@ export async function resolveClaimLink(tokenValue: string) {
   const rules = row.rules as Record<string, unknown>;
   const identityBound = rules.claimMode === "identity-bound";
   const recipientLabels = metadata.recipientLabels as Record<string, string> | undefined;
+  const tokenMetadata = row.tokenMetadata as Record<string, unknown>;
+  const trust = tokenMetadata.trust as Record<string, unknown> | undefined;
   return {
     id: row.distributionId,
     allocationId: row.allocationId,
@@ -173,6 +176,15 @@ export async function resolveClaimLink(tokenValue: string) {
     claimable: !expired && row.allocationStatus === "available" && row.distributionStatus === "active",
     amount: formatAtomic(row.amountAtomic, row.decimals),
     asset: row.symbol,
+    assetTrust: trust ? {
+      posture: typeof trust.posture === "string" ? trust.posture : "standard-observations",
+      reviewDigest: typeof trust.reviewDigest === "string" ? trust.reviewDigest : null,
+      inspectedAt: typeof trust.inspectedAt === "string" ? trust.inspectedAt : null,
+      explorerUrl: typeof trust.explorerUrl === "string" ? trust.explorerUrl : null,
+      boundary: typeof trust.boundary === "string"
+        ? trust.boundary
+        : "Contract observations are not an audit, endorsement, or guarantee.",
+    } : null,
     network: row.chainCode,
     project: { name: row.projectName, logoUrl: row.projectLogo },
     message: typeof metadata.message === "string" ? metadata.message : "",

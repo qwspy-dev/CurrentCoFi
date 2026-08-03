@@ -1,12 +1,10 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import {
-  createPublicClient,
   getAddress,
-  http,
   isAddress,
   keccak256,
 } from "viem";
-import { ARC_TESTNET, getServerConfig } from "../config.js";
+import { ARC_TESTNET } from "../config.js";
 import { getDb } from "../db/client.js";
 import {
   activationEvents,
@@ -21,33 +19,10 @@ import {
 import { ApiError } from "../http.js";
 import { sha256, signClaimToken } from "../security/crypto.js";
 import { normalizeBoundIdentity, type CampaignClaimMode } from "../claims/identity-binding.js";
+import { inspectArcTokenTrust } from "../tokens/trust.js";
 import { buildCampaignTree } from "./merkle.js";
 
 const AMOUNT_PATTERN = /^\d{1,30}(?:\.\d{1,18})?$/;
-const ERC20_METADATA_ABI = [
-  {
-    type: "function",
-    stateMutability: "view",
-    name: "symbol",
-    inputs: [],
-    outputs: [{ type: "string" }],
-  },
-  {
-    type: "function",
-    stateMutability: "view",
-    name: "name",
-    inputs: [],
-    outputs: [{ type: "string" }],
-  },
-  {
-    type: "function",
-    stateMutability: "view",
-    name: "decimals",
-    inputs: [],
-    outputs: [{ type: "uint8" }],
-  },
-] as const;
-
 export type CampaignRecipientInput = {
   identityType: "email" | "wallet" | "x" | "game" | "custom";
   identity: string;
@@ -103,25 +78,8 @@ export async function resolveToken(projectId: string, requestedAddress?: string)
   const address = requestedAddress?.trim() || ARC_TESTNET.usdcAddress;
   if (!isAddress(address)) throw new ApiError(400, "INVALID_TOKEN", "Enter a valid Arc token contract address.");
   const contractAddress = getAddress(address);
-  let symbol = "USDC";
-  let name = "USD Coin";
-  let decimals = 6;
-  const verified = contractAddress.toLowerCase() === ARC_TESTNET.usdcAddress.toLowerCase();
-  if (!verified) {
-    const client = createPublicClient({ transport: http(getServerConfig().ARC_RPC_URL) });
-    try {
-      [symbol, name, decimals] = await Promise.all([
-        client.readContract({ address: contractAddress, abi: ERC20_METADATA_ABI, functionName: "symbol" }),
-        client.readContract({ address: contractAddress, abi: ERC20_METADATA_ABI, functionName: "name" }),
-        client.readContract({ address: contractAddress, abi: ERC20_METADATA_ABI, functionName: "decimals" }),
-      ]);
-    } catch {
-      throw new ApiError(400, "TOKEN_NOT_READABLE", "Current CoFi could not read this token on Arc testnet.");
-    }
-    if (decimals > 18 || !symbol || symbol.length > 24 || !name || name.length > 100) {
-      throw new ApiError(400, "INVALID_TOKEN", "This token exposes unsupported metadata.");
-    }
-  }
+  const trust = await inspectArcTokenTrust(contractAddress);
+  const { symbol, name, decimals, verified } = trust;
   const [token] = await db.insert(tokens).values({
     projectId,
     chainCode: ARC_TESTNET.network,
@@ -130,10 +88,10 @@ export async function resolveToken(projectId: string, requestedAddress?: string)
     name,
     decimals,
     verified,
-    metadata: { source: verified ? "circle" : "onchain", network: ARC_TESTNET.network },
+    metadata: { source: verified ? "circle" : "onchain", network: ARC_TESTNET.network, trust },
   }).onConflictDoUpdate({
     target: [tokens.chainCode, tokens.contractAddress],
-    set: { symbol, name, decimals, updatedAt: new Date() },
+    set: { symbol, name, decimals, metadata: { source: verified ? "circle" : "onchain", network: ARC_TESTNET.network, trust }, updatedAt: new Date() },
   }).returning();
   return token;
 }

@@ -3,6 +3,7 @@ import { sessionFromRequest } from "../../../server/auth/session.js";
 import { resolveToken } from "../../../server/campaigns/repository.js";
 import { ARC_TESTNET } from "../../../server/config.js";
 import { ApiError, ok, readJsonObject, withApi } from "../../../server/http.js";
+import { inspectArcTokenTrust } from "../../../server/tokens/trust.js";
 
 export default withApi(async (request) => {
   const session = await sessionFromRequest(request);
@@ -12,6 +13,7 @@ export default withApi(async (request) => {
   const address = typeof body.address === "string" ? body.address.trim() : "";
   if (!address) throw new ApiError(400, "TOKEN_ADDRESS_REQUIRED", "Enter an Arc token contract address.");
   const token = await resolveToken(project.id, address);
+  const trust = (token.metadata as Record<string, unknown>).trust ?? await inspectArcTokenTrust(token.contractAddress);
   return ok(request, {
     address: token.contractAddress,
     symbol: token.symbol,
@@ -19,6 +21,7 @@ export default withApi(async (request) => {
     decimals: token.decimals,
     verified: token.verified,
     network: ARC_TESTNET.network,
+    trust,
     warning: token.verified
       ? null
       : "Contract metadata was read directly from Arc. Current CoFi does not endorse or guarantee this token.",

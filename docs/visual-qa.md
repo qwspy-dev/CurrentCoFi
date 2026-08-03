@@ -69,3 +69,12 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Browser integrity: no framework overlay and no error-level browser logs after render.
 - Mobile composition is deliberately defined at 1050px and 700px: the assurance scene collapses to one column, controls move their status below the copy, fund flows stack, and review links become a single-column list.
 - Production acceptance requires the live `/api/v1/security` response, security headers, and authenticated `/api/v1/developer/security` boundary to pass after deployment.
+
+## Arc asset trust layer QA — 2026-08-02
+
+- Desktop 1440×900: verified the personal asset-link workspace keeps a strong hierarchy, readable token selection, and a complete claim preview without overflow.
+- Mobile 390×844: verified the form and preview deliberately stack, controls remain touch-friendly, and the page stays inside the viewport.
+- Reduced motion: verified the same composition remains usable with `prefers-reduced-motion` enabled.
+- Browser integrity: no framework overlay or error-level browser logs after render.
+- Live Arc integration: reproduced a six-signal USDC contract observation from the public Arc Testnet RPC and generated a stable review digest.
+- Evidence captures: `qa-token-trust-create-desktop.png` and `qa-token-trust-create-mobile.png`.
