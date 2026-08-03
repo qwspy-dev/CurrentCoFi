@@ -24,6 +24,7 @@ const criteria = [
 const shipped = [
   { id: "walletless-claims", label: "Walletless USDC and project-token claims", detail: "Identity-bound and allowlist claims create embedded wallets and sponsor Arc settlement." },
   { id: "verified-portfolio", label: "Verified multi-asset recipient account", detail: "Recipients see live Arc balances and one settlement ledger, while project tokens remain explicitly unpriced without a trustworthy market source." },
+  { id: "active-wallet", label: "Noncustodial active wallet controls", detail: "Recipients can move USDC or inspected project tokens through an exact Circle approval, with live balance checks and Arc receipts returning to the unified account record." },
   { id: "asset-trust", label: "Continuous project-token control monitoring", detail: "Every Arc token has an approved control baseline. Current rechecks bytecode, ownership, proxy state, and monitored selectors before funding and claim authorization, automatically pauses affected campaigns on drift, and records explicit acknowledgement without labeling a token safe or endorsed." },
   { id: "universal-social-payments", label: "Non-custodial social payments for any Arc asset", detail: "Username sends, requests, tips, and split links settle exact USDC or project-token amounts directly between Circle wallets." },
   { id: "campaigns", label: "Fully funded distribution campaigns", detail: "Merkle allocations, expirations, refunds, recipient management, referral attribution, and activation analytics." },

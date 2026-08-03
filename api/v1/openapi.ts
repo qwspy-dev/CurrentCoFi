@@ -33,6 +33,7 @@ export default withApi((request) => ok(request, {
       post: { summary: "Create a persistent, signed walletless USDC or Arc project-token claim link" },
     },
     "/portfolio": { get: { summary: "Read verified Arc token balances and unified signed-in account activity" } },
+    "/portfolio/transfer": { post: { summary: "Prepare or confirm an exact authenticated Arc ERC-20 wallet transfer" } },
     "/tokens/inspect": { post: { summary: "Read Arc ERC-20 metadata, bytecode integrity, proxy, ownership, supply, and monitored control signals" } },
     "/asset-trust": {
       get: { summary: "List approved and current Arc token-control baselines, campaign coverage, drift, and review history" },

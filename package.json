@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "social:test": "tsx tests/social-payments.integration.ts",
     "portfolio:test": "tsx tests/portfolio.integration.ts",
+    "wallet-transfer:test": "tsx tests/wallet-transfers.integration.ts",
     "token-trust:test": "tsx tests/token-trust.integration.ts",
     "token-monitor:test": "tsx tests/token-monitor.integration.ts",
     "conditions:test": "tsx tests/conditional-campaigns.integration.ts",

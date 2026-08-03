@@ -13,6 +13,7 @@ export default withApi((request) => ok(request, {
       "account-recovery",
       "persistent-accounts",
       "verified-onchain-account-portfolio",
+      "authenticated-multi-asset-wallet-transfers",
       "multi-asset-balance-discovery",
       "unified-account-activity",
       "conservative-project-token-valuation",

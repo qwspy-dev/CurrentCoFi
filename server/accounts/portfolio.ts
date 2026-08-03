@@ -14,6 +14,7 @@ import {
   subscriptionPlans,
   subscriptions,
   tokens,
+  walletTransfers,
 } from "../db/schema.js";
 import { formatAtomic } from "../campaigns/repository.js";
 
@@ -31,7 +32,7 @@ type PortfolioToken = {
 
 export type PortfolioActivity = {
   id: string;
-  kind: "claim" | "social-payment" | "checkout" | "subscription";
+  kind: "claim" | "social-payment" | "checkout" | "subscription" | "wallet-transfer";
   direction: "in" | "out";
   title: string;
   amount: string;
@@ -155,6 +156,9 @@ async function accountActivity(userId: string) {
     .innerJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
     .where(eq(subscriptions.subscriberUserId, userId)).orderBy(desc(subscriptionPayments.createdAt)).limit(100);
 
+  const transferRows = await db.select().from(walletTransfers)
+    .where(eq(walletTransfers.userId, userId)).orderBy(desc(walletTransfers.createdAt)).limit(100);
+
   const activity: PortfolioActivity[] = claimRows.map(({ claim, allocation, distribution, token }) => ({
     id: `claim:${claim.id}`, kind: "claim", direction: "in", title: distribution.name,
     amount: formatAtomic(allocation.amountAtomic, token.decimals), symbol: token.symbol, status: claim.status,
@@ -179,6 +183,12 @@ async function accountActivity(userId: string) {
     id: `subscription:${payment.id}`, kind: "subscription" as const, direction: "out" as const, title: plan.title,
     amount: formatAtomic(payment.amountAtomic, 6), symbol: plan.currency, status: payment.status,
     transactionHash: payment.transactionHash, occurredAt: (payment.paidAt ?? payment.createdAt).toISOString(),
+  })));
+  activity.push(...transferRows.map((transfer) => ({
+    id: `wallet-transfer:${transfer.id}`, kind: "wallet-transfer" as const, direction: "out" as const,
+    title: transfer.note || `Sent to ${transfer.toAddress.slice(0, 7)}…${transfer.toAddress.slice(-5)}`,
+    amount: formatAtomic(transfer.amountAtomic, transfer.decimals), symbol: transfer.symbol, status: transfer.status,
+    transactionHash: transfer.transactionHash, occurredAt: (transfer.confirmedAt ?? transfer.createdAt).toISOString(),
   })));
   return sortPortfolioActivity(activity).slice(0, 100);
 }

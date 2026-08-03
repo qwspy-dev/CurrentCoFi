@@ -99,6 +99,33 @@ export const tokens = pgTable("tokens", {
   index("tokens_project_idx").on(table.projectId),
 ]);
 
+export const walletTransfers = pgTable("wallet_transfers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  circleWalletId: text("circle_wallet_id").notNull(),
+  fromAddress: text("from_address").notNull(),
+  toAddress: text("to_address").notNull(),
+  tokenAddress: text("token_address").notNull(),
+  symbol: text("symbol").notNull(),
+  name: text("name").notNull(),
+  decimals: integer("decimals").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  status: text("status").default("authorizing").notNull(),
+  challengeId: text("challenge_id").notNull(),
+  transactionHash: text("transaction_hash"),
+  receiptNumber: text("receipt_number").notNull(),
+  note: text("note"),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("wallet_transfers_challenge_unique").on(table.challengeId),
+  uniqueIndex("wallet_transfers_receipt_unique").on(table.receiptNumber),
+  uniqueIndex("wallet_transfers_transaction_unique").on(table.transactionHash),
+  index("wallet_transfers_user_created_idx").on(table.userId, table.createdAt),
+  index("wallet_transfers_status_idx").on(table.status, table.updatedAt),
+]);
+
 export const distributions = pgTable("distributions", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
