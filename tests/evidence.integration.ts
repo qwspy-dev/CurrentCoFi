@@ -37,11 +37,13 @@ assert.deepEqual(readiness, {
 });
 
 const reports = await readFile(new URL("../server/evidence/reports.ts", import.meta.url), "utf8");
-assert.match(reports, /current-evidence-v14/);
+assert.match(reports, /current-evidence-v15/);
 assert.match(reports, /Direct merchant USDC settlement/);
 assert.match(reports, /Subscriber-controlled recurring USDC/);
 assert.match(reports, /checkoutVolume/);
 assert.match(reports, /subscriptionVolume/);
+assert.match(reports, /Prize-backed contributor bounties/);
+assert.match(reports, /bountySubmissions/);
 assert.doesNotMatch(reports, /customerAddress: row\.payment\.customerAddress/);
 assert.doesNotMatch(reports, /subscriberAddress: row\.subscription\.subscriberAddress/);
 

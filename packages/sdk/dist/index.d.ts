@@ -755,6 +755,57 @@ export type SubscriptionWorkspace = {
         pastDue: number;
     };
 };
+export type CreateBountyInput = {
+    title: string;
+    summary: string;
+    category: string;
+    amount: string;
+    tokenAddress?: string;
+    submissionDeadline: string;
+};
+export type BountyWorkspace = {
+    bounties: Array<{
+        id: string;
+        slug: string;
+        title: string;
+        summary: string;
+        category: string;
+        status: string;
+        submissionDeadline: string;
+        distributionId: string;
+        submissionCount: number;
+        publicUrl: string;
+        prize: {
+            amount: string;
+            amountAtomic: string;
+            symbol: string;
+            name: string;
+            address: string;
+        };
+        funding: {
+            status: string;
+            transactionHash: string | null;
+            merkleRoot: string | null;
+            fullyFunded: boolean;
+        };
+        submissions?: Array<{
+            id: string;
+            displayName: string;
+            maskedContact: string;
+            workUrl: string;
+            workSummary: string;
+            proofDigest: string;
+            status: string;
+        }>;
+    }>;
+    totals: {
+        bounties: number;
+        open: number;
+        submissions: number;
+        awarded: number;
+    };
+    privacy: string;
+};
 export type ActivationResult = {
     id?: string;
     duplicate: boolean;
@@ -1440,6 +1491,61 @@ export declare class Current {
             intervalDays: number;
             subscribeUrl: string;
             createdAt: string;
+        }>;
+    };
+    readonly bounties: {
+        list: () => Promise<BountyWorkspace>;
+        create: (input: CreateBountyInput) => Promise<{
+            id: string;
+            slug: string;
+            title: string;
+            summary: string;
+            category: string;
+            status: string;
+            submissionDeadline: string;
+            distributionId: string;
+            submissionCount: number;
+            publicUrl: string;
+            prize: {
+                amount: string;
+                amountAtomic: string;
+                symbol: string;
+                name: string;
+                address: string;
+            };
+            funding: {
+                status: string;
+                transactionHash: string | null;
+                merkleRoot: string | null;
+                fullyFunded: boolean;
+            };
+            submissions?: Array<{
+                id: string;
+                displayName: string;
+                maskedContact: string;
+                workUrl: string;
+                workSummary: string;
+                proofDigest: string;
+                status: string;
+            }>;
+        } & {
+            campaign: CreatedDistribution;
+        }>;
+        shortlist: (bountyId: string, submissionId: string) => Promise<{
+            bountyId: string;
+            submissionId: string;
+            status: string;
+        }>;
+        reject: (bountyId: string, submissionId: string) => Promise<{
+            bountyId: string;
+            submissionId: string;
+            status: string;
+        }>;
+        award: (bountyId: string, submissionId: string) => Promise<{
+            bountyId: string;
+            submissionId: string;
+            status: string;
+            claimUrl: string;
         }>;
     };
     readonly activations: {

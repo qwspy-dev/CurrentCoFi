@@ -22,7 +22,7 @@ Read-only mode is the default and does not need Current credentials. It exposes 
 
 ## Project setup
 
-Project mode adds authenticated analytics and two write tools. Store credentials in the agent host's secret manager, never in prompts or source control.
+Project mode adds authenticated analytics, community-bounty access, and three write tools. Store credentials in the agent host's secret manager, never in prompts or source control.
 
 ```json
 {
@@ -46,4 +46,4 @@ Activation submission requires the exact `I_APPROVE_CURRENT_ACTIVATION` phrase a
 - Developer interface: `https://www.currentco.finance/#/developers`
 - Source package: `packages/mcp`
 
-The integration test launches the compiled server over stdio, connects through the official MCP client, discovers all seven tools, exercises public and authenticated reads, verifies signed write requests, and proves that missing approval is rejected.
+The integration test launches the compiled server over stdio, connects through the official MCP client, discovers all nine tools, exercises public and authenticated reads, verifies signed write requests, and proves that missing approval is rejected.

@@ -16,6 +16,7 @@ const fixtures: Record<string, unknown> = {
   "/api/v1/grant-application": { digest: "grant-digest", status: "application-ready", applicantInputs: ["legal entity"] },
   "/api/v1/integration-manifest": { digest: "integration-digest", paths: [{ id: "mcp", package: "@currentcofi/mcp" }] },
   "/api/v1/developer/analytics": { totals: { campaigns: 3, recipients: 90, claimed: 61, activated: 28 }, retention: { day7: 41 } },
+  "/api/v1/developer/bounties": { bounties: [{ id: "bounty_mcp", title: "Build the launch reel", status: "open", submissionCount: 2 }], totals: { bounties: 1, open: 1, submissions: 2, awarded: 0 }, privacy: "masked" },
 };
 
 const httpServer = createServer(async (request, response) => {
@@ -62,11 +63,13 @@ const client = new Client({ name: "current-mcp-integration-test", version: "0.1.
 try {
   await client.connect(transport);
   const toolList = await client.listTools();
-  assert.equal(toolList.tools.length, 7);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 5);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 2);
+  assert.equal(toolList.tools.length, 9);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 6);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 3);
   const rewardSchema = toolList.tools.find((tool) => tool.name === "current_propose_reward_distribution")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
   assert.equal(rewardSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_DISTRIBUTION");
+  const bountySchema = toolList.tools.find((tool) => tool.name === "current_create_community_bounty")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
+  assert.equal(bountySchema?.properties?.approval?.const, "I_APPROVE_CURRENT_BOUNTY");
 
   const proof = await client.callTool({ name: "current_get_proof_health", arguments: {} });
   assert.equal((proof.structuredContent as { digest: string }).digest, "proof-health-digest");
@@ -74,6 +77,8 @@ try {
   assert.equal((grant.structuredContent as { status: string }).status, "application-ready");
   const analytics = await client.callTool({ name: "current_get_campaign_analytics", arguments: {} });
   assert.equal((analytics.structuredContent as { totals: { campaigns: number } }).totals.campaigns, 3);
+  const bounties = await client.callTool({ name: "current_list_community_bounties", arguments: {} });
+  assert.equal((bounties.structuredContent as { totals: { bounties: number } }).totals.bounties, 1);
 
   const distribution = await client.callTool({
     name: "current_propose_reward_distribution",
@@ -116,7 +121,7 @@ try {
   const unapproved = await client.callTool({ name: "current_propose_reward_distribution", arguments: { idempotencyKey: "mcp-reward-0002", name: "No approval", recipients: [{ identityType: "email", identity: "person@example.com", amount: "5" }] } });
   assert.equal(unapproved.isError, true);
   assert.match(JSON.stringify(unapproved.content), /approval/i);
-  console.log("Current MCP integration test passed: 7 tools, public proof, authenticated analytics, signed proposals, signed activations, and explicit approval validation.");
+  console.log("Current MCP integration test passed: 9 tools, public proof, authenticated analytics and bounties, signed proposals, signed activations, and explicit approval validation.");
 } finally {
   await client.close().catch(() => undefined);
   httpServer.close();

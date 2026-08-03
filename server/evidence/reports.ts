@@ -8,6 +8,8 @@ import {
   allocations,
   apiKeys,
   auditEvents,
+  bounties,
+  bountySubmissions,
   claims,
   campaignQualityPolicies,
   checkoutLinks,
@@ -33,7 +35,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v14";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v15";
 
 type Criterion = {
   id: string;
@@ -199,6 +201,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const campaignIds = campaigns.map((campaign) => campaign.id);
   const config = getServerConfig();
   const commercePromise = projectCommerceEvidence(projectId);
+  const bountyPromise = Promise.all([
+    db.select({ bounty: bounties, distribution: distributions, token: tokens })
+      .from(bounties).innerJoin(distributions, eq(distributions.id, bounties.distributionId)).innerJoin(tokens, eq(tokens.id, distributions.tokenId))
+      .where(eq(bounties.projectId, projectId)).orderBy(desc(bounties.createdAt)),
+    db.select({ submission: bountySubmissions, bountyId: bounties.id })
+      .from(bountySubmissions).innerJoin(bounties, eq(bounties.id, bountySubmissions.bountyId)).where(eq(bounties.projectId, projectId)),
+  ]);
 
   const [
     allocationRows,
@@ -368,6 +377,26 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       : [],
   ]);
   const commerce = await commercePromise;
+  const [bountyRows, bountySubmissionRows] = await bountyPromise;
+  const bountyEvidence = {
+    totals: {
+      bounties: bountyRows.length,
+      funded: bountyRows.filter((row) => ["active", "completed"].includes(row.distribution.status)).length,
+      submissions: bountySubmissionRows.length,
+      awarded: bountyRows.filter((row) => row.bounty.status === "awarded").length,
+    },
+    items: bountyRows.map((row) => ({
+      id: row.bounty.id,
+      title: row.bounty.title,
+      category: row.bounty.category,
+      status: row.bounty.status,
+      submissionDeadline: row.bounty.submissionDeadline.toISOString(),
+      submissionCount: bountySubmissionRows.filter((submission) => submission.bountyId === row.bounty.id).length,
+      prize: { amount: formatAtomic(row.distribution.totalAmountAtomic, row.token.decimals), symbol: row.token.symbol, address: row.token.contractAddress },
+      anchors: { distributionId: row.distribution.id, merkleRoot: row.distribution.merkleRoot, fundingTransactionHash: row.distribution.fundingTxHash },
+      awardedAt: row.bounty.awardedAt?.toISOString() ?? null,
+    })),
+  };
 
   const allocationsByCampaign = new Map(allocationRows.map((row) => [row.distributionId, row]));
   const claimsByCampaign = new Map(claimRows.map((row) => [row.distributionId, row]));
@@ -597,6 +626,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       evidence: `${commerce.subscriptions.confirmedCycles} explicitly approved subscription cycle${commerce.subscriptions.confirmedCycles === 1 ? "" : "s"} totaling ${commerce.subscriptions.volume} USDC.`,
     },
     {
+      id: "community-bounties",
+      label: "Prize-backed contributor bounties",
+      weight: 10,
+      passed: bountyEvidence.totals.awarded > 0,
+      evidence: `${bountyEvidence.totals.funded} funded bount${bountyEvidence.totals.funded === 1 ? "y" : "ies"}, ${bountyEvidence.totals.submissions} tamper-evident submission${bountyEvidence.totals.submissions === 1 ? "" : "s"}, and ${bountyEvidence.totals.awarded} award${bountyEvidence.totals.awarded === 1 ? "" : "s"}.`,
+    },
+    {
       id: "external-pilot",
       label: "External pilot validation",
       weight: 10,
@@ -734,8 +770,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       activeSubscriptions: commerce.subscriptions.active,
       subscriptionCycles: commerce.subscriptions.confirmedCycles,
       subscriptionVolume: commerce.subscriptions.volume,
+      bounties: bountyEvidence.totals.bounties,
+      fundedBounties: bountyEvidence.totals.funded,
+      bountySubmissions: bountyEvidence.totals.submissions,
+      bountyAwards: bountyEvidence.totals.awarded,
     },
     commerce,
+    bounties: bountyEvidence,
     campaigns: campaignEvidence,
     pilots: pilotRows.map((pilot) => ({
       id: pilot.id,

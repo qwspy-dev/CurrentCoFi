@@ -58,7 +58,7 @@ function optionalString(value: unknown, maxLength: number) {
     : undefined;
 }
 
-async function projectOwner(projectId: string) {
+export async function developerProjectOwner(projectId: string) {
   const [owner] = await getDb().select({
     userId: projectMembers.userId,
     displayName: users.displayName,
@@ -94,7 +94,7 @@ export async function createDeveloperDistribution(
   if (!Number.isFinite(expiresInHours) || expiresInHours < 1 || expiresInHours > 720) {
     throw new ApiError(400, "INVALID_EXPIRATION", "expiresInHours must be between 1 and 720.");
   }
-  const owner = await projectOwner(projectId);
+  const owner = await developerProjectOwner(projectId);
   const campaign = await createCampaign({
     userId: owner.userId,
     displayName: owner.displayName ?? "Current project",

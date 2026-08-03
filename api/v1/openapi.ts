@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.5.0-community-payroll",
+    version: "3.6.0-community-bounties",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -58,6 +58,14 @@ export default withApi((request) => ok(request, {
     "/payroll": {
       get: { summary: "Read encrypted-roster community payroll schedules and Arc settlement runs" },
       post: { summary: "Create, pause, resume, or prepare a walletless USDC or project-token payroll run" },
+    },
+    "/bounties": {
+      get: { summary: "Read project-owned, fully funded community bounties and masked submissions" },
+      post: { summary: "Create a prize-backed bounty, review submissions, or release the walletless winner claim" },
+    },
+    "/bounties/public": {
+      get: { summary: "Resolve a public bounty and verify its Arc prize funding" },
+      post: { summary: "Submit public HTTPS work proof with an encrypted contact identity" },
     },
     "/escrow": {
       get: { summary: "List fully funded milestone agreements for the signed-in wallet" },
@@ -125,6 +133,10 @@ export default withApi((request) => ok(request, {
     },
     "/developer/distributions": {
       post: { summary: "Create a signed walletless USDC or project-token distribution" },
+    },
+    "/developer/bounties": {
+      get: { summary: "Read project bounties and masked submissions with a scoped API key" },
+      post: { summary: "Create or award an HMAC-signed, prize-backed community bounty" },
     },
     "/developer/links": { post: { summary: "Create an HMAC-signed private USDC or project-token claim link" } },
     "/developer/tokens/inspect": { post: { summary: "Inspect Arc ERC-20 metadata with an HMAC-signed request" } },
@@ -220,7 +232,7 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "community-bounties", "bounty-submissions", "walletless-bounty-awards", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "builder-integration-manifest", "integration-conformance", "portable-integration-certificates", "public-network-proof", "verified-testnet-traction", "public-campaign-proof-explorer", "privacy-safe-campaign-evidence", "account-free-reviewer-demo", "non-mutating-verified-replay", "public-project-token-proof", "arbitrary-erc20-testnet-evidence", "completed-project-token-settlement", "continuous-grant-proof-health", "public-grant-dossier",

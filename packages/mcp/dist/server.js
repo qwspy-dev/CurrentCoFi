@@ -85,6 +85,41 @@ export function createCurrentMcpServer(input = configFromEnv()) {
             return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Project analytics are unavailable.");
         }
     });
+    server.registerTool("current_list_community_bounties", {
+        title: "Read project community bounties",
+        description: "Read funded prize status, masked submissions, proof digests, and awards for the configured Current project.",
+        inputSchema: noInput,
+        annotations: readOnly,
+    }, async () => {
+        try {
+            return success(await requireProject().bounties.list());
+        }
+        catch (error) {
+            return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Project bounties are unavailable.");
+        }
+    });
+    server.registerTool("current_create_community_bounty", {
+        title: "Create a prize-backed community bounty",
+        description: "Prepare a fully allocated USDC or Arc project-token bounty and its walletless winner claim. Funding still requires an authorized Circle wallet approval.",
+        inputSchema: {
+            title: z.string().min(3).max(100),
+            summary: z.string().min(30).max(2_000),
+            category: z.string().min(2).max(50),
+            amount: z.string().regex(/^\d+(\.\d{1,18})?$/),
+            tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+            submissionDeadline: z.string().datetime(),
+            approval: z.literal("I_APPROVE_CURRENT_BOUNTY"),
+        },
+        annotations: mutation,
+    }, async ({ approval: _approval, ...value }) => {
+        void _approval;
+        try {
+            return success(await requireProject().bounties.create(value));
+        }
+        catch (error) {
+            return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the bounty.");
+        }
+    });
     const recipientSchema = z.object({
         identityType: z.enum(["email", "wallet", "x", "game", "custom"]),
         identity: z.string().min(1).max(320),
@@ -137,6 +172,6 @@ export function createCurrentMcpServer(input = configFromEnv()) {
             return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the activation.");
         }
     });
-    return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 7, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
+    return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 9, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
 }
 //# sourceMappingURL=server.js.map

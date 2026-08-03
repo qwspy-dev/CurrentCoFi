@@ -16,7 +16,7 @@ Current CoFi reconciles active subscriptions once per day on production. The sch
 
 ## Circle grant evidence
 
-Evidence schema `current-evidence-v14` includes aggregate merchant checkout and recurring USDC proof:
+Evidence schema `current-evidence-v15` includes aggregate merchant checkout, recurring USDC, and prize-backed community-bounty proof:
 
 - checkout links, confirmed settlements, refunds, total USDC volume, receipt numbers, and Arc transaction hashes;
 - subscription plans, active and cancelled subscriptions, confirmed cycles, total USDC volume, lifecycle counts, receipt numbers, and Arc transaction hashes;

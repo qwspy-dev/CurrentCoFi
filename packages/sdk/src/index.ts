@@ -264,6 +264,27 @@ export type SubscriptionWorkspace = {
   totals: { plans: number; activeSubscriptions: number; payments: number; collected: string; openRenewals: number; pastDue: number };
 };
 
+export type CreateBountyInput = {
+  title: string;
+  summary: string;
+  category: string;
+  amount: string;
+  tokenAddress?: string;
+  submissionDeadline: string;
+};
+
+export type BountyWorkspace = {
+  bounties: Array<{
+    id: string; slug: string; title: string; summary: string; category: string; status: string;
+    submissionDeadline: string; distributionId: string; submissionCount: number; publicUrl: string;
+    prize: { amount: string; amountAtomic: string; symbol: string; name: string; address: string };
+    funding: { status: string; transactionHash: string | null; merkleRoot: string | null; fullyFunded: boolean };
+    submissions?: Array<{ id: string; displayName: string; maskedContact: string; workUrl: string; workSummary: string; proofDigest: string; status: string }>;
+  }>;
+  totals: { bounties: number; open: number; submissions: number; awarded: number };
+  privacy: string;
+};
+
 export type ActivationResult = {
   id?: string;
   duplicate: boolean;
@@ -732,6 +753,14 @@ export class Current {
       "/api/v1/developer/subscriptions",
       input,
     ),
+  };
+
+  readonly bounties = {
+    list: () => this.get<BountyWorkspace>("/api/v1/developer/bounties"),
+    create: (input: CreateBountyInput) => this.signedPost<BountyWorkspace["bounties"][number] & { campaign: CreatedDistribution }>("/api/v1/developer/bounties", input),
+    shortlist: (bountyId: string, submissionId: string) => this.signedPost<{ bountyId: string; submissionId: string; status: string }>("/api/v1/developer/bounties", { action: "shortlist", bountyId, submissionId }),
+    reject: (bountyId: string, submissionId: string) => this.signedPost<{ bountyId: string; submissionId: string; status: string }>("/api/v1/developer/bounties", { action: "reject", bountyId, submissionId }),
+    award: (bountyId: string, submissionId: string) => this.signedPost<{ bountyId: string; submissionId: string; status: string; claimUrl: string }>("/api/v1/developer/bounties", { action: "award", bountyId, submissionId }),
   };
 
   readonly activations = {

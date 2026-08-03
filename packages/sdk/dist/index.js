@@ -60,6 +60,13 @@ export class Current {
         list: () => this.get("/api/v1/developer/subscriptions"),
         createPlan: (input) => this.signedPost("/api/v1/developer/subscriptions", input),
     };
+    bounties = {
+        list: () => this.get("/api/v1/developer/bounties"),
+        create: (input) => this.signedPost("/api/v1/developer/bounties", input),
+        shortlist: (bountyId, submissionId) => this.signedPost("/api/v1/developer/bounties", { action: "shortlist", bountyId, submissionId }),
+        reject: (bountyId, submissionId) => this.signedPost("/api/v1/developer/bounties", { action: "reject", bountyId, submissionId }),
+        award: (bountyId, submissionId) => this.signedPost("/api/v1/developer/bounties", { action: "award", bountyId, submissionId }),
+    };
     activations = {
         submit: (input) => this.signedPost("/api/v1/developer/activations", {
             ...input,

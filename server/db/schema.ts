@@ -203,6 +203,49 @@ export const payrollRuns = pgTable("payroll_runs", {
   index("payroll_runs_schedule_status_idx").on(table.scheduleId, table.status, table.cycleAt),
 ]);
 
+export const bounties = pgTable("bounties", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "restrict" }).notNull(),
+  publicSlug: text("public_slug").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  category: text("category").notNull(),
+  status: text("status").default("awaiting_funding").notNull(),
+  submissionDeadline: timestamp("submission_deadline", { withTimezone: true }).notNull(),
+  claimTokenCiphertext: text("claim_token_ciphertext").notNull(),
+  awardedSubmissionId: uuid("awarded_submission_id"),
+  awardedAt: timestamp("awarded_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("bounties_public_slug_unique").on(table.publicSlug),
+  uniqueIndex("bounties_distribution_unique").on(table.distributionId),
+  index("bounties_project_status_idx").on(table.projectId, table.status, table.createdAt),
+  index("bounties_deadline_idx").on(table.status, table.submissionDeadline),
+]);
+
+export const bountySubmissions = pgTable("bounty_submissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bountyId: uuid("bounty_id").references(() => bounties.id, { onDelete: "cascade" }).notNull(),
+  displayName: text("display_name").notNull(),
+  contactType: text("contact_type").notNull(),
+  contactHash: text("contact_hash").notNull(),
+  contactCiphertext: text("contact_ciphertext").notNull(),
+  maskedContact: text("masked_contact").notNull(),
+  workUrl: text("work_url").notNull(),
+  workSummary: text("work_summary").notNull(),
+  proofDigest: text("proof_digest").notNull(),
+  status: text("status").default("submitted").notNull(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("bounty_submissions_bounty_contact_unique").on(table.bountyId, table.contactHash),
+  index("bounty_submissions_bounty_status_idx").on(table.bountyId, table.status, table.createdAt),
+]);
+
 export const escrowAgreements = pgTable("escrow_agreements", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

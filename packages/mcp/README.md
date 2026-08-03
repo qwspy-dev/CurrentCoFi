@@ -40,5 +40,7 @@ For project mode, add `CURRENT_API_KEY` and `CURRENT_SIGNING_SECRET` from a scop
 - `current_get_grant_application`
 - `current_get_integration_manifest`
 - `current_get_campaign_analytics`
+- `current_list_community_bounties`
+- `current_create_community_bounty`
 - `current_propose_reward_distribution`
 - `current_submit_activation`

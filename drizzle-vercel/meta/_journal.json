@@ -155,6 +155,13 @@
       "when": 1785787528288,
       "tag": "0021_fast_ego",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1785788540016,
+      "tag": "0022_narrow_cyclops",
+      "breakpoints": true
     }
   ]
 }

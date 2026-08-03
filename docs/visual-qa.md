@@ -96,3 +96,12 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Browser integrity: no framework overlay or error-level browser logs appeared during the claim or identity-management render.
 - Security verification: lint, TypeScript, production build, encrypted OAuth-state tests, PKCE checks, identity-binding tests, adversarial security tests, and the reproducible audit manifest pass.
 - Evidence captures: `qa-identity-claim-desktop.png`, `qa-identity-settings-desktop.png`, and `qa-identity-settings-mobile-final.png`.
+
+## Community bounties QA — 2026-08-03
+
+- Desktop 1440×900: verified the community-bounty workspace has an immediate product hierarchy, four meaningful custody/outcome metrics, an explicit prize-backed safety boundary, and a clear empty-state path without overflow.
+- Creation dialog 1440×900: verified the title, category, deadline, asset, prize amount, work brief, custody explanation, recovery boundary, and funding action fit in one deliberate composition.
+- Mobile 390×844: verified the cinematic hero, metric stack, and creation form become a touch-friendly single column; the longer form scrolls naturally without horizontal clipping or hidden required controls.
+- Browser integrity: no framework overlay or error-level browser logs appeared in the workspace or creation flow.
+- Static resilience: the screen remains complete without motion; current-line decoration does not carry required meaning.
+- Evidence captures: `qa-bounties-desktop.png`, `qa-bounty-modal-desktop.png`, and `qa-bounty-modal-mobile.png`.
