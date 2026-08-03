@@ -34,7 +34,7 @@ for (const directory of scanRoots) {
 
 const required = [
   "SECURITY.md", "security/audit-scope.json", "docs/security-threat-model.md",
-  "docs/security-invariants.md", "docs/external-audit-package.md",
+  "security/audit-manifest.json", "docs/security-invariants.md", "docs/external-audit-package.md",
 ];
 for (const file of required) await readFile(join(root, file), "utf8");
 const vercel = await readFile(join(root, "vercel.json"), "utf8");

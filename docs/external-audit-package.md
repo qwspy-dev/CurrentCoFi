@@ -7,6 +7,7 @@ Validate that Current CoFi can distribute USDC and arbitrary Arc project tokens 
 ## Recommended order
 
 1. Confirm the pinned commit, compiler settings, dependency lockfile, Arc testnet deployment manifest, and reproducible runtime bytecode.
+   Start with `/api/v1/security/audit-readiness`: it publishes the deterministic manifest digest and the SHA-256 digest of every scoped Solidity source, compiler artifact, lockfile, and Arc deployment snapshot.
 2. Review the claim and campaign vaults, authorization domains, Merkle construction, cancellation, expiry, and refund state machines.
 3. Review the $CURRENT lock and fee route, then the buyback, liquidity, partner, venue, and release governor boundaries.
 4. Review authentication, session encryption, developer key storage, HMAC verification, identity binding, agent policy enforcement, webhooks, idempotency, and audit logging.
@@ -17,6 +18,7 @@ Validate that Current CoFi can distribute USDC and arbitrary Arc project tokens 
 
 - `pnpm install --frozen-lockfile`
 - `pnpm run contracts:compile`
+- `pnpm run audit:verify`
 - `pnpm run contracts:test`
 - `pnpm run developer:test`
 - `pnpm run sdk:test`
@@ -28,3 +30,5 @@ Validate that Current CoFi can distribute USDC and arbitrary Arc project tokens 
 ## Acceptance gate
 
 Mainnet approval remains false until an independent report is published, all critical/high findings are closed, accepted medium findings have owners and deadlines, the corrected code is re-reviewed, and the active release manifest matches the reviewed runtime bytecode.
+
+The committed audit manifest is deliberately strict. Any scoped source, artifact, lockfile, deployment snapshot, or scope definition change makes `pnpm audit:verify` fail until the manifest is regenerated and the differences are reviewed.

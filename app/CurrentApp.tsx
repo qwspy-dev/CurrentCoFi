@@ -129,8 +129,16 @@ type SecurityPostureState = {
   controls: Array<{ id: string; name: string; status: "implemented" | "pending-external-review"; evidence: string }>;
   privilegedRoles: Array<{ role: string; authority: string; boundary: string }>;
   fundFlows: Array<{ flow: string; custody: string; release: string }>;
-  reviewPackage: { scope: string; threatModel: string; invariants: string; auditorGuide: string; disclosure: string; repository: string; commit: string | null };
+  reviewPackage: { auditManifest: string; scope: string; threatModel: string; invariants: string; auditorGuide: string; disclosure: string; repository: string; commit: string | null };
   generatedAt: string;
+};
+
+type AuditReadinessState = {
+  schemaVersion:string;product:string;network:string;assurance:string;mainnetApproved:boolean;manifestDigest:string;deploymentCommit:string|null;
+  compiler:{package:string;versionRange:string;optimizer:{enabled:boolean;runs:number}};
+  scope:{path:string;sha256:string;contracts:number;serverBoundaries:number;priorityProperties:number};
+  verification:{scopeDriftGate:boolean;sourceDigests:number;artifactDigests:number;lockfilePinned:boolean;deploymentSnapshotPinned:boolean;externalAuditStatus:string;remediationStatus:string};
+  reproducibility:{commands:string[]};boundary:string;
 };
 
 type NetworkProofState = {
@@ -189,7 +197,7 @@ type GrantProofHealthState = {
 
 const securityPreview: SecurityPostureState = {
   product:"Current CoFi",network:"Arc testnet",generatedAt:new Date(0).toISOString(),
-  assurance:{internalReadinessScore:100,implementedControls:10,totalInternalControls:10,externalAuditStatus:"pending",mainnetApproved:false,statement:"Security readiness is internally evidenced on Arc testnet. Mainnet approval requires independent review and remediation closure."},
+  assurance:{internalReadinessScore:100,implementedControls:11,totalInternalControls:11,externalAuditStatus:"pending",mainnetApproved:false,statement:"Security readiness is internally evidenced on Arc testnet. Mainnet approval requires independent review and remediation closure."},
   controls:[...[
     ["runtime-bytecode","Exact runtime bytecode verification","The active release manifest binds every critical address to a versioned runtime code hash."],
     ["delayed-governance","Delayed protocol governance","High-impact protocol changes use public queues before execution."],
@@ -201,6 +209,7 @@ const securityPreview: SecurityPostureState = {
     ["operational-response","Monitoring and incident response","Structured logs, health checks, SLOs, scheduled monitoring, and an incident ledger are live."],
     ["browser-boundary","Browser security boundary","HSTS, frame denial, MIME protection, no-referrer behavior, and permissions controls are deployed."],
     ["dependency-gate","Dependency and security CI gate","Production dependency advisories and source-level checks run continuously."],
+    ["reproducible-audit-manifest","Reproducible audit scope manifest","Scoped contract sources, artifacts, lockfile, and deployment snapshot are digest-pinned."],
   ].map(([id,name,evidence])=>({id,name,status:"implemented" as const,evidence})),{id:"external-audit",name:"Independent external smart-contract review",status:"pending-external-review",evidence:"The audit package is ready, but no independent auditor has issued a final report. Current CoFi does not claim otherwise."}],
   privilegedRoles:[
     {role:"Protocol owner",authority:"Queues governed protocol changes and rotates operational configuration.",boundary:"High-impact actions pass through delayed governors."},
@@ -215,7 +224,7 @@ const securityPreview: SecurityPostureState = {
     {flow:"Protocol liquidity",custody:"Paired $CURRENT and USDC remain in a dedicated vault.",release:"Only approved adapters and delayed governance can deploy or remove positions."},
     {flow:"Partner reserves",custody:"Partner assets are segregated by token in a reserve vault.",release:"Governed operations may fund specified campaigns or return idle reserves to the registered treasury."},
   ],
-  reviewPackage:{scope:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/security/audit-scope.json",threatModel:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/security-threat-model.md",invariants:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/security-invariants.md",auditorGuide:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/external-audit-package.md",disclosure:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/SECURITY.md",repository:"https://github.com/qwspy-dev/CurrentCoFi",commit:null},
+  reviewPackage:{auditManifest:"https://www.currentco.finance/api/v1/security/audit-readiness",scope:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/security/audit-scope.json",threatModel:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/security-threat-model.md",invariants:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/security-invariants.md",auditorGuide:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/external-audit-package.md",disclosure:"https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/SECURITY.md",repository:"https://github.com/qwspy-dev/CurrentCoFi",commit:null},
 };
 
 type CampaignRecord = {
@@ -2791,9 +2800,10 @@ function AssetTrustDashboard({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
 
 function SecurityDashboard({go}:{go:(v:View)=>void}) {
   const [snapshot,setSnapshot]=useState<SecurityPostureState>(securityPreview);
+  const [audit,setAudit]=useState<AuditReadinessState|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState<string|null>(null);
-  useEffect(()=>{currentApi.get<SecurityPostureState>("/security").then(setSnapshot).catch(()=>setError("The live security service is reconnecting.")).finally(()=>setLoading(false))},[]);
+  useEffect(()=>{Promise.all([currentApi.get<SecurityPostureState>("/security").then(setSnapshot),currentApi.get<AuditReadinessState>("/security/audit-readiness").then(setAudit)]).catch(()=>setError("The live security service is reconnecting.")).finally(()=>setLoading(false))},[]);
   const implemented=snapshot.controls.filter(item=>item.status==="implemented");
   const external=snapshot.controls.find(item=>item.status==="pending-external-review");
   return <><PageHero eyebrow="SECURITY REVIEW READINESS" title="Trust boundaries you can inspect." copy="Current CoFi maps every privileged role, protected fund flow, protocol invariant, and review artifact before independent auditors receive the code. Internal readiness is public; external assurance is never implied." mode="network"><Button tone="blue" onClick={()=>go("launch")}>Verify protocol release <ArrowRight/></Button></PageHero>
@@ -2803,6 +2813,7 @@ function SecurityDashboard({go}:{go:(v:View)=>void}) {
     <div className="security-grid"><section className="data-panel"><div className="panel-head"><div><h3>Implemented controls</h3><p>Publicly documented and continuously checked</p></div><Status tone="green">{implemented.length} active</Status></div><div className="security-control-list">{snapshot?.controls.map(item=><div className={item.status==="implemented"?"pass":"pending"} key={item.id}><span>{item.status==="implemented"?<Check/>:<Clock3/>}</span><div><b>{item.name}</b><small>{item.evidence}</small></div><Status tone={item.status==="implemented"?"green":"cyan"}>{item.status==="implemented"?"Implemented":"External"}</Status></div>)}</div></section>
       <section className="data-panel"><div className="panel-head"><div><h3>Privileged role map</h3><p>Authority is narrow and boundaries are explicit</p></div><KeyRound/></div><div className="security-role-list">{snapshot?.privilegedRoles.map(item=><article key={item.role}><span><Fingerprint/></span><div><b>{item.role}</b><p>{item.authority}</p><small>{item.boundary}</small></div></article>)}</div></section></div>
     <section className="data-panel security-flow-panel"><div className="panel-head"><div><h3>Protected fund flows</h3><p>Where value is held and exactly what can release it</p></div><Network/></div><div className="security-flow-grid">{snapshot?.fundFlows.map((item,index)=><article key={item.flow}><span>{String(index+1).padStart(2,"0")}</span><h4>{item.flow}</h4><small>CUSTODY</small><p>{item.custody}</p><small>RELEASE BOUNDARY</small><p>{item.release}</p></article>)}</div></section>
+    <section className="audit-manifest-panel"><div><Eyebrow>AUDIT SCOPE MANIFEST</Eyebrow><h2>Every reviewed byte has a fingerprint.</h2><p>Any scoped source, compiler artifact, lockfile, deployment snapshot, or scope change breaks the security gate until the manifest is regenerated and reviewed.</p><code>{audit?.manifestDigest??"Loading deterministic manifest digest…"}</code></div><div className="audit-manifest-stats"><span><small>CONTRACT SOURCES</small><strong>{audit?.verification.sourceDigests??16}</strong><b>SHA-256 pinned</b></span><span><small>COMPILER ARTIFACTS</small><strong>{audit?.verification.artifactDigests??16}</strong><b>Creation bytecode pinned</b></span><span><small>PRIORITY INVARIANTS</small><strong>{audit?.scope.priorityProperties??7}</strong><b>Explicitly testable</b></span><span><small>DRIFT GATE</small><strong>{audit?.verification.scopeDriftGate?"ON":"—"}</strong><b>Fails closed</b></span></div><aside><ShieldAlert/><b>Internal evidence only</b><p>{audit?.boundary??"Independent review remains pending."}</p><a href="/api/v1/security/audit-readiness" target="_blank" rel="noreferrer">Open machine-readable manifest <ArrowUpRight/></a></aside></section>
     <section className="security-package"><div><Eyebrow light>INDEPENDENT REVIEW HANDOFF</Eyebrow><h2>One package. No hidden assumptions.</h2><p>Auditors receive the exact contract scope, threat model, invariants, reproduction commands, disclosure policy, and pinned deployment evidence.</p></div><div>{snapshot&&Object.entries(snapshot.reviewPackage).filter(([key,value])=>key!=="commit"&&Boolean(value)).slice(0,5).map(([key,value])=><a href={String(value)} target="_blank" rel="noreferrer" key={key}><FileCheck2/><span><small>{key.replace(/([A-Z])/g," $1")}</small><b>{String(value)}</b></span><ArrowUpRight/></a>)}</div></section>
     <p className="economy-disclaimer"><TestTube2/>Current CoFi is on Arc testnet. Independent audit completion and remediation closure are mandatory before mainnet approval.</p></>;
 }

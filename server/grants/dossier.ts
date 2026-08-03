@@ -32,6 +32,7 @@ const shipped = [
   { id: "developer-platform", label: "Reusable builder infrastructure", detail: "HMAC APIs, TypeScript SDK, React embed, durable webhooks, identity adapters, and integration certification." },
   { id: "agent-runtime", label: "Installable policy-bound MCP server", detail: "Seven MCP tools, read-only defaults, scoped credentials, exact approval phrases, spending limits, signed requests, and honest Arc settlement evidence." },
   { id: "operations", label: "Production-style assurance", detail: "Release manifests, runtime bytecode checks, delayed governance, incident response, security package, and proof APIs." },
+  { id: "audit-readiness", label: "Reproducible independent-review handoff", detail: "A deterministic manifest pins every scoped contract source, compiler artifact, dependency lockfile, and Arc deployment snapshot; drift fails the security gate while external-audit status remains explicitly pending." },
 ] as const;
 
 const externalGates = [

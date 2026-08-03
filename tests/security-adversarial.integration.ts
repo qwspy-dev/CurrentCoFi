@@ -16,7 +16,7 @@ assert.equal(deriveOverallStatus([
 ], [{ severity: "critical" }]), "major_outage");
 
 const invariants = await readFile("docs/security-invariants.md", "utf8");
-for (const requirement of ["settles at most once", "Raw email", "governance delay", "mainnet approved"]) {
+for (const requirement of ["settles at most once", "Raw email", "governance delay", "mainnet approved", "conditional allocation", "audit manifest"]) {
   assert.ok(invariants.includes(requirement), `Missing documented invariant: ${requirement}`);
 }
 
@@ -24,4 +24,6 @@ const scope = JSON.parse(await readFile("security/audit-scope.json", "utf8"));
 assert.equal(scope.mainnetApproved, false);
 assert.equal(scope.contracts.length, 16);
 assert.ok(scope.priorityProperties.length >= 6);
+assert.ok(scope.contracts.every((path: string) => path.startsWith("contracts/")));
+assert.ok(scope.serverBoundaries.includes("server/campaigns"));
 console.log("Security adversarial integration checks passed.");

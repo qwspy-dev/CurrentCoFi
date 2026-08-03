@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.3.0-conditional-campaigns",
+    version: "3.4.0-reproducible-audit-readiness",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -12,6 +12,7 @@ export default withApi((request) => ok(request, {
     "/health": { get: { summary: "Service and dependency health" } },
     "/status": { get: { summary: "Public component health, SLO targets, and incident history" } },
     "/security": { get: { summary: "Public security controls, privileged roles, fund flows, and external-review status" } },
+    "/security/audit-readiness": { get: { summary: "Verify the reproducible audit scope, source and artifact digests, compiler settings, and external-review boundary" } },
     "/incidents": {
       get: { summary: "List the authenticated operational incident ledger" },
       post: { summary: "Create, update, or resolve an operational incident" },
@@ -232,6 +233,7 @@ export default withApi((request) => ok(request, {
       "release-manifest-registry", "runtime-bytecode-verification", "delayed-release-governance", "rollback-payloads",
       "structured-runtime-logging", "public-status-api", "incident-response-ledger", "service-health-objectives", "scheduled-health-monitoring",
       "public-security-posture", "security-threat-model", "protocol-invariant-catalog", "adversarial-security-tests", "dependency-security-gate", "responsible-vulnerability-disclosure", "external-audit-review-package",
+      "reproducible-audit-manifest", "audit-scope-drift-gate", "contract-source-and-artifact-digests",
     ],
     plannedResourceGroups: [],
   },

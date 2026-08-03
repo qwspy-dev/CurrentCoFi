@@ -1063,6 +1063,7 @@ export type SecurityPostureSnapshot = {
         release: string;
     }>;
     reviewPackage: {
+        auditManifest?: string;
         scope: string;
         threatModel: string;
         invariants: string;
@@ -1557,6 +1558,20 @@ export declare class Current {
     };
     readonly security: {
         get: () => Promise<SecurityPostureSnapshot>;
+        auditReadiness: () => Promise<{
+            schemaVersion: string;
+            assurance: "internal-review-only";
+            mainnetApproved: false;
+            manifestDigest: string;
+            deploymentCommit: string | null;
+            verification: {
+                scopeDriftGate: boolean;
+                sourceDigests: number;
+                artifactDigests: number;
+                externalAuditStatus: "pending";
+            };
+            boundary: string;
+        }>;
     };
     readonly evidence: {
         list: () => Promise<{

@@ -35,6 +35,7 @@ export function getSecurityPosture() {
     { id: "operational-response", name: "Monitoring and incident response", status: "implemented", evidence: "Structured request logs, component health checks, scheduled monitoring, SLOs, and an incident ledger are live." },
     { id: "browser-boundary", name: "Browser security boundary", status: "implemented", evidence: "HSTS, frame denial, MIME sniffing protection, a restrictive base policy, no-referrer behavior, and permissions controls are deployed." },
     { id: "dependency-gate", name: "Dependency and security CI gate", status: "implemented", evidence: "Production dependency advisories and source-level baseline checks run in the repository security workflow." },
+    { id: "reproducible-audit-manifest", name: "Reproducible audit scope manifest", status: "implemented", evidence: "Every scoped Solidity source, compiler artifact, lockfile, and Arc deployment snapshot has a committed SHA-256 digest; scope drift fails the security gate." },
     { id: "external-audit", name: "Independent external smart-contract review", status: "pending-external-review", evidence: "The audit package is ready, but no independent auditor has issued a final report. Current CoFi does not claim otherwise." },
   ];
   const implemented = controls.filter((control) => control.status === "implemented").length;
@@ -53,6 +54,7 @@ export function getSecurityPosture() {
     privilegedRoles,
     fundFlows,
     reviewPackage: {
+      auditManifest: "https://www.currentco.finance/api/v1/security/audit-readiness",
       scope: "https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/security/audit-scope.json",
       threatModel: "https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/security-threat-model.md",
       invariants: "https://github.com/qwspy-dev/CurrentCoFi/blob/codex/sdk-embeds/docs/security-invariants.md",

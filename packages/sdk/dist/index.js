@@ -122,6 +122,7 @@ export class Current {
     };
     security = {
         get: () => this.get("/api/v1/developer/security"),
+        auditReadiness: () => this.get("/api/v1/security/audit-readiness"),
     };
     evidence = {
         list: () => this.get("/api/v1/developer/evidence"),

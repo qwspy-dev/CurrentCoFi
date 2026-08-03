@@ -27,6 +27,10 @@ Current CoFi protects escrowed USDC and project tokens, user-controlled embedded
 
 Funds remain in narrow-purpose vaults. Claims use one-time state, expiry, domain-separated signatures, recipient binding, and Merkle proofs. Identity is verified offchain and represented by project-scoped hashes. Developer mutations use scoped hashed credentials, HMAC signatures, timestamp tolerance, replay protection, and durable audit events. High-value protocol actions are queued through delayed governors with independent cancellation and emergency pause controls. Runtime bytecode and release manifests are verified publicly. Operational failures return generic public messages while detailed exceptions remain in structured private logs.
 
+Conditional campaigns add a pre-settlement authorization boundary. A project-signed proof is accepted only for the configured project, allocation, identity commitment, event type, destination wallet, and proof window. It is consumed only after confirmed settlement; a confirmed retry remains idempotent while an unused proof cannot cross recipients or campaigns.
+
+Audit-scope drift is treated as a failing condition. Every scoped Solidity source, compiled artifact, dependency lockfile, and Arc deployment snapshot is digest-pinned in a deterministic manifest. Any change requires explicit regeneration and review; the manifest is evidence of reproducibility, not independent assurance.
+
 ## Residual risk
 
 Current CoFi depends on Circle, Arc RPC, OAuth providers, CCTP, Gateway, and eventually selected liquidity venues. The codebase has extensive internal checks but has not completed independent external review. Testnet readiness must not be interpreted as mainnet certification.

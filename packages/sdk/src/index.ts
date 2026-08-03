@@ -427,7 +427,7 @@ export type SecurityPostureSnapshot = {
   controls: Array<{ id: string; name: string; status: "implemented" | "pending-external-review"; evidence: string }>;
   privilegedRoles: Array<{ role: string; authority: string; boundary: string }>;
   fundFlows: Array<{ flow: string; custody: string; release: string }>;
-  reviewPackage: { scope: string; threatModel: string; invariants: string; auditorGuide: string; disclosure: string; repository: string; commit: string | null };
+  reviewPackage: { auditManifest?: string; scope: string; threatModel: string; invariants: string; auditorGuide: string; disclosure: string; repository: string; commit: string | null };
   generatedAt: string;
 };
 
@@ -848,6 +848,15 @@ export class Current {
 
   readonly security = {
     get: () => this.get<SecurityPostureSnapshot>("/api/v1/developer/security"),
+    auditReadiness: () => this.get<{
+      schemaVersion: string;
+      assurance: "internal-review-only";
+      mainnetApproved: false;
+      manifestDigest: string;
+      deploymentCommit: string | null;
+      verification: { scopeDriftGate: boolean; sourceDigests: number; artifactDigests: number; externalAuditStatus: "pending" };
+      boundary: string;
+    }>("/api/v1/security/audit-readiness"),
   };
 
   readonly evidence = {
