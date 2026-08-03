@@ -40,3 +40,10 @@ External proof still required: run the first funded public testnet drop with out
 - Proofs are replay protected and consumed only after confirmed settlement.
 - Workspace, REST, SDK, MCP, hosted proof copy, OpenAPI, and privacy-safe grant evidence share the same condition contract.
 - Rendered desktop and mobile QA, security checks, package builds, and production-build verification pass.
+# Encrypted campaign delivery center — complete (2026-08-03)
+
+- Persisted AES-GCM-encrypted private campaign claim URLs with masked offchain recipient identities.
+- Added authorized operator recovery, campaign filtering, secure CSV export, QR generation, and email/X/Telegram/Discord/SMS/game handoff preparation.
+- Added auditable handoff state that never conflates operator preparation with third-party delivery confirmation or Arc claim settlement.
+- Added workspace API, scoped HMAC developer API, TypeScript SDK, approval-gated MCP tools, OpenAPI metadata, and privacy-safe grant-evidence aggregates.
+- Applied additive production database migration `0027_long_malcolm_colcord.sql`.

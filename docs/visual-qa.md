@@ -139,3 +139,10 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Trust copy explicitly states that a scoped project key attests the offchain action and that Current rejects missing, expired, reused, or wallet-mismatched proofs.
 - Browser integrity: meaningful content rendered, no framework error overlay appeared, and the mobile document width remained 390px.
 - Captures: `qa-proof-gated-drops-config-desktop.png` and `qa-proof-gated-drops-config-mobile.png` (local QA artifacts; not release assets).
+# 2026-08-03 — Encrypted Campaign Delivery Center
+
+- Verified `#/deliveries` at 1440×900 and 390×844 with the real local application shell.
+- Confirmed the delivery hero, operator-only privacy boundary, sign-in gate, mobile navigation, current-line artwork, and calls to action render without clipping or error overlays.
+- The signed-out state intentionally exposes no private recipient data or claim credentials.
+- Authenticated controls are covered by TypeScript, lint, focused integration checks, authorization checks, and the production database migration. Provider-confirmed delivery remains an explicit external boundary.
+- Captures: `qa-delivery-center-desktop.png`, `qa-delivery-center-mobile.png` (local QA artifacts, not committed).

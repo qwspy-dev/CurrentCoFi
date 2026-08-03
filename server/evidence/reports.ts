@@ -13,6 +13,7 @@ import {
   communityTreasuries,
   claims,
   campaignQualityPolicies,
+  campaignDeliveries,
   checkoutLinks,
   checkoutPayments,
   crosschainFundingIntents,
@@ -45,7 +46,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v20";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v21";
 
 type Criterion = {
   id: string;
@@ -211,6 +212,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const campaignIds = campaigns.map((campaign) => campaign.id);
   const config = getServerConfig();
   const commercePromise = projectCommerceEvidence(projectId);
+  const deliveryPromise = campaignIds.length
+    ? db.select({ id: campaignDeliveries.id, distributionId: campaignDeliveries.distributionId, channel: campaignDeliveries.channel, status: campaignDeliveries.status, allocationStatus: allocations.status, sentAt: campaignDeliveries.sentAt })
+      .from(campaignDeliveries)
+      .innerJoin(allocations, eq(allocations.id, campaignDeliveries.allocationId))
+      .where(inArray(campaignDeliveries.distributionId, campaignIds))
+      .orderBy(desc(campaignDeliveries.createdAt))
+    : Promise.resolve([]);
   const bountyPromise = Promise.all([
     db.select({ bounty: bounties, distribution: distributions, token: tokens })
       .from(bounties).innerJoin(distributions, eq(distributions.id, bounties.distributionId)).innerJoin(tokens, eq(tokens.id, distributions.tokenId))
@@ -425,11 +433,22 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       : [],
   ]);
   const commerce = await commercePromise;
+  const deliveryRows = await deliveryPromise;
   const [bountyRows, bountySubmissionRows] = await bountyPromise;
   const [giveawayRows, giveawayEntryRows] = await giveawayPromise;
   const [publicDropRows, publicDropSlotRows] = await publicDropPromise;
   const [treasuryRows, treasuryBudgetRows, treasuryProposalRows] = await treasuryPromise;
   const [vestingBatchRows, vestingScheduleRows, vestingTrancheRows] = await vestingPromise;
+  const deliveryEvidence = {
+    totals: {
+      privateLinks: deliveryRows.length,
+      ready: deliveryRows.filter((row) => row.status === "ready" && row.allocationStatus !== "confirmed").length,
+      handedOff: deliveryRows.filter((row) => row.status === "handed_off" && row.allocationStatus !== "confirmed").length,
+      claimed: deliveryRows.filter((row) => row.allocationStatus === "confirmed").length,
+    },
+    channels: Object.entries(deliveryRows.reduce<Record<string, number>>((result, row) => ({ ...result, [row.channel]: (result[row.channel] ?? 0) + 1 }), {})).map(([channel, total]) => ({ channel, total })),
+    privacy: "Recipient identities and encrypted private claim URLs are excluded from grant evidence. A handoff record does not assert third-party delivery confirmation.",
+  };
   const bountyEvidence = {
     totals: {
       bounties: bountyRows.length,
@@ -939,6 +958,9 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       publicDropReservations: publicDropEvidence.totals.reserved,
       publicDropClaims: publicDropEvidence.totals.claimed,
       publicDropReferrals: publicDropEvidence.totals.referrals,
+      privateCampaignLinks: deliveryEvidence.totals.privateLinks,
+      campaignDeliveryHandoffs: deliveryEvidence.totals.handedOff,
+      deliveredCampaignClaims: deliveryEvidence.totals.claimed,
       vestingBatches: vestingEvidence.totals.batches,
       fundedVestingBatches: vestingEvidence.totals.funded,
       vestingRecipients: vestingEvidence.totals.recipients,
@@ -953,6 +975,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     bounties: bountyEvidence,
     giveaways: giveawayEvidence,
     publicDrops: publicDropEvidence,
+    campaignDeliveries: deliveryEvidence,
     vesting: vestingEvidence,
     treasury: treasuryEvidence,
     campaigns: campaignEvidence,

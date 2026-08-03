@@ -10,6 +10,7 @@ import {
   activationEvents,
   allocations,
   auditEvents,
+  campaignDeliveries,
   claims,
   distributions,
   identityAttestations,
@@ -17,7 +18,7 @@ import {
   tokens,
 } from "../db/schema.js";
 import { ApiError } from "../http.js";
-import { sha256, signClaimToken } from "../security/crypto.js";
+import { openSecret, sealSecret, sha256, signClaimToken } from "../security/crypto.js";
 import { normalizeBoundIdentity, type CampaignClaimMode } from "../claims/identity-binding.js";
 import { inspectArcTokenTrust } from "../tokens/trust.js";
 import { buildCampaignTree } from "./merkle.js";
@@ -229,6 +230,15 @@ export async function createCampaign(input: {
     amount: formatAtomic(recipient.amountAtomic, token.decimals),
     claimUrl: `${input.origin}/?claim=${encodeURIComponent(await signClaimToken(recipient.allocationId, recipient.secret))}#/claim`,
   })));
+  await db.insert(campaignDeliveries).values(await Promise.all(links.map(async (link, index) => ({
+    projectId: input.projectId,
+    distributionId,
+    allocationId: link.allocationId,
+    identityType: link.identityType,
+    maskedIdentity: prepared[index].masked,
+    claimUrlCiphertext: await sealSecret(link.claimUrl),
+    metadata: { encryptedCredential: true, generatedAt: new Date().toISOString() },
+  }))));
   return {
     id: distributionId,
     status: "awaiting_funding",
@@ -248,6 +258,40 @@ export async function createCampaign(input: {
     expiresAt: expiresAt.toISOString(),
     links,
   };
+}
+
+export async function campaignDeliveryCenter(userId: string, projectId: string, distributionId?: string) {
+  await projectAccess(userId, projectId);
+  const conditions = [eq(campaignDeliveries.projectId, projectId)];
+  if (distributionId) conditions.push(eq(campaignDeliveries.distributionId, distributionId));
+  const rows = await getDb().select({ delivery: campaignDeliveries, distribution: distributions, allocation: allocations, token: tokens })
+    .from(campaignDeliveries)
+    .innerJoin(distributions, eq(distributions.id, campaignDeliveries.distributionId))
+    .innerJoin(allocations, eq(allocations.id, campaignDeliveries.allocationId))
+    .innerJoin(tokens, eq(tokens.id, distributions.tokenId))
+    .where(and(...conditions)).orderBy(desc(campaignDeliveries.createdAt)).limit(2_000);
+  const items = await Promise.all(rows.map(async ({ delivery, distribution, allocation, token }) => ({
+    id: delivery.id, distributionId: delivery.distributionId, allocationId: delivery.allocationId, campaignName: distribution.name,
+    maskedIdentity: delivery.maskedIdentity, identityType: delivery.identityType, channel: delivery.channel,
+    status: allocation.status === "confirmed" ? "claimed" : delivery.status, amount: formatAtomic(allocation.amountAtomic, token.decimals), asset: token.symbol,
+    claimUrl: await openSecret(delivery.claimUrlCiphertext), sentAt: delivery.sentAt?.toISOString() ?? null, expiresAt: allocation.expiresAt?.toISOString() ?? null,
+  })));
+  return { items, totals: { ready: items.filter((item) => item.status === "ready").length, handedOff: items.filter((item) => item.status === "handed_off").length, claimed: items.filter((item) => item.status === "claimed").length, campaigns: new Set(items.map((item) => item.distributionId)).size }, privacy: "Claim credentials are AES-GCM encrypted at rest and returned only to authorized project operators. Raw recipient identities are never returned. A handoff records operator preparation, not third-party delivery confirmation." };
+}
+
+export function normalizeCampaignDeliveryChannel(value: string) {
+  const channel = value.trim().toLowerCase();
+  if (!["copy", "qr", "email", "x", "telegram", "discord", "sms", "game", "other"].includes(channel)) throw new ApiError(400, "INVALID_DELIVERY_CHANNEL", "Choose a supported delivery channel.");
+  return channel;
+}
+
+export async function markCampaignDelivery(input: { userId: string; projectId: string; deliveryId: string; channel: string }) {
+  await projectAccess(input.userId, input.projectId);
+  const channel = normalizeCampaignDeliveryChannel(input.channel);
+  const [delivery] = await getDb().update(campaignDeliveries).set({ channel, status: "handed_off", sentAt: new Date(), updatedAt: new Date() }).where(and(eq(campaignDeliveries.id, input.deliveryId), eq(campaignDeliveries.projectId, input.projectId))).returning();
+  if (!delivery) throw new ApiError(404, "DELIVERY_NOT_FOUND", "This campaign delivery does not exist.");
+  await getDb().insert(auditEvents).values({ actorType: "user", actorId: input.userId, projectId: input.projectId, action: "campaign.delivery_recorded", resourceType: "campaign_delivery", resourceId: delivery.id, metadata: { distributionId: delivery.distributionId, allocationId: delivery.allocationId, channel } });
+  return { id: delivery.id, status: delivery.status, channel: delivery.channel, sentAt: delivery.sentAt?.toISOString() ?? null };
 }
 
 export async function campaignKindForClaim(tokenValue: string) {

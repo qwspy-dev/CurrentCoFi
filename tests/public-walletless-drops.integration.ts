@@ -30,7 +30,7 @@ assert.match(mcp, /I_APPROVE_CURRENT_PUBLIC_DROP/);
 assert.match(meta, /public-walletless-mass-drops/);
 assert.match(openapi, /3\.11\.0-proof-gated-public-drops/);
 assert.match(openapi, /"\/developer\/drops"/);
-assert.match(evidence, /current-evidence-v20/);
+assert.match(evidence, /current-evidence-v21/);
 assert.match(evidence, /Encrypted email identities and private claim credentials are excluded/);
 
 console.log("Public walletless mass drops verified: capped funding, atomic one-identity reservations, referral attribution, embedded-wallet claim handoff, SDK/MCP access, and privacy-safe grant evidence.");

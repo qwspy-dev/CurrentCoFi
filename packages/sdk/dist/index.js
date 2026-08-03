@@ -40,6 +40,10 @@ export class Current {
     distributions = {
         create: (input) => this.signedPost("/api/v1/developer/distributions", input),
     };
+    deliveries = {
+        list: (distributionId) => this.get(`/api/v1/developer/deliveries${distributionId ? `?distributionId=${encodeURIComponent(distributionId)}` : ""}`),
+        recordHandoff: (deliveryId, channel) => this.signedPost("/api/v1/developer/deliveries", { deliveryId, channel }),
+    };
     links = {
         inspectToken: (address) => this.signedPost("/api/v1/developer/tokens/inspect", { address }),
         create: (input) => this.signedPost("/api/v1/developer/links", input),

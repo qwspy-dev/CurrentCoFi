@@ -516,6 +516,30 @@ export type CreatedDistribution = {
         claimUrl: string;
     }>;
 };
+export type CampaignDeliveryCenter = {
+    items: Array<{
+        id: string;
+        distributionId: string;
+        allocationId: string;
+        campaignName: string;
+        maskedIdentity: string;
+        identityType: string;
+        channel: string;
+        status: "ready" | "handed_off" | "claimed";
+        amount: string;
+        asset: string;
+        claimUrl: string;
+        sentAt: string | null;
+        expiresAt: string | null;
+    }>;
+    totals: {
+        ready: number;
+        handedOff: number;
+        claimed: number;
+        campaigns: number;
+    };
+    privacy: string;
+};
 export type InspectedArcToken = {
     address: string;
     symbol: string;
@@ -1664,6 +1688,15 @@ export declare class Current {
     private readonly request;
     readonly distributions: {
         create: (input: CreateDistributionInput) => Promise<CreatedDistribution>;
+    };
+    readonly deliveries: {
+        list: (distributionId?: string) => Promise<CampaignDeliveryCenter>;
+        recordHandoff: (deliveryId: string, channel: string) => Promise<{
+            id: string;
+            status: string;
+            channel: string;
+            sentAt: string | null;
+        }>;
     };
     readonly links: {
         inspectToken: (address: string) => Promise<InspectedArcToken>;

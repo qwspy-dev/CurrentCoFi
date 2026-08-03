@@ -149,6 +149,12 @@ export type CreatedDistribution = {
   }>;
 };
 
+export type CampaignDeliveryCenter = {
+  items: Array<{ id: string; distributionId: string; allocationId: string; campaignName: string; maskedIdentity: string; identityType: string; channel: string; status: "ready" | "handed_off" | "claimed"; amount: string; asset: string; claimUrl: string; sentAt: string | null; expiresAt: string | null }>;
+  totals: { ready: number; handedOff: number; claimed: number; campaigns: number };
+  privacy: string;
+};
+
 export type InspectedArcToken = {
   address: string;
   symbol: string;
@@ -739,6 +745,11 @@ export class Current {
       "/api/v1/developer/distributions",
       input,
     ),
+  };
+
+  readonly deliveries = {
+    list: (distributionId?: string) => this.get<CampaignDeliveryCenter>(`/api/v1/developer/deliveries${distributionId ? `?distributionId=${encodeURIComponent(distributionId)}` : ""}`),
+    recordHandoff: (deliveryId: string, channel: string) => this.signedPost<{ id: string; status: string; channel: string; sentAt: string | null }>("/api/v1/developer/deliveries", { deliveryId, channel }),
   };
 
   readonly links = {

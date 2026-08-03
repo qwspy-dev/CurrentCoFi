@@ -85,6 +85,33 @@ export function createCurrentMcpServer(input = configFromEnv()) {
             return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Project analytics are unavailable.");
         }
     });
+    server.registerTool("current_list_campaign_deliveries", {
+        title: "Read encrypted campaign delivery center",
+        description: "Read authorized masked recipients, recoverable private claim links, handoff channels, and claimed states. Raw identities are never returned.",
+        inputSchema: { distributionId: z.string().uuid().optional() },
+        annotations: readOnly,
+    }, async ({ distributionId }) => {
+        try {
+            return success(await requireProject().deliveries.list(distributionId));
+        }
+        catch (error) {
+            return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Campaign deliveries are unavailable.");
+        }
+    });
+    server.registerTool("current_record_campaign_handoff", {
+        title: "Record a campaign-link handoff",
+        description: "Record that an authorized operator prepared a private claim link for a delivery channel. This does not claim third-party delivery confirmation.",
+        inputSchema: { deliveryId: z.string().uuid(), channel: z.enum(["copy", "qr", "email", "x", "telegram", "discord", "sms", "game", "other"]), approval: z.literal("I_APPROVE_CURRENT_DELIVERY_HANDOFF") },
+        annotations: mutation,
+    }, async ({ deliveryId, channel, approval: _approval }) => {
+        void _approval;
+        try {
+            return success(await requireProject().deliveries.recordHandoff(deliveryId, channel));
+        }
+        catch (error) {
+            return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the delivery handoff.");
+        }
+    });
     server.registerTool("current_list_community_bounties", {
         title: "Read project community bounties",
         description: "Read funded prize status, masked submissions, proof digests, and awards for the configured Current project.",

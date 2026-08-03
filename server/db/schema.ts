@@ -653,6 +653,25 @@ export const allocations = pgTable("allocations", {
   index("allocations_identity_idx").on(table.identityType, table.identityHash),
 ]);
 
+export const campaignDeliveries = pgTable("campaign_deliveries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  allocationId: uuid("allocation_id").references(() => allocations.id, { onDelete: "cascade" }).notNull(),
+  identityType: text("identity_type").notNull(),
+  maskedIdentity: text("masked_identity").notNull(),
+  claimUrlCiphertext: text("claim_url_ciphertext").notNull(),
+  channel: text("channel").default("unassigned").notNull(),
+  status: text("status").default("ready").notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("campaign_deliveries_allocation_unique").on(table.allocationId),
+  index("campaign_deliveries_project_status_idx").on(table.projectId, table.status, table.createdAt),
+  index("campaign_deliveries_distribution_idx").on(table.distributionId, table.createdAt),
+]);
+
 export const claims = pgTable("claims", {
   id: uuid("id").primaryKey().defaultRandom(),
   allocationId: uuid("allocation_id").references(() => allocations.id, { onDelete: "cascade" }).notNull(),

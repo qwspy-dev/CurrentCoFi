@@ -32,7 +32,7 @@ assert.match(settlement, /ALLOCATION_LOCKED/);
 assert.match(openapi, /3\.9\.0-walletless-launch-vesting/);
 assert.match(openapi, /"\/developer\/vesting"/);
 assert.match(meta, /authorizer-enforced-allocation-cliffs/);
-assert.match(evidence, /current-evidence-v20/);
+assert.match(evidence, /current-evidence-v21/);
 assert.match(evidence, /walletless-launch-vesting/);
 assert.match(mcp, /I_APPROVE_CURRENT_VESTING/);
 assert.match(app, /WALLETLESS LAUNCH VESTING/);

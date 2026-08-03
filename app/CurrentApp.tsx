@@ -1,11 +1,12 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- generated QR data URIs cannot use the image optimizer */
 
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
   Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
   Copy, Download, Eye, ExternalLink, FileCheck2, Fingerprint, Gauge, Gift,
   Globe2, Handshake, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
-  MoreHorizontal, Network, Pause, Play, Plus, Radar, Radio, RefreshCw, Repeat2, Search,
+  MoreHorizontal, Network, Pause, Play, Plus, QrCode, Radar, Radio, RefreshCw, Repeat2, Search, Send,
   ReceiptText, Rocket, Settings, Share2, ShieldAlert, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
@@ -18,7 +19,7 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
   | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "campaigns" | "bounty"
-  | "new-campaign" | "funding" | "payroll" | "bounties" | "drops" | "drop" | "giveaways" | "giveaway" | "vesting" | "vesting-claim" | "treasury" | "public-treasury" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
+  | "new-campaign" | "funding" | "payroll" | "bounties" | "drops" | "drop" | "giveaways" | "giveaway" | "vesting" | "vesting-claim" | "treasury" | "public-treasury" | "recipients" | "deliveries" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
@@ -332,6 +333,16 @@ type CampaignRecipient = {
   status: string;
   claimed: boolean;
   updatedAt: string;
+};
+
+type CampaignDeliveryCenterState = {
+  items: Array<{
+    id: string; distributionId: string; campaignName: string; identityType: string; maskedIdentity: string;
+    amount: string; asset: string; claimUrl: string; channel: string; status: "ready" | "handed_off" | "claimed";
+    sentAt: string | null; expiresAt: string; createdAt: string;
+  }>;
+  totals: { ready: number; handedOff: number; claimed: number; campaigns: number };
+  privacy: string;
 };
 
 type CampaignAnalytics = {
@@ -1043,7 +1054,7 @@ function compactAddress(value:string) {
 
 const validViews = new Set<View>([
   "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "campaigns", "bounty",
-  "new-campaign", "funding", "payroll", "bounties", "drops", "drop", "giveaways", "giveaway", "vesting", "vesting-claim", "treasury", "public-treasury", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
+  "new-campaign", "funding", "payroll", "bounties", "drops", "drop", "giveaways", "giveaway", "vesting", "vesting-claim", "treasury", "public-treasury", "recipients", "deliveries", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
 
@@ -1066,7 +1077,7 @@ const appNav = [
     ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2],
     ["create", "Create link", Link2],
     ["payments", "Social payments", CircleDollarSign],
-    ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["drops", "Public mass drops", Radio], ["vesting", "Launch vesting", Clock3], ["bounties", "Community bounties", Target], ["giveaways", "Verifiable giveaways", Gift], ["payroll", "Community payroll", Repeat2], ["treasury", "Community treasury", CircleDollarSign], ["recipients", "Recipients", Users],
+    ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["drops", "Public mass drops", Radio], ["vesting", "Launch vesting", Clock3], ["bounties", "Community bounties", Target], ["giveaways", "Verifiable giveaways", Gift], ["payroll", "Community payroll", Repeat2], ["treasury", "Community treasury", CircleDollarSign], ["recipients", "Recipients", Users], ["deliveries", "Delivery center", Send],
     ["escrow", "Milestone escrow", Lock],
     ["commerce", "Merchant checkout", ShoppingBag],
     ["subscriptions", "Subscriptions", Repeat2],
@@ -2507,6 +2518,64 @@ function Recipients({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
     <div className="data-panel"><div className="panel-head"><div><h3>Recipient network</h3><p>{rows.length.toLocaleString()} identities across live workspace campaigns</p></div><div className="table-actions"><label><Search/><input placeholder="Search identity" value={query} onChange={event=>setQuery(event.target.value)}/></label><button onClick={()=>go("new-campaign")}><Upload/>New allowlist</button></div></div><div className="recipient-table"><div className="table-head"><span>Recipient</span><span>Amount</span><span>Status</span><span>Campaign</span><span>Updated</span><span/></div>{loading&&<div className="campaign-empty compact"><RefreshCw className="spin"/><b>Reading allocations…</b></div>}{!loading&&!visible.length&&<div className="campaign-empty compact"><Users/><b>No matching recipients</b><p>Create or select a campaign to populate this verifiable record.</p></div>}{visible.map(row=><div className="table-row" key={row.id}><span className="recipient-name"><i>{row.identity.slice(0,2).toUpperCase()}</i><b>{row.identity}<small>{row.identityType}</small></b></span><b>{row.amount} {row.asset}</b><Status tone={row.status==="confirmed"?"green":row.status==="authorizing"?"blue":row.status==="refunded"?"grey":"cyan"}>{row.status}</Status><span>{row.campaignName}</span><time>{new Date(row.updatedAt).toLocaleDateString()}</time><button><MoreHorizontal/></button></div>)}</div></div></>;
 }
 
+function CampaignDeliveryCenter({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [state,setState]=useState<CampaignDeliveryCenterState|null>(null);
+  const [loading,setLoading]=useState(Boolean(auth.account));
+  const [busy,setBusy]=useState<string|null>(null);
+  const [query,setQuery]=useState("");
+  const [campaign,setCampaign]=useState("all");
+  const [error,setError]=useState<string|null>(null);
+  const [qr,setQr]=useState<{url:string;label:string;dataUrl:string}|null>(null);
+  const refresh=useCallback(async()=>{
+    if(!auth.account)return;
+    setLoading(true);
+    try{setState(await currentApi.get<CampaignDeliveryCenterState>("/deliveries"));setError(null)}
+    catch(fetchError){setError(fetchError instanceof Error?fetchError.message:"Delivery center is unavailable.")}
+    finally{setLoading(false)}
+  },[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const campaigns=useMemo(()=>Array.from(new Map((state?.items??[]).map(item=>[item.distributionId,item.campaignName])).entries()),[state]);
+  const visible=useMemo(()=>(state?.items??[]).filter(item=>(campaign==="all"||item.distributionId===campaign)&&`${item.maskedIdentity} ${item.campaignName} ${item.asset} ${item.channel}`.toLowerCase().includes(query.toLowerCase())),[state,campaign,query]);
+  const record=async(item:CampaignDeliveryCenterState["items"][number],channel:string)=>{
+    setBusy(item.id);setError(null);
+    try{
+      if(channel==="copy"||channel==="discord")await navigator.clipboard.writeText(item.claimUrl);
+      if(channel==="qr"){
+        const QRCode=await import("qrcode");
+        const dataUrl=await QRCode.toDataURL(item.claimUrl,{width:720,margin:2,color:{dark:"#061b2b",light:"#f4fafa"},errorCorrectionLevel:"H"});
+        setQr({url:item.claimUrl,label:`${item.campaignName} · ${item.maskedIdentity}`,dataUrl});
+      }
+      const shareText=encodeURIComponent(`${item.campaignName}: your private Current CoFi claim is ready.`);
+      const shareUrl=encodeURIComponent(item.claimUrl);
+      if(channel==="x")window.open(`https://x.com/intent/post?text=${shareText}&url=${shareUrl}`,"_blank","noopener,noreferrer");
+      if(channel==="telegram")window.open(`https://t.me/share/url?url=${shareUrl}&text=${shareText}`,"_blank","noopener,noreferrer");
+      if(channel==="email")window.open(`mailto:?subject=${encodeURIComponent(`${item.campaignName} claim`)}&body=${shareText}%0A%0A${shareUrl}`,"_self");
+      if(channel==="sms")window.open(`sms:?&body=${shareText}%20${shareUrl}`,"_self");
+      await currentApi.post("/deliveries",{deliveryId:item.id,channel});
+      await refresh();
+    }catch(actionError){setError(actionError instanceof Error?actionError.message:"The delivery handoff could not be recorded.")}
+    finally{setBusy(null)}
+  };
+  const downloadManifest=()=>{
+    const cells=(value:string)=>`"${value.replaceAll('"','""')}"`;
+    const csv=["campaign,recipient,identity_type,amount,asset,status,channel,private_claim_url,expires_at",...visible.map(item=>[item.campaignName,item.maskedIdentity,item.identityType,item.amount,item.asset,item.status,item.channel,item.claimUrl,item.expiresAt].map(cells).join(","))].join("\n");
+    const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const anchor=document.createElement("a");anchor.href=url;anchor.download=`current-delivery-manifest-${new Date().toISOString().slice(0,10)}.csv`;anchor.click();URL.revokeObjectURL(url);
+  };
+  const totals=state?.totals??{ready:0,handedOff:0,claimed:0,campaigns:0};
+  return <><PageHero eyebrow="SECURE DELIVERY CURRENT" title="Put every private claim in the right hands." copy="Recover encrypted campaign links, prepare social or QR handoffs, and follow each allocation through verified Arc settlement." mode="branches"><Button tone="cyan" onClick={()=>go("new-campaign")}>Create campaign <Plus/></Button></PageHero>
+    {!auth.account&&<div className="campaign-empty"><Lock/><h3>Delivery links stay private</h3><p>Sign in as an authorized project operator to decrypt and manage campaign claim links.</p><Button tone="blue" onClick={()=>go("claim")}>Open workspace <ArrowRight/></Button></div>}
+    {auth.account&&<><section className="delivery-assurance"><ShieldCheck/><div><b>Encrypted at rest. Visible only to authorized project operators.</b><small>{state?.privacy??"A recorded handoff means an operator prepared the channel; it is not third-party delivery confirmation."}</small></div><Status tone="green">Operator-only</Status></section>
+    <div className="metric-grid-new delivery-metrics"><MetricCard label="Ready to hand off" value={totals.ready.toLocaleString()} icon={Send}/><MetricCard label="Handoffs recorded" value={totals.handedOff.toLocaleString()} icon={Share2}/><MetricCard label="Claims settled" value={totals.claimed.toLocaleString()} icon={CheckCircle2}/><MetricCard label="Campaigns" value={totals.campaigns.toLocaleString()} icon={Layers3}/></div>
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    <div className="data-panel delivery-center-panel"><div className="panel-head"><div><h3>Private claim handoffs</h3><p>Decrypted only for this authorized session. Never paste this export into a public channel.</p></div><div className="delivery-toolbar"><label><Search/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search masked identity"/></label><select value={campaign} onChange={event=>setCampaign(event.target.value)}><option value="all">All campaigns</option>{campaigns.map(([id,name])=><option value={id} key={id}>{name}</option>)}</select><button disabled={!visible.length} onClick={downloadManifest}><Download/>Secure CSV</button></div></div>
+      {loading&&<div className="campaign-empty compact"><RefreshCw className="spin"/><b>Decrypting authorized delivery records…</b></div>}
+      {!loading&&!visible.length&&<div className="campaign-empty compact"><Send/><b>No private deliveries yet</b><p>Create a recipient campaign and its encrypted delivery records will appear here.</p></div>}
+      <div className="delivery-grid">{visible.map(item=><article className="delivery-card" key={item.id}><header><span className="delivery-identity"><i>{item.identityType.slice(0,2).toUpperCase()}</i><span><b>{item.maskedIdentity}</b><small>{item.identityType} · {item.campaignName}</small></span></span><Status tone={item.status==="claimed"?"green":item.status==="handed_off"?"cyan":"grey"}>{item.status.replaceAll("_"," ")}</Status></header><div className="delivery-value"><small>PRIVATE ALLOCATION</small><strong>{item.amount} <em>{item.asset}</em></strong><span>Expires {new Date(item.expiresAt).toLocaleDateString()}</span></div><footer><button disabled={busy===item.id||item.status==="claimed"} onClick={()=>void record(item,"copy")}><Copy/>Copy</button><button disabled={busy===item.id||item.status==="claimed"} onClick={()=>void record(item,"qr")}><QrCode/>QR</button><label><Share2/><select aria-label={`Choose handoff channel for ${item.maskedIdentity}`} disabled={busy===item.id||item.status==="claimed"} value="" onChange={event=>{if(event.target.value)void record(item,event.target.value)}}><option value="">Channel</option><option value="email">Email</option><option value="x">X</option><option value="telegram">Telegram</option><option value="discord">Discord copy</option><option value="sms">SMS</option><option value="game">Game account</option><option value="other">Other</option></select></label></footer>{item.sentAt&&<p><Check/>Handoff prepared via {item.channel} · {new Date(item.sentAt).toLocaleString()}</p>}</article>)}</div>
+    </div></>}
+    {qr&&<div className="modal-backdrop" onMouseDown={()=>setQr(null)}><section className="modal-card delivery-qr-modal" onMouseDown={event=>event.stopPropagation()}><button className="modal-close" aria-label="Close QR code" onClick={()=>setQr(null)}><X/></button><Eyebrow>PRIVATE CLAIM QR</Eyebrow><h2>Scan into the current.</h2><p>{qr.label}</p>{/* Data-generated QR codes cannot use the framework image optimizer. */}<img src={qr.dataUrl} alt={`Private claim QR for ${qr.label}`}/><small>Anyone with this QR can access the private claim. Share it only with the intended recipient.</small><a download="current-private-claim.png" href={qr.dataUrl}><Download/>Download QR</a></section></div>}
+  </>;
+}
+
 function Referrals({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const network=useCampaignNetwork(Boolean(auth.account));
   const [state,setState]=useState<ReferralState|null>(null);
@@ -3540,6 +3609,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "new-campaign":page=<CampaignBuilder go={go} auth={auth}/>;break;
     case "funding":page=<CrosschainFunding go={go} auth={auth}/>;break;
     case "recipients":page=<Recipients auth={auth} go={go}/>;break;
+    case "deliveries":page=<CampaignDeliveryCenter auth={auth} go={go}/>;break;
     case "referrals":page=<Referrals auth={auth} go={go}/>;break;
     case "analytics":page=<Analytics auth={auth} go={go}/>;break;
     case "pilots":page=<PilotOperations auth={auth} go={go}/>;break;

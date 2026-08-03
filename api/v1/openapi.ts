@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.11.0-proof-gated-public-drops",
+    version: "3.12.0-encrypted-campaign-delivery-center",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -54,6 +54,10 @@ export default withApi((request) => ok(request, {
     "/campaigns/fund": { post: { summary: "Approve and fully fund a campaign vault on Arc" } },
     "/campaigns/manage": { post: { summary: "Cancel a campaign or refund an expired campaign" } },
     "/campaigns/recipients": { get: { summary: "List masked recipient allocations and settlement states" } },
+    "/deliveries": {
+      get: { summary: "Recover authorized encrypted private claim links and their handoff state" },
+      post: { summary: "Record an operator-prepared claim-link handoff channel" },
+    },
     "/campaigns/analytics": { get: { summary: "Read live campaign targeting, claims, and activation totals" } },
     "/payroll": {
       get: { summary: "Read encrypted-roster community payroll schedules and Arc settlement runs" },
@@ -252,6 +256,10 @@ export default withApi((request) => ok(request, {
       get: { summary: "List project evidence reports with a scoped API key" },
       post: { summary: "Generate an HMAC-signed grant-evidence snapshot" },
     },
+    "/developer/deliveries": {
+      get: { summary: "Read authorized campaign delivery links with a scoped API key" },
+      post: { summary: "Record an HMAC-authorized campaign delivery handoff" },
+    },
     "/developer/pilots": {
       get: { summary: "List project pilots, intake links, and applications with a scoped API key" },
       post: { summary: "Create pilots or intake links and review applications with an HMAC-signed request" },
@@ -274,7 +282,7 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "public-walletless-mass-drops", "first-come-claim-caps", "encrypted-drop-reservations", "drop-referral-attribution", "community-bounties", "bounty-submissions", "walletless-bounty-awards", "verifiable-giveaways", "encrypted-giveaway-entries", "giveaway-referrals", "commit-reveal-draw-proof", "walletless-winner-claims", "walletless-launch-vesting", "vesting-schedules", "vesting-tranches", "public-launch-allocation-proof", "transparent-community-treasury", "treasury-budgets", "treasury-proposals", "treasury-payment-receipts", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "encrypted-campaign-deliveries", "private-claim-link-recovery", "masked-recipient-handoffs", "qr-social-delivery-preparation", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "public-walletless-mass-drops", "first-come-claim-caps", "encrypted-drop-reservations", "drop-referral-attribution", "community-bounties", "bounty-submissions", "walletless-bounty-awards", "verifiable-giveaways", "encrypted-giveaway-entries", "giveaway-referrals", "commit-reveal-draw-proof", "walletless-winner-claims", "walletless-launch-vesting", "vesting-schedules", "vesting-tranches", "public-launch-allocation-proof", "transparent-community-treasury", "treasury-budgets", "treasury-proposals", "treasury-payment-receipts", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "builder-integration-manifest", "integration-conformance", "portable-integration-certificates", "public-network-proof", "verified-testnet-traction", "public-campaign-proof-explorer", "privacy-safe-campaign-evidence", "account-free-reviewer-demo", "non-mutating-verified-replay", "public-project-token-proof", "arbitrary-erc20-testnet-evidence", "completed-project-token-settlement", "continuous-grant-proof-health", "public-grant-dossier",
