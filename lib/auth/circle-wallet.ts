@@ -187,10 +187,14 @@ export function useCircleWalletAuth() {
         }, onLoginComplete);
         sdkRef.current = sdk;
         try {
-          const session = await currentApi.get<CurrentAccount>("/auth/session");
+          const session = await currentApi.get<CurrentAccount | { authenticated: false }>("/auth/session");
           if (!cancelled) {
-            setAccount(session);
-            setState("authenticated");
+            if (session.authenticated) {
+              setAccount(session);
+              setState("authenticated");
+            } else {
+              setState("ready");
+            }
           }
         } catch {
           if (!cancelled) setState("ready");

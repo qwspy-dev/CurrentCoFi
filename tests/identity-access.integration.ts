@@ -23,6 +23,7 @@ Object.assign(process.env, {
 const { getPublicConfig } = await import("../server/config.js");
 const { createExternalAuthorization, externalIdentityAvailability } = await import("../server/auth/external-identities.js");
 const { openSecret } = await import("../server/security/crypto.js");
+const { default: sessionEndpoint } = await import("../api/v1/auth/session.js");
 
 const publicConfig = getPublicConfig();
 assert.equal(publicConfig.capabilities.emailLogin, true);
@@ -30,6 +31,11 @@ assert.equal(publicConfig.capabilities.appleLogin, true);
 assert.equal(publicConfig.capabilities.facebookLogin, true);
 assert.equal(publicConfig.capabilities.externalIdentityLinking, true);
 assert.deepEqual(externalIdentityAvailability(), { x: true, discord: true, telegram: true });
+
+const signedOutResponse = await sessionEndpoint.fetch(new Request("https://www.currentco.finance/api/v1/auth/session"));
+const signedOutPayload = await signedOutResponse.json();
+assert.equal(signedOutResponse.status, 200);
+assert.deepEqual(signedOutPayload.data, { authenticated: false });
 
 const session = {
   version: 1 as const,

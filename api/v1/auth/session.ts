@@ -3,7 +3,9 @@ import { persistSessionAccount } from "../../../server/accounts/repository.js";
 import {
   clearSessionCookie,
   publicSession,
+  readCookie,
   sealSession,
+  SESSION_COOKIE,
   sessionCookie,
   sessionFromRequest,
   type CurrentSession,
@@ -43,6 +45,7 @@ async function create(request: Request) {
 }
 
 async function read(request: Request) {
+  if (!readCookie(request, SESSION_COOKIE)) return ok(request, { authenticated: false });
   return ok(request, publicSession(await sessionFromRequest(request)));
 }
 
