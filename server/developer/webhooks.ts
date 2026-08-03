@@ -25,6 +25,8 @@ export const webhookEventTypes = [
   "checkout.created",
   "checkout.paid",
   "checkout.refunded",
+  "social-payment.created",
+  "social-payment.paid",
   "subscription.plan.created",
   "subscription.started",
   "subscription.renewed",

@@ -232,6 +232,53 @@ export const checkoutPayments = pgTable("checkout_payments", {
   index("checkout_payments_customer_idx").on(table.customerUserId, table.createdAt),
 ]);
 
+export const socialPaymentRequests = pgTable("social_payment_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  recipientUserId: uuid("recipient_user_id").references(() => users.id, { onDelete: "set null" }),
+  slug: text("slug").notNull(),
+  kind: text("kind").notNull(),
+  title: text("title").notNull(),
+  note: text("note"),
+  recipientAddress: text("recipient_address").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  paidAmountAtomic: numeric("paid_amount_atomic", { precision: 78, scale: 0 }).default("0").notNull(),
+  currency: text("currency").default("USDC").notNull(),
+  status: text("status").default("active").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("social_payment_requests_slug_unique").on(table.slug),
+  index("social_payment_requests_creator_idx").on(table.creatorUserId, table.createdAt),
+  index("social_payment_requests_recipient_idx").on(table.recipientUserId, table.createdAt),
+  index("social_payment_requests_status_idx").on(table.status, table.expiresAt),
+]);
+
+export const socialPaymentShares = pgTable("social_payment_shares", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requestId: uuid("request_id").references(() => socialPaymentRequests.id, { onDelete: "cascade" }).notNull(),
+  publicTokenHash: text("public_token_hash").notNull(),
+  label: text("label"),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  status: text("status").default("open").notNull(),
+  payerUserId: uuid("payer_user_id").references(() => users.id, { onDelete: "set null" }),
+  payerWalletId: text("payer_wallet_id"),
+  payerAddress: text("payer_address"),
+  paymentChallengeId: text("payment_challenge_id"),
+  transactionHash: text("transaction_hash"),
+  receiptNumber: text("receipt_number").notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("social_payment_shares_token_unique").on(table.publicTokenHash),
+  uniqueIndex("social_payment_shares_receipt_unique").on(table.receiptNumber),
+  uniqueIndex("social_payment_shares_transaction_unique").on(table.transactionHash),
+  index("social_payment_shares_request_status_idx").on(table.requestId, table.status, table.createdAt),
+  index("social_payment_shares_payer_idx").on(table.payerUserId, table.createdAt),
+]);
+
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: uuid("id").primaryKey().defaultRandom(),
   merchantId: uuid("merchant_id").references(() => merchantAccounts.id, { onDelete: "cascade" }).notNull(),

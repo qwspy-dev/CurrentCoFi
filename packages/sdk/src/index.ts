@@ -195,6 +195,21 @@ export type MerchantCommerce = {
   totals: { checkouts: number; payments: number; volume: string; refunds: number };
 };
 
+export type CreateSocialPaymentInput = {
+  kind: "request" | "tip" | "split";
+  title: string;
+  note?: string;
+  amount?: string;
+  shares?: Array<{ label?: string; amount: string }>;
+  expiresAt?: string;
+};
+
+export type CreatedSocialPayment = {
+  id: string; slug: string; kind: CreateSocialPaymentInput["kind"]; title: string; note: string | null;
+  status: string; amount: string; paidAmount: string; currency: string; expiresAt: string | null;
+  shares: Array<{ id: string; label: string | null; amount: string; payUrl: string }>;
+};
+
 export type CreateSubscriptionPlanInput = {
   title: string;
   description?: string;
@@ -628,6 +643,13 @@ export class Current {
     ),
     create: (input: CreateCheckoutInput) => this.signedPost<MerchantCommerce["checkouts"][number]>(
       "/api/v1/developer/checkout",
+      input,
+    ),
+  };
+
+  readonly socialPayments = {
+    create: (input: CreateSocialPaymentInput) => this.signedPost<CreatedSocialPayment>(
+      "/api/v1/developer/social-payments",
       input,
     ),
   };

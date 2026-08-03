@@ -134,6 +134,13 @@
       "when": 1785560459381,
       "tag": "0018_exotic_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785726625869,
+      "tag": "0019_tidy_triton",
+      "breakpoints": true
     }
   ]
 }

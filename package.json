@@ -13,6 +13,7 @@
     "test": "pnpm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint app api lib server db worker packages examples *.ts *.mjs",
     "typecheck": "tsc --noEmit",
+    "social:test": "tsx tests/social-payments.integration.ts",
     "db:generate": "drizzle-kit generate",
     "db:generate:vercel": "drizzle-kit generate --config=drizzle.config.vercel.ts",
     "db:migrate:vercel": "drizzle-kit migrate --config=drizzle.config.vercel.ts",

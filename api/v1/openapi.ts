@@ -32,6 +32,13 @@ export default withApi((request) => ok(request, {
       post: { summary: "Create a persistent, signed walletless USDC claim link" },
     },
     "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
+    "/social-payments": {
+      get: { summary: "List social payment requests, split progress, and sent-payment receipts" },
+      post: { summary: "Create a username send, payment request, tip link, or split bill" },
+    },
+    "/social-payments/public": { get: { summary: "Resolve a token-scoped social payment without exposing private identities" } },
+    "/social-payments/pay": { post: { summary: "Prepare or confirm an exact non-custodial Arc USDC transfer" } },
+    "/social-payments/manage": { post: { summary: "Cancel an owned active social payment request" } },
     "/campaigns": {
       get: { summary: "List owned campaigns with verified settlement analytics" },
       post: { summary: "Create an allowlisted or identity-bound USDC or project-token campaign" },
@@ -116,6 +123,7 @@ export default withApi((request) => ok(request, {
       get: { summary: "Read subscription plans, subscribers, cycles, and recurring volume with a scoped API key" },
       post: { summary: "Publish a recurring USDC plan with an HMAC-signed request" },
     },
+    "/developer/social-payments": { post: { summary: "Create an HMAC-signed request, tip, or split-bill link for a project" } },
     "/developer/agent-actions": {
       get: { summary: "List auditable policy decisions made for a scoped agent" },
       post: { summary: "Propose a policy-bound walletless reward distribution" },
@@ -195,7 +203,7 @@ export default withApi((request) => ok(request, {
   "x-current-cofi": {
     liveResourceGroups: [
       "auth", "users", "wallets", "projects", "tokens", "distributions",
-      "allocations", "campaigns", "claims", "campaign-analytics", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
+      "allocations", "campaigns", "claims", "campaign-analytics", "social-payments", "username-payments", "payment-requests", "tips", "split-bills", "social-payment-receipts", "milestone-escrow", "escrow-disputes", "escrow-recovery", "merchant-profiles", "hosted-usdc-checkouts", "checkout-receipts", "merchant-refunds", "subscription-plans", "subscription-enrollments", "subscription-renewals", "subscription-cancellations", "subscription-reminders", "subscription-lifecycle-webhooks", "referrals",
       "activation-ingestion", "api-keys", "webhooks", "agents", "sdk",
       "embedded-components", "current-token", "project-locks", "fee-routing",
       "builder-integration-manifest", "integration-conformance", "portable-integration-certificates", "public-network-proof", "verified-testnet-traction", "public-campaign-proof-explorer", "privacy-safe-campaign-evidence", "account-free-reviewer-demo", "non-mutating-verified-replay", "public-project-token-proof", "arbitrary-erc20-testnet-evidence", "completed-project-token-settlement", "continuous-grant-proof-health", "public-grant-dossier",

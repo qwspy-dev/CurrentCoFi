@@ -88,6 +88,17 @@ console.log(manifest.digest, readiness.score, readiness.next?.label);
 // Freeze the current project conformance state into a signed, 30-day proof.
 const certification = await current.integrations.certify();
 console.log(certification.certificate.status, certification.publicUrl);
+
+// Publish private, exact-amount USDC shares from a game, community, or agent.
+const dinner = await current.socialPayments.create({
+  kind: "split",
+  title: "Community dinner",
+  shares: [
+    { label: "Alex", amount: "24" },
+    { label: "Jordan", amount: "24" },
+  ],
+});
+console.log(dinner.shares.map((share) => share.payUrl));
 ```
 
 Keep the API key and signing secret on the server. Never expose either credential in a browser bundle.

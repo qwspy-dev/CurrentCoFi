@@ -608,6 +608,35 @@ export type MerchantCommerce = {
         refunds: number;
     };
 };
+export type CreateSocialPaymentInput = {
+    kind: "request" | "tip" | "split";
+    title: string;
+    note?: string;
+    amount?: string;
+    shares?: Array<{
+        label?: string;
+        amount: string;
+    }>;
+    expiresAt?: string;
+};
+export type CreatedSocialPayment = {
+    id: string;
+    slug: string;
+    kind: CreateSocialPaymentInput["kind"];
+    title: string;
+    note: string | null;
+    status: string;
+    amount: string;
+    paidAmount: string;
+    currency: string;
+    expiresAt: string | null;
+    shares: Array<{
+        id: string;
+        label: string | null;
+        amount: string;
+        payUrl: string;
+    }>;
+};
 export type CreateSubscriptionPlanInput = {
     title: string;
     description?: string;
@@ -1308,6 +1337,9 @@ export declare class Current {
             successUrl: string | null;
             createdAt: string;
         }>;
+    };
+    readonly socialPayments: {
+        create: (input: CreateSocialPaymentInput) => Promise<CreatedSocialPayment>;
     };
     readonly subscriptions: {
         list: () => Promise<SubscriptionWorkspace>;

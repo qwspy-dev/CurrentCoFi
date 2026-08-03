@@ -17,7 +17,7 @@ import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
 import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
-  | "home" | "claim" | "overview" | "create" | "onboarding" | "campaigns"
+  | "home" | "claim" | "overview" | "create" | "payments" | "pay" | "onboarding" | "campaigns"
   | "new-campaign" | "funding" | "recipients" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
@@ -51,6 +51,18 @@ type WalletActionResult = {
   pending?: boolean;
   status?: string;
   transactionHash?: string | null;
+};
+
+type SocialPayment = {
+  id:string;slug:string;kind:"send"|"request"|"tip"|"split";title:string;note:string|null;status:string;
+  amount:string;paidAmount:string;currency:string;progress:{paid:number;total:number};expiresAt:string|null;createdAt:string;
+  url?:string;shares:Array<{id:string;label:string|null;amount:string;status:string;receiptNumber?:string;transactionHash?:string|null;paidAt?:string|null;payUrl?:string}>;
+};
+
+type PublicSocialPayment = Omit<SocialPayment,"shares"> & {
+  creator?:{username:string;displayName:string};
+  share:{id:string;label:string|null;amount:string;status:string;receiptNumber:string|null;transactionHash:string|null};
+  payable:boolean;network:string;
 };
 
 type ServiceStatusState = {
@@ -942,7 +954,7 @@ function formatAtomic(value:string) {
 }
 
 const validViews = new Set<View>([
-  "home", "claim", "overview", "create", "onboarding", "campaigns",
+  "home", "claim", "overview", "create", "payments", "pay", "onboarding", "campaigns",
   "new-campaign", "funding", "recipients", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
@@ -951,6 +963,7 @@ function viewFromHash(hash: string): View | null {
   if (hash.startsWith("#state=")) return "claim";
   if (hash.startsWith("#/checkout/")) return "checkout";
   if (hash.startsWith("#/subscribe/")) return "subscribe";
+  if (hash.startsWith("#/pay/")) return "pay";
   if (!hash.startsWith("#/")) return null;
   const value = hash.slice(2) as View;
   return validViews.has(value) ? value : null;
@@ -960,6 +973,7 @@ const appNav = [
   { label: "Workspace", items: [
     ["overview", "Overview", Gauge], ["onboarding", "Project setup", Globe2],
     ["create", "Create link", Link2],
+    ["payments", "Social payments", CircleDollarSign],
     ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["recipients", "Recipients", Users],
     ["escrow", "Milestone escrow", Lock],
     ["commerce", "Merchant checkout", ShoppingBag],
@@ -1669,6 +1683,30 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
 
 function MetricCard({label,value,change,icon:Icon}:{label:string;value:string;change?:string;icon:typeof Activity}) {
   return <article className="metric-card-new"><span><Icon/></span><small>{label}</small><strong>{value}</strong>{change&&<em><TrendingUp/>{change}</em>}</article>;
+}
+
+function HostedSocialPayment({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const token=new URLSearchParams(location.search).get("payment")??"";
+  const [payment,setPayment]=useState<PublicSocialPayment|null>(null);const [loading,setLoading]=useState(true);const [busy,setBusy]=useState(false);const [error,setError]=useState<string|null>(null);
+  const load=useCallback(()=>{if(!token){setError("This payment link is missing its secure token.");setLoading(false);return}setLoading(true);currentApi.get<PublicSocialPayment>(`/social-payments/public?token=${encodeURIComponent(token)}`).then(setPayment).catch(reason=>setError(reason instanceof Error?reason.message:"This payment is unavailable.")).finally(()=>setLoading(false))},[token]);
+  useEffect(()=>{const task=window.setTimeout(()=>void load(),0);return()=>window.clearTimeout(task)},[load]);
+  const pay=async()=>{if(!auth.account){sessionStorage.setItem("current.auth.return",location.hash);go("claim");return}setBusy(true);setError(null);try{const prepared=await currentApi.post<WalletActionResult&{shareId?:string}>("/social-payments/pay",{token});if(!prepared.complete){if(!prepared.challengeId||!prepared.shareId)throw new Error("Circle did not return the payment approval.");await auth.executeChallenge(prepared.challengeId);await confirmWalletAction("/social-payments/pay",{token,shareId:prepared.shareId},prepared.challengeId)}await load()}catch(reason){setError(reason instanceof Error?reason.message:"The payment could not be completed.")}finally{setBusy(false)}};
+  return <div className="social-pay-public"><header><Brand light onClick={()=>go("home")}/><button onClick={()=>go("home")}><ArrowLeft/>Back to Current</button></header><main><FluidCanvas mode="branches"/><section className="social-pay-card">{loading?<div className="creating-state"><RefreshCw className="spin"/><small>FOLLOWING THE PAYMENT CURRENT</small><h2>Opening secure payment…</h2></div>:error&&!payment?<div className="creating-state"><ShieldAlert/><small>PAYMENT UNAVAILABLE</small><h2>This current cannot be opened.</h2><p>{error}</p></div>:payment?<><div className="social-pay-avatar">{payment.creator?.displayName?.[0]??"C"}</div><Eyebrow>{payment.kind.toUpperCase()} · ARC TESTNET</Eyebrow><h1>{payment.title}</h1><p>{payment.note||`${payment.creator?.displayName??"A Current user"} created this secure USDC payment.`}</p><div className="social-pay-amount"><small>{payment.share.label||"YOUR SHARE"}</small><strong>{payment.share.amount}<em>{payment.currency}</em></strong></div><div className="social-pay-proof"><span><ShieldCheck/>Exact amount</span><span><Wallet/>Your embedded wallet</span><span><Zap/>Arc settlement</span></div>{error?<p className="auth-system-note is-error"><X/>{error}</p>:null}{payment.payable?<Button tone="blue" onClick={()=>void pay()} disabled={busy}>{busy?"Confirming on Arc…":auth.account?`Pay ${payment.share.amount} USDC`:"Sign in and pay"}<ArrowRight/></Button>:<div className="social-pay-complete"><CheckCircle2/><div><b>{payment.share.status==="confirmed"?"Payment complete":"Payment unavailable"}</b><small>{payment.share.receiptNumber?`Receipt ${payment.share.receiptNumber}`:payment.status.replaceAll("_"," ")}</small></div></div>}<footer><span>No seed phrase required.</span><span>Funds transfer directly to the recipient.</span></footer></>:null}</section></main></div>;
+}
+
+function SocialPayments({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [kind,setKind]=useState<"send"|"request"|"tip"|"split">("send");const [title,setTitle]=useState("Coffee is on me");const [note,setNote]=useState("Sent through Current CoFi.");const [amount,setAmount]=useState("10");const [username,setUsername]=useState("");const [shares,setShares]=useState([{label:"Alex",amount:"24"},{label:"Jordan",amount:"24"},{label:"Sam",amount:"24"}]);
+  const [state,setState]=useState<{requests:SocialPayment[];payments:Array<{id:string;title:string;kind:string;amount:string;currency:string;status:string;receiptNumber:string;transactionHash:string|null;createdAt:string}>}|null>(null);const [created,setCreated]=useState<SocialPayment|null>(null);const [loading,setLoading]=useState(false);const [error,setError]=useState<string|null>(null);
+  const refresh=useCallback(()=>{if(!auth.account){setState(null);return}currentApi.get<{requests:SocialPayment[];payments:Array<{id:string;title:string;kind:string;amount:string;currency:string;status:string;receiptNumber:string;transactionHash:string|null;createdAt:string}>}>("/social-payments").then(setState).catch(reason=>setError(reason instanceof Error?reason.message:"Social payments are unavailable."))},[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  const total=kind==="split"?shares.reduce((sum,item)=>sum+(Number(item.amount)||0),0):Number(amount)||0;
+  const create=async(event:React.FormEvent)=>{event.preventDefault();if(!auth.account){go("claim");return}setLoading(true);setError(null);try{const result=await currentApi.post<SocialPayment>("/social-payments",{kind,title,note,amount,username,shares:kind==="split"?shares:undefined});setCreated(result);await refresh()}catch(reason){setError(reason instanceof Error?reason.message:"The payment could not be created.")}finally{setLoading(false)}};
+  const updateShare=(index:number,key:"label"|"amount",value:string)=>setShares(current=>current.map((item,itemIndex)=>itemIndex===index?{...item,[key]:value}:item));
+  const copy=async(url?:string)=>{if(url)await navigator.clipboard.writeText(url)};
+  return <><PageHero eyebrow="SOCIAL MONEY" title="Move value like a message." copy="Send USDC to a Current username, request a payment, accept tips, or split a bill. Every payment settles directly between embedded Arc wallets." mode="branches"><Button tone="cyan" onClick={()=>document.querySelector(".social-pay-builder")?.scrollIntoView({behavior:"smooth"})}>Create a payment <ArrowRight/></Button></PageHero>
+    <div className="social-pay-metrics"><MetricCard label="Requests created" value={(state?.requests.length??0).toLocaleString()} icon={ReceiptText}/><MetricCard label="Shares settled" value={(state?.requests.reduce((sum,item)=>sum+item.progress.paid,0)??0).toLocaleString()} icon={CheckCircle2}/><MetricCard label="Sent from your wallet" value={(state?.payments.filter(item=>item.status==="confirmed").length??0).toLocaleString()} icon={ArrowUpRight}/><MetricCard label="Custody held by Current" value="$0" icon={ShieldCheck}/></div>
+    {!auth.account?<div className="campaign-empty social-pay-locked"><Wallet/><h3>Open your Current account to move value socially</h3><p>Email or Google creates your embedded Arc wallet. No extension, seed phrase, or separate gas token.</p><Button tone="blue" onClick={()=>go("claim")}>Create your account <ArrowRight/></Button></div>:<div className="social-pay-layout"><form className="social-pay-builder data-panel" onSubmit={event=>void create(event)}><div className="panel-head"><div><h3>Create a social current</h3><p>One exact action, one verifiable settlement.</p></div><Status tone="cyan">Non-custodial</Status></div><div className="social-pay-tabs">{(["send","request","tip","split"] as const).map(item=><button type="button" className={kind===item?"active":""} onClick={()=>setKind(item)} key={item}>{item==="split"?"Split bill":item[0].toUpperCase()+item.slice(1)}</button>)}</div><div className="social-pay-fields">{kind==="send"?<label>Current username<div className="input-prefix"><span>@</span><input value={username} onChange={event=>setUsername(event.target.value.replace(/^@/,""))} placeholder="current-user" required/></div></label>:null}<label>Title<input value={title} onChange={event=>setTitle(event.target.value)} maxLength={100} required/></label>{kind!=="split"?<label>Amount<div className="amount-input"><input inputMode="decimal" value={amount} onChange={event=>setAmount(event.target.value)} required/><span>USDC</span></div></label>:<div className="social-split-list"><div><b>Bill shares</b><button type="button" onClick={()=>setShares(current=>[...current,{label:`Person ${current.length+1}`,amount:"0"}])}><Plus/>Add person</button></div>{shares.map((share,index)=><div className="social-split-row" key={index}><i>{index+1}</i><input aria-label={`Person ${index+1}`} value={share.label} onChange={event=>updateShare(index,"label",event.target.value)}/><div className="amount-input"><input aria-label={`Share ${index+1} amount`} inputMode="decimal" value={share.amount} onChange={event=>updateShare(index,"amount",event.target.value)}/><span>USDC</span></div>{shares.length>2?<button type="button" aria-label={`Remove ${share.label}`} onClick={()=>setShares(current=>current.filter((_,itemIndex)=>itemIndex!==index))}><X/></button>:null}</div>)}</div>}<label className="full">Note<textarea value={note} onChange={event=>setNote(event.target.value)} maxLength={280}/></label></div><div className="social-pay-summary"><span><small>TOTAL</small><b>{total.toLocaleString(undefined,{maximumFractionDigits:6})} USDC</b></span><span><small>SETTLEMENT</small><b>Direct on Arc</b></span><span><small>CURRENT CUSTODY</small><b>None</b></span></div>{error?<p className="auth-system-note is-error"><X/>{error}</p>:null}<Button tone="blue" type="submit" disabled={loading||kind==="send"&&!username}>{loading?"Creating secure current…":kind==="send"?"Prepare direct payment":"Create share links"}<ArrowRight/></Button>{created?<div className="social-created"><CheckCircle2/><div><b>{created.kind==="split"?`${created.shares.length} private shares are ready`:"Secure payment link ready"}</b><small>{created.kind==="send"?"Open the link to approve the exact transfer from your wallet.":"Copy the private link and send it anywhere."}</small></div><div>{created.shares.map(share=><button type="button" onClick={()=>void copy(share.payUrl)} key={share.id}><Copy/>{share.label||"Copy link"}</button>)}</div></div>:null}</form><aside className="social-pay-preview"><div className="social-preview-flow"><span className="source">{kind==="send"?"YOU":"FRIENDS"}</span><i/><span className="amount">{total.toLocaleString()}<small>USDC</small></span><i/><span className="destination">{kind==="send"?username||"@USER":"YOU"}</span></div><Eyebrow light>LIVE PREVIEW</Eyebrow><h2>{title}</h2><p>{note}</p><div><ShieldCheck/>Exact amount · direct wallet settlement</div></aside></div>}
+    {auth.account?<div className="social-pay-ledger data-panel"><div className="panel-head"><div><h3>Payment currents</h3><p>Requests, split progress, receipts, and Arc settlement proof.</p></div><Status tone="green">Live records</Status></div>{state?.requests.map(request=><article key={request.id}><span className={`social-kind ${request.kind}`}><CircleDollarSign/></span><div><b>{request.title}</b><small>{request.kind} · {request.progress.paid}/{request.progress.total} settled</small></div><strong>{request.paidAmount} / {request.amount} <small>USDC</small></strong><Status tone={request.status==="completed"?"green":request.status==="active"?"cyan":"grey"}>{request.status}</Status><button aria-label={`Copy ${request.title}`} onClick={()=>void copy(request.shares[0]?.payUrl??request.url)}><Copy/></button></article>)}{!state?.requests.length?<div className="campaign-empty compact"><CircleDollarSign/><b>No social currents yet</b><p>Your first send, request, tip, or split will appear here.</p></div>:null}</div>:null}</>;
 }
 
 function PageHero({eyebrow,title,copy,mode="network",children,action}:{eyebrow:string;title:string;copy:string;mode?:"network"|"branches"|"orbit";children?:React.ReactNode;action?:React.ReactNode}) {
@@ -3116,6 +3154,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
   switch(view){
     case "overview":page=<Overview go={go} auth={auth}/>;break;
     case "create":page=<CreateLink auth={auth} go={go}/>;break;
+    case "payments":page=<SocialPayments auth={auth} go={go}/>;break;
     case "onboarding":page=<ProjectOnboarding go={go}/>;break;
     case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
     case "new-campaign":page=<CampaignBuilder go={go} auth={auth}/>;break;
@@ -3158,7 +3197,7 @@ export default function CurrentApp() {
     if (!location.hash.startsWith("#state=")) return;
     if (!["verifying","creating-wallet","authenticated","error"].includes(auth.state)) return;
     const returnHash=sessionStorage.getItem("current.auth.return");
-    if(auth.state==="authenticated"&&(returnHash?.startsWith("#/checkout/")||returnHash?.startsWith("#/subscribe/"))){sessionStorage.removeItem("current.auth.return");history.replaceState(null,"",`${location.pathname}${location.search}${returnHash}`);const task=window.setTimeout(()=>setView(returnHash.startsWith("#/subscribe/")?"subscribe":"checkout"),0);return()=>window.clearTimeout(task)}
+    if(auth.state==="authenticated"&&(returnHash?.startsWith("#/checkout/")||returnHash?.startsWith("#/subscribe/")||returnHash?.startsWith("#/pay/"))){sessionStorage.removeItem("current.auth.return");history.replaceState(null,"",`${location.pathname}${location.search}${returnHash}`);const task=window.setTimeout(()=>setView(returnHash.startsWith("#/subscribe/")?"subscribe":returnHash.startsWith("#/pay/")?"pay":"checkout"),0);return()=>window.clearTimeout(task)}
     history.replaceState(null, "", `${location.pathname}${location.search}#/claim`);
   },[auth.state]);
   const go=(next:View)=>{
@@ -3166,5 +3205,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="grant-application"?<GrantApplicationView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:view==="proof-health"?<GrantProofHealthView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="pay"?<HostedSocialPayment go={go} auth={auth}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="grant-application"?<GrantApplicationView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:view==="proof-health"?<GrantProofHealthView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

@@ -101,3 +101,22 @@ export async function getOrCreatePersonalProject(userId: string, displayName: st
   await db.insert(projectMembers).values({ projectId: project.id, userId, role: "owner" }).onConflictDoNothing();
   return project;
 }
+
+export async function resolveCurrentUsername(value: string) {
+  const username = value.trim().replace(/^@/, "").toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{2,31}$/.test(username)) return null;
+  const db = getDb();
+  const user = await db.query.users.findFirst({ where: eq(users.username, username) });
+  if (!user || user.status !== "active") return null;
+  const wallet = await db.query.wallets.findFirst({
+    where: and(eq(wallets.userId, user.id), eq(wallets.chainCode, "ARC-TESTNET")),
+  });
+  if (!wallet || wallet.status !== "live") return null;
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName ?? user.username,
+    avatarUrl: user.avatarUrl,
+    walletAddress: wallet.address,
+  };
+}

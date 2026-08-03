@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./social-payments.css";
 
 :root{
   --blue:#173bff;--cyan:#25e8e1;--green:#20d66b;
