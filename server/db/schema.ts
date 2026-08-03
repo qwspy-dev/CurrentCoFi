@@ -295,6 +295,49 @@ export const giveawayEntries = pgTable("giveaway_entries", {
   index("giveaway_entries_referred_idx").on(table.giveawayId, table.referredByCode),
 ]);
 
+export const publicDrops = pgTable("public_drops", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "set null" }),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "restrict" }).notNull(),
+  publicSlug: text("public_slug").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  status: text("status").default("awaiting_funding").notNull(),
+  claimAmountAtomic: numeric("claim_amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  maxClaims: integer("max_claims").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("public_drops_slug_unique").on(table.publicSlug),
+  uniqueIndex("public_drops_distribution_unique").on(table.distributionId),
+  index("public_drops_project_status_idx").on(table.projectId, table.status, table.createdAt),
+]);
+
+export const publicDropSlots = pgTable("public_drop_slots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  dropId: uuid("drop_id").references(() => publicDrops.id, { onDelete: "cascade" }).notNull(),
+  allocationId: uuid("allocation_id").references(() => allocations.id, { onDelete: "restrict" }).notNull(),
+  position: integer("position").notNull(),
+  claimTokenCiphertext: text("claim_token_ciphertext").notNull(),
+  displayName: text("display_name"),
+  identityType: text("identity_type"),
+  identityHash: text("identity_hash"),
+  identityCiphertext: text("identity_ciphertext"),
+  maskedIdentity: text("masked_identity"),
+  referralCode: text("referral_code"),
+  referredByCode: text("referred_by_code"),
+  reservedAt: timestamp("reserved_at", { withTimezone: true }),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("public_drop_slots_allocation_unique").on(table.allocationId),
+  uniqueIndex("public_drop_slots_position_unique").on(table.dropId, table.position),
+  uniqueIndex("public_drop_slots_identity_unique").on(table.dropId, table.identityHash),
+  uniqueIndex("public_drop_slots_referral_unique").on(table.dropId, table.referralCode),
+  index("public_drop_slots_available_idx").on(table.dropId, table.identityHash, table.position),
+]);
+
 export const communityTreasuries = pgTable("community_treasuries", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

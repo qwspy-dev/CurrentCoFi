@@ -29,6 +29,8 @@ const manifestBody = {
     { method: "GET", path: "/api/v1/developer/bounties", purpose: "Read masked bounty submissions and Arc prize status", permission: "analytics:read", signed: false },
     { method: "POST", path: "/api/v1/developer/giveaways", purpose: "Create or draw a verifiable walletless giveaway", permission: "campaigns:write", signed: true },
     { method: "GET", path: "/api/v1/developer/giveaways", purpose: "Read masked entries, referral attribution, funding, and draw proof", permission: "analytics:read", signed: false },
+    { method: "POST", path: "/api/v1/developer/drops", purpose: "Create a capped public USDC or project-token drop", permission: "campaigns:write", signed: true },
+    { method: "GET", path: "/api/v1/developer/drops", purpose: "Read reward capacity, claims, and referral attribution", permission: "analytics:read", signed: false },
     { method: "POST", path: "/api/v1/developer/vesting", purpose: "Create walletless USDC or project-token launch vesting with enforced unlocks", permission: "campaigns:write", signed: true },
     { method: "GET", path: "/api/v1/developer/vesting", purpose: "Read masked recipients, funding, tranche unlocks, and claims", permission: "analytics:read", signed: false },
     { method: "GET", path: "/api/v1/developer/treasury", purpose: "Read published budgets, spending proposals, and Arc receipts", permission: "analytics:read", signed: false },
@@ -39,7 +41,7 @@ const manifestBody = {
     { method: "GET", path: "/api/v1/developer/analytics", purpose: "Read claim, activation, referral, and retention outcomes", permission: "analytics:read", signed: false },
     { method: "GET", path: "/api/v1/developer/integration-readiness", purpose: "Read the project integration checklist", permission: "analytics:read", signed: false },
   ],
-  webhookEvents: ["identity.verified", "claim.completed", "activation.completed", "referral.credited", "campaign.expired", "refund.completed", "bounty.created", "bounty.submitted", "bounty.awarded", "giveaway.created", "giveaway.entered", "giveaway.drawn", "vesting.created", "treasury.created", "treasury.budget_created", "treasury.proposal_created", "treasury.proposal_approved", "treasury.proposal_rejected", "treasury.payment_executed"],
+  webhookEvents: ["identity.verified", "claim.completed", "activation.completed", "referral.credited", "campaign.expired", "refund.completed", "bounty.created", "bounty.submitted", "bounty.awarded", "giveaway.created", "giveaway.entered", "giveaway.drawn", "public_drop.created", "public_drop.reserved", "vesting.created", "treasury.created", "treasury.budget_created", "treasury.proposal_created", "treasury.proposal_approved", "treasury.proposal_rejected", "treasury.payment_executed"],
   security: ["Hashed API keys", "HMAC-signed mutations", "Five-minute replay window", "Project-scoped permissions", "Idempotent write operations", "Signed webhook delivery"],
 } as const;
 

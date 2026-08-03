@@ -26,6 +26,8 @@ import {
   projectMembers,
   participantQualityAssessments,
   projects,
+  publicDrops,
+  publicDropSlots,
   referrals,
   subscriptionNotices,
   subscriptionPayments,
@@ -43,7 +45,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v18";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v19";
 
 type Criterion = {
   id: string;
@@ -222,6 +224,10 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       .where(eq(giveaways.projectId, projectId)).orderBy(desc(giveaways.createdAt)),
     db.select({ entry: giveawayEntries, giveawayId: giveaways.id })
       .from(giveawayEntries).innerJoin(giveaways, eq(giveaways.id, giveawayEntries.giveawayId)).where(eq(giveaways.projectId, projectId)),
+  ]);
+  const publicDropPromise = Promise.all([
+    db.select({ drop: publicDrops, distribution: distributions, token: tokens }).from(publicDrops).innerJoin(distributions, eq(distributions.id, publicDrops.distributionId)).innerJoin(tokens, eq(tokens.id, distributions.tokenId)).where(eq(publicDrops.projectId, projectId)).orderBy(desc(publicDrops.createdAt)),
+    db.select({ slot: publicDropSlots, dropId: publicDrops.id, allocationStatus: allocations.status }).from(publicDropSlots).innerJoin(publicDrops, eq(publicDrops.id, publicDropSlots.dropId)).innerJoin(allocations, eq(allocations.id, publicDropSlots.allocationId)).where(eq(publicDrops.projectId, projectId)),
   ]);
   const treasuryPromise = Promise.all([
     db.select().from(communityTreasuries).where(eq(communityTreasuries.projectId, projectId)),
@@ -421,6 +427,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const commerce = await commercePromise;
   const [bountyRows, bountySubmissionRows] = await bountyPromise;
   const [giveawayRows, giveawayEntryRows] = await giveawayPromise;
+  const [publicDropRows, publicDropSlotRows] = await publicDropPromise;
   const [treasuryRows, treasuryBudgetRows, treasuryProposalRows] = await treasuryPromise;
   const [vestingBatchRows, vestingScheduleRows, vestingTrancheRows] = await vestingPromise;
   const bountyEvidence = {
@@ -463,6 +470,11 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       drawnAt: row.giveaway.drawnAt?.toISOString() ?? null,
     })),
     privacy: "Only masked aggregate entry and referral evidence is exported. Raw entrant identities and private winner claim credentials are excluded.",
+  };
+  const publicDropEvidence = {
+    totals: { drops: publicDropRows.length, funded: publicDropRows.filter((row) => ["active", "completed"].includes(row.distribution.status)).length, reserved: publicDropSlotRows.filter((row) => Boolean(row.slot.identityHash)).length, claimed: publicDropSlotRows.filter((row) => row.allocationStatus === "confirmed").length, referrals: publicDropSlotRows.filter((row) => Boolean(row.slot.referredByCode)).length },
+    items: publicDropRows.map((row) => ({ id: row.drop.id, title: row.drop.title, status: row.distribution.status, maxClaims: row.drop.maxClaims, reserved: publicDropSlotRows.filter((slot) => slot.dropId === row.drop.id && Boolean(slot.slot.identityHash)).length, claimed: publicDropSlotRows.filter((slot) => slot.dropId === row.drop.id && slot.allocationStatus === "confirmed").length, reward: { amount: formatAtomic(row.drop.claimAmountAtomic, row.token.decimals), symbol: row.token.symbol, address: row.token.contractAddress }, anchors: { distributionId: row.distribution.id, merkleRoot: row.distribution.merkleRoot, fundingTransactionHash: row.distribution.fundingTxHash } })),
+    privacy: "Only aggregate capacity, reservations, referrals, claims, and public Arc anchors are exported. Encrypted email identities and private claim credentials are excluded.",
   };
   const treasuryEvidence = {
     totals: {
@@ -754,6 +766,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       evidence: `${giveawayEvidence.totals.funded} funded giveaway${giveawayEvidence.totals.funded === 1 ? "" : "s"}, ${giveawayEvidence.totals.entries} encrypted entr${giveawayEvidence.totals.entries === 1 ? "y" : "ies"}, ${giveawayEvidence.totals.referrals} attributed referral${giveawayEvidence.totals.referrals === 1 ? "" : "s"}, and ${giveawayEvidence.totals.drawn} reproducible draw${giveawayEvidence.totals.drawn === 1 ? "" : "s"}.`,
     },
     {
+      id: "public-walletless-mass-drops",
+      label: "Public walletless mass drops",
+      weight: 10,
+      passed: publicDropEvidence.totals.funded > 0 && publicDropEvidence.totals.claimed > 0,
+      evidence: `${publicDropEvidence.totals.funded} funded public drop${publicDropEvidence.totals.funded === 1 ? "" : "s"}, ${publicDropEvidence.totals.reserved} encrypted reservation${publicDropEvidence.totals.reserved === 1 ? "" : "s"}, ${publicDropEvidence.totals.claimed} Arc claim${publicDropEvidence.totals.claimed === 1 ? "" : "s"}, and ${publicDropEvidence.totals.referrals} attributed referral${publicDropEvidence.totals.referrals === 1 ? "" : "s"}.`,
+    },
+    {
       id: "walletless-launch-vesting",
       label: "Walletless launch vesting",
       weight: 10,
@@ -914,6 +933,11 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       giveawayEntries: giveawayEvidence.totals.entries,
       giveawayReferrals: giveawayEvidence.totals.referrals,
       giveawayDraws: giveawayEvidence.totals.drawn,
+      publicDrops: publicDropEvidence.totals.drops,
+      fundedPublicDrops: publicDropEvidence.totals.funded,
+      publicDropReservations: publicDropEvidence.totals.reserved,
+      publicDropClaims: publicDropEvidence.totals.claimed,
+      publicDropReferrals: publicDropEvidence.totals.referrals,
       vestingBatches: vestingEvidence.totals.batches,
       fundedVestingBatches: vestingEvidence.totals.funded,
       vestingRecipients: vestingEvidence.totals.recipients,
@@ -927,6 +951,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     commerce,
     bounties: bountyEvidence,
     giveaways: giveawayEvidence,
+    publicDrops: publicDropEvidence,
     vesting: vestingEvidence,
     treasury: treasuryEvidence,
     campaigns: campaignEvidence,

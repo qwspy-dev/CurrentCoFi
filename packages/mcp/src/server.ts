@@ -146,6 +146,27 @@ export function createCurrentMcpServer(input: CurrentMcpConfig = configFromEnv()
     catch (error) { return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Project giveaways are unavailable."); }
   });
 
+  server.registerTool("current_list_public_mass_drops", {
+    title: "Read project public mass drops",
+    description: "Read fully funded first-come pools, reward capacity, encrypted reservations, claims, and referral attribution.",
+    inputSchema: noInput,
+    annotations: readOnly,
+  }, async () => {
+    try { return success(await requireProject().drops.list()); }
+    catch (error) { return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Public mass drops are unavailable."); }
+  });
+
+  server.registerTool("current_create_public_mass_drop", {
+    title: "Create a walletless public mass drop",
+    description: "Prepare a capped first-come USDC or project-token pool. Funding remains a separate authorized Circle wallet action.",
+    inputSchema: { title: z.string().min(3).max(100), description: z.string().min(12).max(1_000), claimAmount: z.string().regex(/^\d+(\.\d{1,18})?$/), maxClaims: z.number().int().min(2).max(500), expiresInHours: z.number().int().min(1).max(720).optional(), tokenAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(), approval: z.literal("I_APPROVE_CURRENT_PUBLIC_DROP") },
+    annotations: mutation,
+  }, async ({ approval: _approval, ...value }) => {
+    void _approval;
+    try { return success(await requireProject().drops.create(value)); }
+    catch (error) { return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the public mass drop."); }
+  });
+
   server.registerTool("current_create_verifiable_giveaway", {
     title: "Create a verifiable walletless giveaway",
     description: "Precommit randomness and prepare a fully allocated USDC or Arc project-token prize. Funding and drawing remain separate authorized actions.",

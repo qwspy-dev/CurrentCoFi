@@ -872,6 +872,53 @@ export type CreateGiveawayInput = {
     entryDeadline: string;
     maxEntries?: number;
 };
+export type CreatePublicDropInput = {
+    title: string;
+    description: string;
+    claimAmount: string;
+    maxClaims: number;
+    expiresInHours?: number;
+    tokenAddress?: string;
+};
+export type PublicDropWorkspace = {
+    drops: Array<{
+        id: string;
+        slug: string;
+        title: string;
+        description: string;
+        status: string;
+        distributionId: string;
+        publicUrl: string;
+        reward: {
+            amount: string;
+            symbol: string;
+            address: string;
+        };
+        capacity: {
+            maximum: number;
+            reserved: number;
+            claimed: number;
+            remaining: number;
+            percentReserved: number;
+        };
+        funding: {
+            status: string;
+            fullyFunded: boolean;
+            transactionHash: string | null;
+            merkleRoot: string | null;
+            totalAmount: string;
+        };
+        referrals: number;
+    }>;
+    totals: {
+        drops: number;
+        open: number;
+        reserved: number;
+        claimed: number;
+        referrals: number;
+    };
+    privacy: string;
+};
 export type GiveawayWorkspace = {
     giveaways: Array<{
         id: string;
@@ -1794,6 +1841,40 @@ export declare class Current {
             giveawayId: string;
             status: "drawn";
             claimUrl: string;
+        }>;
+    };
+    readonly drops: {
+        list: () => Promise<PublicDropWorkspace>;
+        create: (input: CreatePublicDropInput) => Promise<{
+            id: string;
+            slug: string;
+            title: string;
+            description: string;
+            status: string;
+            distributionId: string;
+            publicUrl: string;
+            reward: {
+                amount: string;
+                symbol: string;
+                address: string;
+            };
+            capacity: {
+                maximum: number;
+                reserved: number;
+                claimed: number;
+                remaining: number;
+                percentReserved: number;
+            };
+            funding: {
+                status: string;
+                fullyFunded: boolean;
+                transactionHash: string | null;
+                merkleRoot: string | null;
+                totalAmount: string;
+            };
+            referrals: number;
+        } & {
+            campaign: CreatedDistribution;
         }>;
     };
     readonly vesting: {

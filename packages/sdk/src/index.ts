@@ -296,6 +296,11 @@ export type TreasuryWorkspace = {
 export type CreateTreasuryProposalInput = { treasuryId: string; budgetId?: string; title: string; description: string; category: string; recipientAddress: string; amount: string; tokenAddress?: string; proofUrl?: string };
 
 export type CreateGiveawayInput = { title: string; description: string; amount: string; tokenAddress?: string; entryDeadline: string; maxEntries?: number };
+export type CreatePublicDropInput = { title: string; description: string; claimAmount: string; maxClaims: number; expiresInHours?: number; tokenAddress?: string };
+export type PublicDropWorkspace = {
+  drops: Array<{ id: string; slug: string; title: string; description: string; status: string; distributionId: string; publicUrl: string; reward: { amount: string; symbol: string; address: string }; capacity: { maximum: number; reserved: number; claimed: number; remaining: number; percentReserved: number }; funding: { status: string; fullyFunded: boolean; transactionHash: string | null; merkleRoot: string | null; totalAmount: string }; referrals: number }>;
+  totals: { drops: number; open: number; reserved: number; claimed: number; referrals: number }; privacy: string;
+};
 export type GiveawayWorkspace = {
   giveaways: Array<{ id: string; slug: string; title: string; description: string; status: string; entryDeadline: string; maxEntries: number; entryCount: number; distributionId: string; publicUrl: string; referrals: number; prize: { amount: string; symbol: string; address: string }; funding: { status: string; fullyFunded: boolean; transactionHash: string | null; merkleRoot: string | null }; proof: { randomnessCommitment: string; entrySetDigest: string | null; drawDigest: string | null; revealedRandomness: string | null; deterministic: boolean }; winner: { displayName: string; maskedIdentity: string; entryDigest: string } | null }>;
   totals: { giveaways: number; open: number; entries: number; referrals: number; drawn: number };
@@ -798,6 +803,11 @@ export class Current {
     list: () => this.get<GiveawayWorkspace>("/api/v1/developer/giveaways"),
     create: (input: CreateGiveawayInput) => this.signedPost<GiveawayWorkspace["giveaways"][number] & { campaign: CreatedDistribution }>("/api/v1/developer/giveaways", input),
     draw: (giveawayId: string) => this.signedPost<{ giveawayId: string; status: "drawn"; claimUrl: string }>("/api/v1/developer/giveaways", { action: "draw", giveawayId }),
+  };
+
+  readonly drops = {
+    list: () => this.get<PublicDropWorkspace>("/api/v1/developer/drops"),
+    create: (input: CreatePublicDropInput) => this.signedPost<PublicDropWorkspace["drops"][number] & { campaign: CreatedDistribution }>("/api/v1/developer/drops", input),
   };
 
   readonly vesting = {

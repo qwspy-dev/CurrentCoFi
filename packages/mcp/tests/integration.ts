@@ -69,9 +69,9 @@ const client = new Client({ name: "current-mcp-integration-test", version: "0.1.
 try {
   await client.connect(transport);
   const toolList = await client.listTools();
-  assert.equal(toolList.tools.length, 15);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 9);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 6);
+  assert.equal(toolList.tools.length, 17);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 10);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 7);
   const rewardSchema = toolList.tools.find((tool) => tool.name === "current_propose_reward_distribution")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
   assert.equal(rewardSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_DISTRIBUTION");
   const bountySchema = toolList.tools.find((tool) => tool.name === "current_create_community_bounty")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
@@ -82,6 +82,8 @@ try {
   assert.equal(giveawaySchema?.properties?.approval?.const, "I_APPROVE_CURRENT_GIVEAWAY");
   const vestingSchema = toolList.tools.find((tool) => tool.name === "current_create_launch_vesting")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
   assert.equal(vestingSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_VESTING");
+  const publicDropSchema = toolList.tools.find((tool) => tool.name === "current_create_public_mass_drop")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
+  assert.equal(publicDropSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_PUBLIC_DROP");
 
   const proof = await client.callTool({ name: "current_get_proof_health", arguments: {} });
   assert.equal((proof.structuredContent as { digest: string }).digest, "proof-health-digest");
@@ -139,7 +141,7 @@ try {
   const unapproved = await client.callTool({ name: "current_propose_reward_distribution", arguments: { idempotencyKey: "mcp-reward-0002", name: "No approval", recipients: [{ identityType: "email", identity: "person@example.com", amount: "5" }] } });
   assert.equal(unapproved.isError, true);
   assert.match(JSON.stringify(unapproved.content), /approval/i);
-  console.log("Current MCP integration test passed: 15 tools, public proof, authenticated analytics, bounties, treasury, giveaways and launch vesting, signed proposals, signed activations, and explicit approval validation.");
+  console.log("Current MCP integration test passed: 17 tools, public proof, authenticated analytics, public mass drops, bounties, treasury, giveaways and launch vesting, signed proposals, signed activations, and explicit approval validation.");
 } finally {
   await client.close().catch(() => undefined);
   httpServer.close();

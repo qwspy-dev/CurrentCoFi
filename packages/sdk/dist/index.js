@@ -78,6 +78,10 @@ export class Current {
         create: (input) => this.signedPost("/api/v1/developer/giveaways", input),
         draw: (giveawayId) => this.signedPost("/api/v1/developer/giveaways", { action: "draw", giveawayId }),
     };
+    drops = {
+        list: () => this.get("/api/v1/developer/drops"),
+        create: (input) => this.signedPost("/api/v1/developer/drops", input),
+    };
     vesting = {
         list: () => this.get("/api/v1/developer/vesting"),
         create: (input) => this.signedPost("/api/v1/developer/vesting", input),

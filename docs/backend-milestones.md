@@ -2,6 +2,17 @@
 
 Each group ends with automated checks, a Vercel production deployment, browser verification, and a user check-in.
 
+## Public walletless mass drops — complete
+
+- Fully funded first-come USDC and Arc project-token pools
+- One public link, hard capacity, expiry, and campaign recovery path
+- Encrypted verified-email reservations with one identity per reward
+- Atomic slot reservation and duplicate-safe claim-link recovery
+- Referral capture, masked project analytics, signed webhooks, SDK, developer API, and MCP tools
+- Privacy-safe Circle grant evidence with Merkle and Arc funding anchors
+
+External proof still required: run the first funded public testnet drop with outside participants and retain the confirmed claim and activation evidence.
+
 ## Delivery status
 
 - Group 1 — Foundation: complete and deployed.
