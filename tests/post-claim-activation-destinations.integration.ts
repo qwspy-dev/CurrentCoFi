@@ -32,6 +32,6 @@ assert.match(evidence, /current-evidence-v22/);
 assert.match(evidence, /A destination open is not a project-verified activation event/);
 assert.match(sdk, /activationDestination/);
 assert.match(mcp, /activationDestination/);
-assert.match(openapi, /3\.16\.0-project-acquisition-intelligence/);
+assert.match(openapi, /3\.17\.0-project-brand-studio/);
 assert.match(meta, /claim-to-activation-funnel/);
 console.log("Post-claim activation destinations verified: safe HTTPS configuration, authenticated return evidence, honest activation boundary, UI, SDK, MCP, analytics, and grant proof.");

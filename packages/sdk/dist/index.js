@@ -81,6 +81,10 @@ export class Current {
         createBudget: (input) => this.signedPost("/api/v1/developer/treasury", { action: "budget", ...input }),
         createProposal: (input) => this.signedPost("/api/v1/developer/treasury", { action: "proposal", ...input }),
     };
+    brand = {
+        get: () => this.get("/api/v1/developer/brand"),
+        publish: (input) => this.signedPost("/api/v1/developer/brand", input),
+    };
     giveaways = {
         list: () => this.get("/api/v1/developer/giveaways"),
         create: (input) => this.signedPost("/api/v1/developer/giveaways", input),

@@ -6,6 +6,7 @@ import { createCampaign, formatAtomic, projectAccess } from "../campaigns/reposi
 import { normalizeBoundIdentity } from "../claims/identity-binding.js";
 import { openSecret, sealSecret, sha256 } from "../security/crypto.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
+import { publicProjectBrand } from "../branding/repository.js";
 
 export type BountyContactType = "email" | "wallet" | "x" | "game" | "custom";
 
@@ -115,7 +116,7 @@ function serializeBounty(row: { bounty: typeof bounties.$inferSelect; distributi
     status,
     submissionDeadline: row.bounty.submissionDeadline.toISOString(),
     awardedAt: row.bounty.awardedAt?.toISOString() ?? null,
-    project: { name: row.project.name, logoUrl: row.project.logoUrl },
+    project: publicProjectBrand(row.project),
     prize: { amount: formatAtomic(row.distribution.totalAmountAtomic, row.token.decimals), amountAtomic: row.distribution.totalAmountAtomic, symbol: row.token.symbol, name: row.token.name, address: row.token.contractAddress },
     funding: { status: row.distribution.status, transactionHash: row.distribution.fundingTxHash, merkleRoot: row.distribution.merkleRoot, fullyFunded: row.distribution.status === "active" || row.distribution.status === "completed" },
     distributionId: row.distribution.id,

@@ -4,6 +4,7 @@
 import "./activation-destinations.css";
 import "./discovery.css";
 import "./acquisition.css";
+import "./brand-studio.css";
 
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
@@ -15,6 +16,7 @@ import {
   TestTube2, TrendingUp, Upload, Users, Wallet, Webhook, X, Zap
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { currentApi } from "@/lib/api/client";
@@ -24,12 +26,25 @@ import { CurrentClaimEmbed } from "@/packages/react/src";
 type View =
   | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "campaigns" | "discover" | "bounty"
   | "new-campaign" | "funding" | "payroll" | "bounties" | "drops" | "drop" | "giveaways" | "giveaway" | "vesting" | "vesting-claim" | "treasury" | "public-treasury" | "recipients" | "deliveries" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
-  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
+  | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "brand" | "settings" | "states";
 
 type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
 type AccountIdentity = {id:string;provider:string;verifiedAt:string|null;profile:{username:string|null;displayName:string|null;avatarUrl:string|null}};
 type IdentityWorkspace = {identities:AccountIdentity[];available:{x:boolean;discord:boolean;telegram:boolean}};
+type ProjectBrand = {primaryColor:string;accentColor:string;successColor:string;surface:"midnight"|"tide"|"light";headline:string;claimCta:string;poweredByCurrent:true};
+type BrandWorkspace = {name:string;description:string|null;logoUrl:string|null;websiteUrl:string|null;brand:ProjectBrand};
+type BrandedProject = {name:string;description?:string|null;logoUrl:string|null;websiteUrl?:string|null;brand:ProjectBrand};
+const brandStyle=(brand?:ProjectBrand):CSSProperties|undefined=>brand?({"--project-primary":brand.primaryColor,"--project-accent":brand.accentColor,"--project-success":brand.successColor} as CSSProperties):undefined;
+function useProjectBrand(brand?:ProjectBrand){
+  useEffect(()=>{
+    if(!brand)return;
+    const root=document.documentElement;
+    root.style.setProperty("--project-primary",brand.primaryColor);root.style.setProperty("--project-accent",brand.accentColor);root.style.setProperty("--project-success",brand.successColor);
+    root.dataset.projectSurface=brand.surface;
+    return()=>{root.style.removeProperty("--project-primary");root.style.removeProperty("--project-accent");root.style.removeProperty("--project-success");delete root.dataset.projectSurface};
+  },[brand]);
+}
 type ClaimPreview = {
   id: string;
   allocationId: string;
@@ -46,7 +61,7 @@ type ClaimPreview = {
     boundary: string;
   } | null;
   network: string;
-  project: { name: string; logoUrl: string | null };
+  project: BrandedProject;
   message: string;
   sender: string;
   expiresAt: string | null;
@@ -525,11 +540,11 @@ type BountyRecord = {
   funding:{status:string;transactionHash:string|null;merkleRoot:string|null;fullyFunded:boolean};distributionId:string;submissionCount:number;publicUrl:string;submissions?:BountySubmission[];
 };
 type BountyWorkspace={bounties:BountyRecord[];totals:{bounties:number;open:number;submissions:number;awarded:number};privacy:string};
-type PublicBounty=BountyRecord&{canSubmit:boolean;proof:{network:string;fullyFunded:boolean;boundary:string}};
-type GiveawayRecord={id:string;slug:string;title:string;description:string;status:string;entryDeadline:string;maxEntries:number;entryCount:number;project:{name:string;logoUrl:string|null};distributionId:string;publicUrl:string;referrals:number;prize:{amount:string;amountAtomic:string;symbol:string;name:string;address:string};funding:{status:string;fullyFunded:boolean;transactionHash:string|null;merkleRoot:string|null};proof:{method:string;randomnessCommitment:string;allocationIdentityHash:string|null;entrySetDigest:string|null;drawDigest:string|null;revealedRandomness:string|null;deterministic:boolean;boundary:string};winner:{displayName:string;maskedIdentity:string;entryDigest:string}|null;entries?:Array<{id:string;displayName:string;identityType:string;maskedIdentity:string;referralCode:string;referredByCode:string|null;entryDigest:string;status:string;createdAt:string}>};
+type PublicBounty=BountyRecord&{project:BrandedProject;canSubmit:boolean;proof:{network:string;fullyFunded:boolean;boundary:string}};
+type GiveawayRecord={id:string;slug:string;title:string;description:string;status:string;entryDeadline:string;maxEntries:number;entryCount:number;project:BrandedProject;distributionId:string;publicUrl:string;referrals:number;prize:{amount:string;amountAtomic:string;symbol:string;name:string;address:string};funding:{status:string;fullyFunded:boolean;transactionHash:string|null;merkleRoot:string|null};proof:{method:string;randomnessCommitment:string;allocationIdentityHash:string|null;entrySetDigest:string|null;drawDigest:string|null;revealedRandomness:string|null;deterministic:boolean;boundary:string};winner:{displayName:string;maskedIdentity:string;entryDigest:string}|null;entries?:Array<{id:string;displayName:string;identityType:string;maskedIdentity:string;referralCode:string;referredByCode:string|null;entryDigest:string;status:string;createdAt:string}>};
 type GiveawayWorkspace={giveaways:GiveawayRecord[];totals:{giveaways:number;open:number;entries:number;referrals:number;drawn:number};privacy:string};
 type PublicGiveaway=GiveawayRecord&{canEnter:boolean};
-type PublicDropRecord={id:string;slug:string;title:string;description:string;status:string;project:{name:string;logoUrl:string|null};distributionId:string;publicUrl:string;reward:{amount:string;amountAtomic:string;symbol:string;name:string;address:string};capacity:{maximum:number;reserved:number;claimed:number;remaining:number;percentReserved:number};funding:{status:string;fullyFunded:boolean;transactionHash:string|null;merkleRoot:string|null;totalAmount:string};expiresAt:string|null;claimCondition:{eventType:string;label:string;description:string;proofWindowMinutes:number}|null;proof:{mode:string;identityBinding:string;oneClaimPerIdentity:boolean;recipientPaysGas:boolean;boundary:string};recipients?:Array<{displayName:string|null;maskedIdentity:string|null;referralCode:string|null;referredByCode:string|null;status:string;reservedAt:string|null}>;referrals:number;canReserve:boolean};
+type PublicDropRecord={id:string;slug:string;title:string;description:string;status:string;project:BrandedProject;distributionId:string;publicUrl:string;reward:{amount:string;amountAtomic:string;symbol:string;name:string;address:string};capacity:{maximum:number;reserved:number;claimed:number;remaining:number;percentReserved:number};funding:{status:string;fullyFunded:boolean;transactionHash:string|null;merkleRoot:string|null;totalAmount:string};expiresAt:string|null;claimCondition:{eventType:string;label:string;description:string;proofWindowMinutes:number}|null;proof:{mode:string;identityBinding:string;oneClaimPerIdentity:boolean;recipientPaysGas:boolean;boundary:string};recipients?:Array<{displayName:string|null;maskedIdentity:string|null;referralCode:string|null;referredByCode:string|null;status:string;reservedAt:string|null}>;referrals:number;canReserve:boolean};
 type PublicDropWorkspace={drops:PublicDropRecord[];totals:{drops:number;open:number;reserved:number;claimed:number;referrals:number};privacy:string};
 type VestingBatch={id:string;name:string;description:string;status:string;distributionId:string;cliffAt:string;releaseCount:number;intervalDays:number;lastUnlockAt:string;publicProofUrl:string;asset:{symbol:string;name:string;address:string};funding:{status:string;fullyFunded:boolean;merkleRoot:string|null;transactionHash:string|null};totals:{recipients:number;tranches:number;unlocked:number;claimed:number;amount:string};schedules:Array<{id:string;displayName:string;identityType:string;maskedIdentity:string;totalAmount:string;claimed:number;recipientUrl?:string}>};
 type VestingWorkspace={batches:VestingBatch[];totals:{batches:number;recipients:number;tranches:number;claimed:number};privacy:string};
@@ -1078,7 +1093,7 @@ function compactAddress(value:string) {
 const validViews = new Set<View>([
   "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "campaigns", "discover", "bounty",
   "new-campaign", "funding", "payroll", "bounties", "drops", "drop", "giveaways", "giveaway", "vesting", "vesting-claim", "treasury", "public-treasury", "recipients", "deliveries", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
-  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
+  "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "brand", "settings", "states",
 ]);
 
 function viewFromHash(hash: string): View | null {
@@ -1097,7 +1112,7 @@ function viewFromHash(hash: string): View | null {
 
 const appNav = [
   { label: "Workspace", items: [
-    ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2],
+    ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2], ["brand", "Brand studio", Sparkles],
     ["create", "Create link", Link2],
     ["payments", "Social payments", CircleDollarSign],
     ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["discover", "Discover", Compass], ["drops", "Public mass drops", Radio], ["vesting", "Launch vesting", Clock3], ["bounties", "Community bounties", Target], ["giveaways", "Verifiable giveaways", Gift], ["payroll", "Community payroll", Repeat2], ["treasury", "Community treasury", CircleDollarSign], ["recipients", "Recipients", Users], ["deliveries", "Delivery center", Send],
@@ -1794,19 +1809,19 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
         ? "This link is secured, but its Arc vault has not been funded yet."
         : "This claim can no longer be completed.";
   return (
-    <main className="claim-route">
+    <main className={`claim-route branded-public surface-${preview?.project.brand.surface??"midnight"}`} style={brandStyle(preview?.project.brand)}>
       <FluidCanvas mode="network"/>
       <header><Brand light onClick={()=>go("home")}/><span><ShieldCheck/>Secured on Arc testnet</span></header>
       <section className="claim-shell" aria-live="polite">
         {visibleStep === "ready" && <>
           {previewState==="loading"?<div className="creating-state"><span className="creating-orbit"><i/><i/><Link2/></span><small>VERIFYING SECURE LINK</small><h2>Following the current…</h2></div>:previewState==="error"?<><span className="claim-brand-avatar"><X/></span><small>LINK UNAVAILABLE</small><h2>This current cannot be opened.</h2><p className="auth-copy">The link may be invalid, expired, or already removed.</p><Button tone="ghost" onClick={()=>go("home")}>Return home</Button></>:<>
-          <span className="claim-brand-avatar">{(preview?.project.name??"Tidebreak")[0]}</span><small>{preview?.sender??"Tidebreak"} sent you</small><h1>{preview?.amount??"2,500"} <em>{preview?.asset??"TIDE"}</em></h1>{!preview&&<p className="claim-usd">≈ $42.80</p>}
-          <blockquote>{preview?.message||(preview?"A funded claim is waiting for you on Arc.":"Welcome to the Tidebreak Genesis current.")}</blockquote>
+          <span className="claim-brand-avatar">{preview?.project.logoUrl?<img src={preview.project.logoUrl} alt=""/>:(preview?.project.name??"Tidebreak")[0]}</span><small>{preview?.sender??"Tidebreak"} sent you</small><h1>{preview?.amount??"2,500"} <em>{preview?.asset??"TIDE"}</em></h1>{!preview&&<p className="claim-usd">≈ $42.80</p>}
+          <blockquote>{preview?.message||(preview?.project.brand.headline??(preview?"A funded claim is waiting for you on Arc.":"Welcome to the Tidebreak Genesis current."))}</blockquote>
           <div className="claim-meta"><span><Clock3/>{preview?.expiresAt?`Expires ${new Date(preview.expiresAt).toLocaleDateString()}`:"Expires in 6 days"}</span><span><Zap/>Gas sponsored</span></div>
           {preview?.assetTrust&&<div className="claim-asset-trust"><ShieldCheck/><div><b>Arc contract observations recorded</b><small>{preview.assetTrust.posture.replaceAll("-"," ")}{preview.assetTrust.reviewDigest?` · Review ${preview.assetTrust.reviewDigest.slice(0,10)}`:""}</small><small>{preview.assetTrust.boundary}</small>{preview.assetTrust.explorerUrl&&<a href={preview.assetTrust.explorerUrl} target="_blank" rel="noreferrer">Inspect on ArcScan <ExternalLink/></a>}</div></div>}
           {preview?.identityBinding.required&&<div className="claim-identity-binding"><ShieldCheck/><div><b>Identity-bound reward</b><small>{preview.identityBinding.verifier==="project-attestation"?`Your ${preview.identityBinding.type?.toUpperCase()} identity must be verified by the project and bound to this wallet.`:`Only ${preview.identityBinding.recipient??`the assigned ${preview.identityBinding.type}`} can claim after verification.`}</small></div></div>}
           {preview?.claimCondition?.required&&<div className="claim-condition-gate"><Target/><div><b>{preview.claimCondition.label}</b><small>{preview.claimCondition.description||"The project verifies this action before Current authorizes settlement."}</small><code>{preview.claimCondition.eventType}</code></div><Status tone="cyan">Proof required</Status></div>}
-          <Button tone="blue" onClick={claim} disabled={Boolean(preview&&!preview.claimable)}>{preview&&!preview.claimable?unavailableLabel:"Claim your tokens"} <ArrowRight/></Button><p className="claim-note">{preview&&!preview.claimable?unavailableNote:"No wallet or payment required."}</p>
+          <Button tone="blue" onClick={claim} disabled={Boolean(preview&&!preview.claimable)}>{preview&&!preview.claimable?unavailableLabel:(preview?.project.brand.claimCta??"Claim your tokens")} <ArrowRight/></Button><p className="claim-note">{preview&&!preview.claimable?unavailableNote:"No wallet or payment required."}</p>
           {claimError&&<p className="auth-system-note is-error"><X/>{claimError}</p>}
           </>}
         </>}
@@ -2074,6 +2089,7 @@ function CommunityBounties({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
 
 function HostedBounty({go}:{go:(v:View)=>void}) {
   const [slug]=useState(()=>typeof window==="undefined"?"":new URLSearchParams(window.location.search).get("bounty")??"");const [bounty,setBounty]=useState<PublicBounty|null>(null);const [loading,setLoading]=useState(true);const [error,setError]=useState<string|null>(null);const [submitted,setSubmitted]=useState<{id:string;proofDigest:string}|null>(null);
+  useProjectBrand(bounty?.project.brand);
   const [displayName,setDisplayName]=useState("");const [contactType,setContactType]=useState("email");const [contact,setContact]=useState("");const [workUrl,setWorkUrl]=useState("");const [workSummary,setWorkSummary]=useState("");const [busy,setBusy]=useState(false);
   useEffect(()=>{const task=window.setTimeout(()=>{if(!slug){setError("This bounty link is incomplete.");setLoading(false);return}currentApi.get<PublicBounty>(`/bounties/public?slug=${encodeURIComponent(slug)}`).then(setBounty).catch(reason=>setError(reason instanceof Error?reason.message:"This bounty is unavailable.")).finally(()=>setLoading(false))},0);return()=>window.clearTimeout(task)},[slug]);
   const submit=async()=>{setBusy(true);setError(null);try{setSubmitted(await currentApi.post<{id:string;proofDigest:string}>("/bounties/public",{slug,displayName,contactType,contact,workUrl,workSummary}));setBounty(current=>current?{...current,canSubmit:false,submissionCount:current.submissionCount+1}:current)}catch(reason){setError(reason instanceof Error?reason.message:"Your work could not be submitted.")}finally{setBusy(false)}};
@@ -2104,6 +2120,7 @@ function PublicMassDrops({go,auth}:{go:(v:View)=>void;auth:CircleAuth}){
 
 function HostedPublicDrop({go}:{go:(v:View)=>void}){
   const [slug]=useState(()=>typeof window==="undefined"?"":new URLSearchParams(window.location.search).get("drop")??"");const [referral]=useState(()=>typeof window==="undefined"?"":new URLSearchParams(window.location.search).get("ref")??"");const [item,setItem]=useState<PublicDropRecord|null>(null);const [error,setError]=useState<string|null>(null);const [loading,setLoading]=useState(true);const [busy,setBusy]=useState(false);const [displayName,setDisplayName]=useState("");const [email,setEmail]=useState("");const [reservation,setReservation]=useState<{claimUrl:string;referralUrl:string;maskedIdentity:string|null}|null>(null);
+  useProjectBrand(item?.project.brand);
   useEffect(()=>{const task=window.setTimeout(()=>{if(!slug){setError("This public-drop link is incomplete.");setLoading(false);return}currentApi.get<PublicDropRecord>(`/drops/public?slug=${encodeURIComponent(slug)}`).then(setItem).catch(reason=>setError(reason instanceof Error?reason.message:"Public drop unavailable.")).finally(()=>setLoading(false))},0);return()=>window.clearTimeout(task)},[slug]);
   const reserve=async()=>{setBusy(true);setError(null);try{const result=await currentApi.post<{claimUrl:string;referralUrl:string;maskedIdentity:string|null}>("/drops/public",{slug,displayName,email,referredByCode:referral||undefined});setReservation(result);setItem(current=>current?{...current,canReserve:false,capacity:{...current.capacity,reserved:current.capacity.reserved+1,remaining:Math.max(0,current.capacity.remaining-1),percentReserved:Math.min(100,(current.capacity.reserved+1)/current.capacity.maximum*100)}}:current)}catch(reason){setError(reason instanceof Error?reason.message:"Your reward could not be reserved.")}finally{setBusy(false)}};
   return <main className="hosted-drop"><header><Brand light onClick={()=>go("home")}/><span><ShieldCheck/>Committed on Arc testnet</span></header>{loading?<div className="hosted-bounty-loading"><RefreshCw className="spin"/><b>Verifying the reward current…</b></div>:error&&!item?<div className="hosted-bounty-error"><ShieldAlert/><h1>Public drop unavailable</h1><p>{error}</p></div>:item?<div className="hosted-drop-shell"><section><div className="bounty-public-project"><span>{item.project.name.slice(0,2).toUpperCase()}</span><div><small>PUBLISHED BY</small><b>{item.project.name}</b></div><Status tone={item.status==="open"?"green":item.status==="full"?"blue":"grey"}>{item.status.replaceAll("_"," ")}</Status></div><Eyebrow light>WALLETLESS FIRST-COME DROP</Eyebrow><h1>{item.title}</h1><p>{item.description}</p><div className="drop-public-reward"><small>YOUR REWARD</small><strong>{item.reward.amount} <em>{item.reward.symbol}</em></strong><span><Zap/>No wallet or gas required</span></div><div className="drop-public-meter"><div><b>{item.capacity.reserved} of {item.capacity.maximum}</b><span>{item.capacity.remaining} rewards remain</span></div><i><b style={{width:`${item.capacity.percentReserved}%`}}/></i></div><div className="giveaway-public-proof"><Fingerprint/><div><b>{item.funding.fullyFunded?"Every reward is already funded":"Pool funding is not complete"}</b><p>{item.proof.boundary}</p><code>{item.funding.merkleRoot??"Merkle commitment pending"}</code></div></div></section><aside>{reservation?<div className="drop-reserve-success"><CheckCircle2/><Eyebrow>REWARD RESERVED</Eyebrow><h2>Now create your funded wallet.</h2><p>{reservation.maskedIdentity} owns this allocation. Sign in with that email and Current will create the wallet before the claim settles.</p><Button tone="blue" onClick={()=>location.assign(reservation.claimUrl)}>Create wallet & claim <ArrowRight/></Button><button onClick={()=>void navigator.clipboard.writeText(reservation.referralUrl)}><Share2/>Copy your referral current</button></div>:item.canReserve?<><Eyebrow>RESERVE YOUR REWARD</Eyebrow><h2>Enter the current.</h2><p>Your email is encrypted and binds one reward to the Current wallet created during sign-in.</p>{referral&&<p className="giveaway-referral-note"><Network/>A community referral brought you here.</p>}<label>Display name<input value={displayName} onChange={event=>setDisplayName(event.target.value)} placeholder="How the project should know you"/></label><label>Email address<input type="email" value={email} onChange={event=>setEmail(event.target.value)} placeholder="you@example.com"/></label>{error&&<p className="auth-system-note is-error"><X/>{error}</p>}<Button tone="blue" disabled={busy||displayName.length<2||!email.includes("@")} onClick={()=>void reserve()}>{busy?"Securing your allocation…":"Reserve reward"} <ArrowRight/></Button><small className="bounty-privacy"><Lock/>Encrypted identity · one reward per verified email</small></>:<div className="drop-reserve-success"><BadgeCheck/><Eyebrow>CURRENT CLOSED</Eyebrow><h2>{item.status==="full"?"Every reward found a wallet.":"This drop is not accepting claims."}</h2><p>The published Merkle commitment and Arc settlement record remain independently verifiable.</p><Button tone="dark" onClick={()=>go("home")}>Explore Current CoFi</Button></div>}</aside></div>:null}</main>;
@@ -2134,6 +2151,7 @@ function CommunityGiveaways({go,auth}:{go:(v:View)=>void;auth:CircleAuth}){
 
 function HostedGiveaway({go}:{go:(v:View)=>void}){
   const [slug]=useState(()=>typeof window==="undefined"?"":new URLSearchParams(window.location.search).get("giveaway")??"");const [referral]=useState(()=>typeof window==="undefined"?"":new URLSearchParams(window.location.search).get("ref")??"");const [item,setItem]=useState<PublicGiveaway|null>(null);const [error,setError]=useState<string|null>(null);const [loading,setLoading]=useState(true);const [busy,setBusy]=useState(false);const [displayName,setDisplayName]=useState("");const [identityType,setIdentityType]=useState("email");const [identity,setIdentity]=useState("");const [entry,setEntry]=useState<{entryDigest:string;referralCode:string}|null>(null);
+  useProjectBrand(item?.project.brand);
   useEffect(()=>{const task=window.setTimeout(()=>{if(!slug){setError("This giveaway link is incomplete.");setLoading(false);return}currentApi.get<PublicGiveaway>(`/giveaways/public?slug=${encodeURIComponent(slug)}`).then(setItem).catch(reason=>setError(reason instanceof Error?reason.message:"Giveaway unavailable.")).finally(()=>setLoading(false))},0);return()=>window.clearTimeout(task)},[slug]);
   const enter=async()=>{setBusy(true);setError(null);try{const result=await currentApi.post<{entryDigest:string;referralCode:string}>("/giveaways/public",{slug,displayName,identityType,identity,referredByCode:referral||undefined});setEntry(result);setItem(current=>current?{...current,canEnter:false,entryCount:current.entryCount+1}:current)}catch(reason){setError(reason instanceof Error?reason.message:"Entry failed.")}finally{setBusy(false)}};
   const referralUrl=entry&&typeof window!=="undefined"?`${window.location.origin}/?giveaway=${encodeURIComponent(slug)}&ref=${entry.referralCode}#/giveaway`:"";
@@ -3658,6 +3676,50 @@ function DiscoveryNetwork() {
   </div>;
 }
 
+function BrandStudio({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const fallback:BrandWorkspace={name:"Tidebreak Labs",description:"A community economy flowing on Arc.",logoUrl:null,websiteUrl:"https://tidebreak.xyz/",brand:{primaryColor:"#0868B7",accentColor:"#22E4D5",successColor:"#00A94F",surface:"midnight",headline:"A funded current is waiting for you.",claimCta:"Claim your tokens",poweredByCurrent:true}};
+  const [draft,setDraft]=useState<BrandWorkspace>(fallback);const [loading,setLoading]=useState(Boolean(auth.account));const [saving,setSaving]=useState(false);const [saved,setSaved]=useState(false);const [error,setError]=useState<string|null>(null);
+  const load=useCallback(async()=>{if(!auth.account){setLoading(false);return}setLoading(true);try{setDraft(await currentApi.get<BrandWorkspace>("/brand"));setError(null)}catch(reason){setError(reason instanceof Error?reason.message:"Brand settings are unavailable.")}finally{setLoading(false)}},[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void load(),0);return()=>window.clearTimeout(task)},[load]);
+  const updateBrand=<K extends keyof ProjectBrand>(key:K,value:ProjectBrand[K])=>setDraft(current=>({...current,brand:{...current.brand,[key]:value}}));
+  const save=async()=>{setSaving(true);setSaved(false);setError(null);try{setDraft(await currentApi.post<BrandWorkspace>("/brand",draft));setSaved(true)}catch(reason){setError(reason instanceof Error?reason.message:"The brand could not be saved.")}finally{setSaving(false)}};
+  return <>
+    <PageHero eyebrow="PROJECT BRAND STUDIO" title="Make every claim feel like your product." copy="Create one safe, reusable identity for hosted claims, drops, bounties, giveaways, and embedded activation experiences." mode="branches"><Status tone="cyan">Powered by Current</Status></PageHero>
+    {!auth.account?<div className="campaign-empty brand-auth"><Lock/><h3>Open your workspace to publish a brand</h3><p>Preview the full studio now. Sign in when you are ready to save it to your project.</p><Button tone="blue" onClick={()=>go("claim")}>Open Current account <ArrowRight/></Button></div>:null}
+    {loading?<div className="evidence-loading"><RefreshCw className="spin"/><div><b>Reading project identity</b><small>Loading the public theme shared by every hosted flow.</small></div></div>:<div className="brand-studio" style={brandStyle(draft.brand)}>
+      <section className="brand-controls data-panel">
+        <div className="panel-head"><div><h3>Brand system</h3><p>Only bounded colors, copy, and HTTPS assets are accepted. Custom scripts and CSS are never injected.</p></div>{saved&&<Status tone="green">Published</Status>}</div>
+        <div className="brand-fields">
+          <label>Project name<input value={draft.name} maxLength={80} onChange={event=>setDraft(current=>({...current,name:event.target.value}))}/></label>
+          <label>Project website<input type="url" value={draft.websiteUrl??""} placeholder="https://…" onChange={event=>setDraft(current=>({...current,websiteUrl:event.target.value||null}))}/></label>
+          <label className="wide">Short description<textarea value={draft.description??""} maxLength={500} onChange={event=>setDraft(current=>({...current,description:event.target.value||null}))}/></label>
+          <label className="wide">HTTPS logo URL<input type="url" value={draft.logoUrl??""} placeholder="https://cdn.example/logo.svg" onChange={event=>setDraft(current=>({...current,logoUrl:event.target.value||null}))}/></label>
+          <label className="wide">Claim headline<input value={draft.brand.headline} maxLength={120} onChange={event=>updateBrand("headline",event.target.value)}/></label>
+          <label>Claim button<input value={draft.brand.claimCta} maxLength={40} onChange={event=>updateBrand("claimCta",event.target.value)}/></label>
+          <label>Hosted surface<select value={draft.brand.surface} onChange={event=>updateBrand("surface",event.target.value as ProjectBrand["surface"])}><option value="midnight">Midnight current</option><option value="tide">Blue tide</option><option value="light">Clear water</option></select></label>
+        </div>
+        <div className="brand-palette">
+          {([['primaryColor','Primary current'],['accentColor','Flow accent'],['successColor','Activation']] as const).map(([key,label])=><label key={key}><input type="color" value={draft.brand[key]} onChange={event=>updateBrand(key,event.target.value.toUpperCase())}/><span><b>{label}</b><code>{draft.brand[key]}</code></span></label>)}
+        </div>
+        <div className="brand-boundary"><ShieldCheck/><div><b>Trust stays visible</b><p>Every hosted surface keeps Arc testnet, funding, identity, and “Powered by Current” disclosures. A project can own its experience without obscuring settlement boundaries.</p></div></div>
+        {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+        <div className="form-actions"><Button tone="ghost" onClick={()=>setDraft(fallback)}>Reset preview</Button><Button tone="blue" disabled={!auth.account||saving||draft.name.trim().length<2} onClick={()=>void save()}>{saving?"Publishing…":"Publish brand"} <ArrowRight/></Button></div>
+      </section>
+      <aside className={`brand-preview surface-${draft.brand.surface}`}>
+        <header><span>LIVE HOSTED PREVIEW</span><i><b/>Arc testnet</i></header>
+        <div className="brand-preview-current"><i/><i/><i/></div>
+        <article>
+          <div className="brand-preview-mark">{draft.logoUrl?<img src={draft.logoUrl} alt=""/>:draft.name.slice(0,1).toUpperCase()}</div>
+          <small>{draft.name.toUpperCase()} SENT YOU</small><h2>2,500 <em>TIDE</em></h2><p>{draft.brand.headline}</p>
+          <div><span><Clock3/>6 days remaining</span><span><Zap/>Gas sponsored</span></div>
+          <button>{draft.brand.claimCta}<ArrowRight/></button><footer><ShieldCheck/>Powered by Current CoFi · Secured on Arc testnet</footer>
+        </article>
+        <div className="brand-preview-surfaces"><span>Claim links</span><span>Mass drops</span><span>Bounties</span><span>Giveaways</span><span>Embeds</span></div>
+      </aside>
+    </div>}
+  </>;
+}
+
 function SettingsView({auth}:{auth:CircleAuth}) {
   const identityReturn=typeof location!=="undefined"?new URLSearchParams(location.search):new URLSearchParams();
   const [saved,setSaved]=useState(false);const [tab,setTab]=useState<"general"|"identity">(()=>identityReturn.has("identityLinked")||identityReturn.has("identityError")?"identity":"general");const [identityState,setIdentityState]=useState<IdentityWorkspace|null>(null);const [identityError,setIdentityError]=useState<string|null>(()=>identityReturn.has("identityError")?"The social identity could not be linked. Please try again.":null);const [linking,setLinking]=useState<string|null>(null);
@@ -3730,6 +3792,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "api-keys":page=<ApiKeys auth={auth} go={go}/>;break;
     case "webhooks":page=<WebhooksView auth={auth} go={go}/>;break;
     case "agents":page=<Agents auth={auth} go={go}/>;break;
+    case "brand":page=<BrandStudio auth={auth} go={go}/>;break;
     case "settings":page=<SettingsView auth={auth}/>;break;
     default:page=<StateLab go={go}/>;
   }

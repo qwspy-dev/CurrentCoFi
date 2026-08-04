@@ -7,6 +7,7 @@ import { parseClaimCondition } from "../campaigns/conditions.js";
 import { normalizeBoundIdentity } from "../claims/identity-binding.js";
 import { openSecret, randomSecret, sealSecret, sha256 } from "../security/crypto.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
+import { publicProjectBrand } from "../branding/repository.js";
 
 function clean(value: string, label: string, min: number, max: number) {
   const result = value.trim();
@@ -84,7 +85,7 @@ async function serialize(row: Awaited<ReturnType<typeof dropRow>>, origin: strin
   const claimCondition = parseClaimCondition((row.distribution.rules as Record<string, unknown>).claimCondition);
   return {
     id: row.drop.id, slug: row.drop.publicSlug, title: row.drop.title, description: row.drop.description, status,
-    project: { name: row.project.name, logoUrl: row.project.logoUrl }, distributionId: row.distribution.id,
+    project: publicProjectBrand(row.project), distributionId: row.distribution.id,
     reward: { amount: formatAtomic(row.drop.claimAmountAtomic, row.token.decimals), amountAtomic: row.drop.claimAmountAtomic, symbol: row.token.symbol, name: row.token.name, address: row.token.contractAddress },
     capacity: { maximum: row.drop.maxClaims, reserved: reserved.length, claimed: claimed.length, remaining: Math.max(0, row.drop.maxClaims - reserved.length), percentReserved: Math.round((reserved.length / row.drop.maxClaims) * 10_000) / 100 },
     funding: { status: row.distribution.status, fullyFunded: ["active", "completed"].includes(row.distribution.status), transactionHash: row.distribution.fundingTxHash, merkleRoot: row.distribution.merkleRoot, totalAmount: formatAtomic(row.distribution.totalAmountAtomic, row.token.decimals) },

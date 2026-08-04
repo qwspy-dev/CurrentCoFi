@@ -14,6 +14,7 @@ import { parseClaimToken, sha256, signClaimToken } from "../security/crypto.js";
 import { formatAtomic, resolveToken, toAtomic } from "../campaigns/repository.js";
 import { keccak256 } from "viem";
 import { parseClaimCondition } from "../campaigns/conditions.js";
+import { projectBrand } from "../branding/repository.js";
 
 export async function createClaimLink(input: {
   userId: string;
@@ -146,6 +147,7 @@ export async function resolveClaimLink(tokenValue: string) {
     message: distributions.metadata,
     projectName: projects.name,
     projectLogo: projects.logoUrl,
+    projectSettings: projects.settings,
     symbol: tokens.symbol,
     decimals: tokens.decimals,
     chainCode: tokens.chainCode,
@@ -193,7 +195,7 @@ export async function resolveClaimLink(tokenValue: string) {
         : "Contract observations are not an audit, endorsement, or guarantee.",
     } : null,
     network: row.chainCode,
-    project: { name: row.projectName, logoUrl: row.projectLogo },
+    project: { name: row.projectName, logoUrl: row.projectLogo, brand: projectBrand(row.projectSettings) },
     message: typeof metadata.message === "string" ? metadata.message : "",
     sender: typeof metadata.creatorDisplayName === "string" ? metadata.creatorDisplayName : row.projectName,
     expiresAt: row.expiresAt?.toISOString() ?? null,

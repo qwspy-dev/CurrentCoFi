@@ -34,6 +34,8 @@ const manifestBody = {
     { method: "POST", path: "/api/v1/developer/vesting", purpose: "Create walletless USDC or project-token launch vesting with enforced unlocks", permission: "campaigns:write", signed: true },
     { method: "GET", path: "/api/v1/developer/vesting", purpose: "Read masked recipients, funding, tranche unlocks, and claims", permission: "analytics:read", signed: false },
     { method: "GET", path: "/api/v1/developer/treasury", purpose: "Read published budgets, spending proposals, and Arc receipts", permission: "analytics:read", signed: false },
+    { method: "GET", path: "/api/v1/developer/brand", purpose: "Read the project's hosted-experience brand system", permission: "analytics:read", signed: false },
+    { method: "POST", path: "/api/v1/developer/brand", purpose: "Publish safe branded claims, drops, bounties, giveaways, and embeds", permission: "campaigns:write", signed: true },
     { method: "POST", path: "/api/v1/developer/treasury", purpose: "Configure budgets or create a proposal without granting fund-moving authority", permission: "campaigns:write", signed: true },
     { method: "POST", path: "/api/v1/developer/identity-attestations", purpose: "Bind an offchain identity to an exact recipient wallet", permission: "identities:write", signed: true },
     { method: "POST", path: "/api/v1/developer/claim-conditions", purpose: "Verify a wallet-bound action before campaign settlement", permission: "identities:write", signed: true },

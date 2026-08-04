@@ -4,6 +4,11 @@ export type CurrentRecipient = {
   amount: string;
 };
 
+export type ProjectBrand = {
+  name: string; description: string | null; logoUrl: string | null; websiteUrl: string | null;
+  brand: { primaryColor: string; accentColor: string; successColor: string; surface: "midnight" | "tide" | "light"; headline: string; claimCta: string; poweredByCurrent: true };
+};
+
 export type IntegrationManifest = {
   schemaVersion: string; product: string; network: string; message: string; publishedAt: string; digest: string;
   paths: Array<{ id: string; label: string; bestFor: string; package?: string; spec?: string; manifest?: string }>;
@@ -856,6 +861,11 @@ export class Current {
     setup: (input: { name: string; description?: string }) => this.signedPost<TreasuryWorkspace["treasury"]>("/api/v1/developer/treasury", { action: "setup", ...input }),
     createBudget: (input: { treasuryId: string; category: string; limit: string; tokenAddress?: string; periodStart: string; periodEnd: string }) => this.signedPost<{ id: string }>("/api/v1/developer/treasury", { action: "budget", ...input }),
     createProposal: (input: CreateTreasuryProposalInput) => this.signedPost<{ id: string }>("/api/v1/developer/treasury", { action: "proposal", ...input }),
+  };
+
+  readonly brand = {
+    get: () => this.get<ProjectBrand>("/api/v1/developer/brand"),
+    publish: (input: Partial<Omit<ProjectBrand, "brand">> & { brand?: Partial<ProjectBrand["brand"]> }) => this.signedPost<ProjectBrand>("/api/v1/developer/brand", input),
   };
 
   readonly giveaways = {

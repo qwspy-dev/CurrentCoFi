@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.16.0-project-acquisition-intelligence",
+    version: "3.17.0-project-brand-studio",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -18,6 +18,14 @@ export default withApi((request) => ok(request, {
       post: { summary: "Create, update, or resolve an operational incident" },
     },
     "/meta": { get: { summary: "Public chain, capability, and product metadata" } },
+    "/brand": {
+      get: { summary: "Read the authenticated project's safe hosted-experience brand system" },
+      post: { summary: "Publish bounded colors, copy, and HTTPS project identity across Current hosted flows" },
+    },
+    "/developer/brand": {
+      get: { summary: "Read project brand configuration with a scoped developer key" },
+      post: { summary: "Publish a signed project brand configuration for hosted and embedded activation surfaces" },
+    },
     "/discovery": {
       get: { summary: "Discover fully funded opportunities with transparent placement and privacy-safe conversion aggregates" },
       post: { summary: "Record a daily-deduplicated anonymous impression or opportunity open without storing identity or network data" },

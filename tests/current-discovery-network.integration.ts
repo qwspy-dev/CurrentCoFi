@@ -30,7 +30,7 @@ assert.match(schema, /anonymous-browser-resource-event-utc-day/);
 assert.match(route, /recordDiscoveryInteraction/);
 assert.match(app, /DISCOVERY OPENS/);
 assert.match(sdk, /record:[\s\S]*resourceType/);
-assert.match(openapi, /3\.16\.0-project-acquisition-intelligence/);
+assert.match(openapi, /3\.17\.0-project-brand-studio/);
 assert.match(openapi, /"\/discovery"/);
 assert.match(docs, /not an endorsement/i);
 console.log("Current Discovery Network verified: funded-only eligibility, privacy-safe conversion attribution, transparent access placement, public API, responsive UI, SDK surface, and honest participation boundary.");

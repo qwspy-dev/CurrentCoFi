@@ -14,10 +14,10 @@
   },
   "scope": {
     "path": "security/audit-scope.json",
-    "sha256": "814f07532f7a5591eb0ee3c075c7fdce1d73f7d279a3f9afc05b29b49eb49d0c",
+    "sha256": "f99c133cc7786d3a8ef5f1f707ce3fff44d6058a53b772e5eefcc17df002c7ff",
     "contracts": 16,
-    "serverBoundaries": 11,
-    "priorityProperties": 7
+    "serverBoundaries": 13,
+    "priorityProperties": 8
   },
   "sources": [
     {

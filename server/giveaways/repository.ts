@@ -6,6 +6,7 @@ import { createCampaign, formatAtomic, projectAccess } from "../campaigns/reposi
 import { normalizeBoundIdentity } from "../claims/identity-binding.js";
 import { openSecret, randomSecret, sealSecret, sha256 } from "../security/crypto.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
+import { publicProjectBrand } from "../branding/repository.js";
 
 export type GiveawayIdentityType = "email" | "wallet" | "x" | "game" | "custom";
 
@@ -80,7 +81,7 @@ async function serialize(row: Awaited<ReturnType<typeof giveawayRow>>, origin: s
   return {
     id: row.giveaway.id, slug: row.giveaway.publicSlug, title: row.giveaway.title, description: row.giveaway.description, status,
     entryDeadline: row.giveaway.entryDeadline.toISOString(), maxEntries: row.giveaway.maxEntries, entryCount: entries.length,
-    project: { name: row.project.name, logoUrl: row.project.logoUrl }, distributionId: row.distribution.id,
+    project: publicProjectBrand(row.project), distributionId: row.distribution.id,
     prize: { amount: formatAtomic(row.distribution.totalAmountAtomic, row.token.decimals), amountAtomic: row.distribution.totalAmountAtomic, symbol: row.token.symbol, name: row.token.name, address: row.token.contractAddress },
     funding: { status: row.distribution.status, fullyFunded: ["active", "completed"].includes(row.distribution.status), transactionHash: row.distribution.fundingTxHash, merkleRoot: row.distribution.merkleRoot },
     proof: { method: "SHA-256 commit-reveal", randomnessCommitment: row.giveaway.randomnessCommitment, allocationIdentityHash: allocation?.identityHash ?? null, entrySetDigest: row.giveaway.entrySetDigest, drawDigest: row.giveaway.drawDigest, revealedRandomness: row.giveaway.revealedRandomness, deterministic: Boolean(row.giveaway.drawDigest && row.giveaway.revealedRandomness), boundary: "The random secret is committed before the prize campaign is funded. After entries close, Current reveals it and deterministically selects one entry from the sorted entry-digest set." },

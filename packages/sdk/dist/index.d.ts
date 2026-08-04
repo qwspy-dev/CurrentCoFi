@@ -3,6 +3,21 @@ export type CurrentRecipient = {
     identity: string;
     amount: string;
 };
+export type ProjectBrand = {
+    name: string;
+    description: string | null;
+    logoUrl: string | null;
+    websiteUrl: string | null;
+    brand: {
+        primaryColor: string;
+        accentColor: string;
+        successColor: string;
+        surface: "midnight" | "tide" | "light";
+        headline: string;
+        claimCta: string;
+        poweredByCurrent: true;
+    };
+};
 export type IntegrationManifest = {
     schemaVersion: string;
     product: string;
@@ -1967,6 +1982,12 @@ export declare class Current {
         createProposal: (input: CreateTreasuryProposalInput) => Promise<{
             id: string;
         }>;
+    };
+    readonly brand: {
+        get: () => Promise<ProjectBrand>;
+        publish: (input: Partial<Omit<ProjectBrand, "brand">> & {
+            brand?: Partial<ProjectBrand["brand"]>;
+        }) => Promise<ProjectBrand>;
     };
     readonly giveaways: {
         list: () => Promise<GiveawayWorkspace>;
