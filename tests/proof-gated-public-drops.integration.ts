@@ -33,8 +33,8 @@ assert.match(app, /proofWindowMinutes:60/);
 assert.match(sdk, /CreatePublicDropInput[\s\S]*claimCondition/);
 assert.match(mcp, /project-signed action proof/);
 assert.match(meta, /proof-gated-public-activation-drops/);
-assert.match(openapi, /3\.12\.0-encrypted-campaign-delivery-center/);
-assert.match(evidence, /current-evidence-v21/);
+assert.match(openapi, /3\.13\.0-post-claim-activation-destinations/);
+assert.match(evidence, /current-evidence-v22/);
 assert.match(evidence, /proofGatedPublicDrops/);
 
 console.log("Proof-gated public activation drops verified: condition validation, consumer and developer inputs, wallet-bound settlement boundary, UI controls, SDK/MCP contract, and grant evidence.");

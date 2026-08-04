@@ -27,6 +27,7 @@
     "drops:test": "tsx tests/public-walletless-drops.integration.ts",
     "activation-drops:test": "tsx tests/proof-gated-public-drops.integration.ts",
     "delivery-center:test": "tsx tests/campaign-delivery-center.integration.ts",
+    "activation-destinations:test": "tsx tests/post-claim-activation-destinations.integration.ts",
     "audit:manifest": "node scripts/security/audit-manifest.mjs --write",
     "audit:verify": "node scripts/security/audit-manifest.mjs",
     "db:generate": "drizzle-kit generate",

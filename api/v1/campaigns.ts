@@ -59,6 +59,7 @@ async function create(request: Request) {
     recipients: recipients(body.recipients),
     expiresInHours: expiration(body.expiresInHours),
     activationEvent: typeof body.activationEvent === "string" ? body.activationEvent : undefined,
+    activationDestination: body.activationDestination,
     referralReward: typeof body.referralReward === "string" ? body.referralReward : undefined,
     claimCondition: body.claimCondition,
     claimMode: parseCampaignClaimMode(body.mode),

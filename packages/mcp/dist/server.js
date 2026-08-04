@@ -279,6 +279,10 @@ export function createCurrentMcpServer(input = configFromEnv()) {
         recipients: z.array(recipientSchema).min(1).max(maxRecipients),
         expiresInHours: z.number().int().min(1).max(720).optional(),
         activationEvent: z.string().min(2).max(160).optional(),
+        activationDestination: z.object({
+            url: z.string().url().startsWith("https://").max(500),
+            label: z.string().min(1).max(50),
+        }).optional(),
         referralReward: z.string().min(1).max(160).optional(),
         approval: z.literal("I_APPROVE_CURRENT_DISTRIBUTION"),
     };

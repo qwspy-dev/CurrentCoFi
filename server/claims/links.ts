@@ -168,6 +168,9 @@ export async function resolveClaimLink(tokenValue: string) {
   const metadata = row.message as Record<string, unknown>;
   const rules = row.rules as Record<string, unknown>;
   const identityBound = rules.claimMode === "identity-bound";
+  const activationDestination = rules.activationDestination && typeof rules.activationDestination === "object"
+    ? rules.activationDestination as Record<string, unknown>
+    : null;
   const claimCondition = parseClaimCondition(rules.claimCondition);
   const recipientLabels = metadata.recipientLabels as Record<string, string> | undefined;
   const tokenMetadata = row.tokenMetadata as Record<string, unknown>;
@@ -215,5 +218,10 @@ export async function resolveClaimLink(tokenValue: string) {
       proofWindowMinutes: claimCondition.proofWindowMinutes,
       status: "verification-required",
     } : { required: false, status: "not-required" },
+    activationDestination: activationDestination
+      && typeof activationDestination.url === "string"
+      && typeof activationDestination.label === "string"
+      ? { url: activationDestination.url, label: activationDestination.label }
+      : null,
   };
 }

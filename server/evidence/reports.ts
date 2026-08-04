@@ -14,6 +14,7 @@ import {
   claims,
   campaignQualityPolicies,
   campaignDeliveries,
+  campaignDestinationClicks,
   checkoutLinks,
   checkoutPayments,
   crosschainFundingIntents,
@@ -46,7 +47,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v21";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v22";
 
 type Criterion = {
   id: string;
@@ -270,6 +271,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
     claimRows,
     claimTransactions,
     activationRows,
+    destinationRows,
     attestationRows,
     referralRows,
     integrationRows,
@@ -327,6 +329,15 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       }).from(activationEvents)
         .where(inArray(activationEvents.distributionId, campaignIds))
         .groupBy(activationEvents.distributionId, activationEvents.eventType)
+      : [],
+    campaignIds.length
+      ? db.select({
+        distributionId: campaignDestinationClicks.distributionId,
+        recipients: count(),
+        opens: sql<number>`sum(${campaignDestinationClicks.openCount})`,
+      }).from(campaignDestinationClicks)
+        .where(inArray(campaignDestinationClicks.distributionId, campaignIds))
+        .groupBy(campaignDestinationClicks.distributionId)
       : [],
     campaignIds.length
       ? db.select({
@@ -547,6 +558,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const claimsByCampaign = new Map(claimRows.map((row) => [row.distributionId, row]));
   const attestationsByCampaign = new Map(attestationRows.map((row) => [row.distributionId, row]));
   const referralsByCampaign = new Map(referralRows.map((row) => [row.distributionId, row]));
+  const destinationsByCampaign = new Map(destinationRows.map((row) => [row.distributionId, row]));
   const activationsByCampaign = new Map<string, { eventType: string; total: number }[]>();
   for (const row of activationRows) {
     if (!row.distributionId) continue;
@@ -609,6 +621,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         total: activations,
         rate: claimed ? Math.round((activations / claimed) * 10_000) / 100 : 0,
         eventTypes: activationsByCampaign.get(campaign.id) ?? [],
+      },
+      returnToProject: {
+        authenticatedRecipients: Number(destinationsByCampaign.get(campaign.id)?.recipients ?? 0),
+        totalOpens: Number(destinationsByCampaign.get(campaign.id)?.opens ?? 0),
+        destinationConfigured: Boolean(rules.activationDestination),
+        evidenceType: "authenticated-clickthrough",
+        boundary: "A destination open is not a project-verified activation event.",
       },
       identityVerification: {
         attestations: Number(attestation?.verified ?? 0),

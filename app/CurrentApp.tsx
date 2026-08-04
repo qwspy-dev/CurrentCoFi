@@ -1,6 +1,8 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- generated QR data URIs cannot use the image optimizer */
 
+import "./activation-destinations.css";
+
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
   Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
@@ -28,6 +30,7 @@ type AccountIdentity = {id:string;provider:string;verifiedAt:string|null;profile
 type IdentityWorkspace = {identities:AccountIdentity[];available:{x:boolean;discord:boolean;telegram:boolean}};
 type ClaimPreview = {
   id: string;
+  allocationId: string;
   status: string;
   fundingStatus: string;
   claimable: boolean;
@@ -62,6 +65,7 @@ type ClaimPreview = {
     proofWindowMinutes?: number;
     status: "verification-required" | "not-required";
   };
+  activationDestination: { url: string; label: string } | null;
 };
 
 type WalletActionResult = {
@@ -352,6 +356,9 @@ type CampaignAnalytics = {
     targeted: number;
     claimed: number;
     activations: number;
+    destinationRecipients: number;
+    destinationOpens: number;
+    destinationRate: number;
     claimRate: number;
     activationRate: number;
     identityBoundCampaigns: number;
@@ -367,6 +374,8 @@ type CampaignAnalytics = {
     claimed: number;
     claimRate: number;
     activations: number;
+    destinationRecipients: number;
+    destinationOpens: number;
   }>;
 };
 
@@ -1700,6 +1709,7 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
   const [preview,setPreview] = useState<ClaimPreview|null>(null);
   const [previewState,setPreviewState] = useState<"demo"|"loading"|"live"|"error">(()=>claimToken?"loading":"demo");
   const [claimError,setClaimError] = useState<string|null>(null);
+  const [continuing,setContinuing] = useState(false);
   const claimStartedRef = useRef(false);
   useEffect(()=>{
     if(!claimToken)return;
@@ -1728,6 +1738,17 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
   const claim=()=>{
     if(!auth.account){setStep("auth");return}
     claimStartedRef.current=true;void settleClaim();
+  };
+  const continueToProject=async()=>{
+    if(!preview?.activationDestination)return;
+    setContinuing(true);setClaimError(null);
+    try{
+      const result=await currentApi.post<{url:string}>("/campaigns/destination",{allocationId:preview.allocationId});
+      window.location.assign(result.url);
+    }catch(reason){
+      setClaimError(reason instanceof Error?reason.message:"The project destination could not be opened.");
+      setContinuing(false);
+    }
   };
   useEffect(()=>{
     if(!claimToken||!auth.account||step!=="auth"||claimStartedRef.current)return;
@@ -1791,6 +1812,7 @@ function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
         {visibleStep === "creating" && <div className="creating-state"><span className="creating-orbit"><i/><i/><Wallet/></span><small>CREATING YOUR EMBEDDED WALLET</small><h2>Opening your current…</h2><div className="creating-steps"><span className="done"><Check/>Identity verified</span><span className={auth.state==="creating-wallet"?"done":""}><RefreshCw/>Creating Arc wallet</span><span>Securing account recovery</span></div></div>}
         {visibleStep === "claiming" && <div className="creating-state"><span className="creating-orbit"><i/><i/><Zap/></span><small>SETTLING ON ARC</small><h2>Bringing the value into your wallet…</h2><div className="creating-steps"><span className="done"><Check/>Identity authorized</span><span className="done"><RefreshCw/>Gasless claim submitted</span><span>Confirming settlement</span></div></div>}
         {visibleStep === "success" && <div className="success-state"><span className="success-ripple"><Check/></span><small>{claimToken?"CLAIM SETTLED":"ACCOUNT READY"}</small><h2>{claimToken?"The value is yours.":"Your wallet is open."}</h2><p>{claimToken?`${preview?.amount??""} ${preview?.asset??"tokens"} settled into your user-controlled Arc wallet.`:"Your user-controlled Arc wallet is ready for walletless distributions."}</p><div className="success-balance"><span>Arc wallet</span><b>{auth.account?.wallets[0]?.address?`${auth.account.wallets[0].address.slice(0,8)}…${auth.account.wallets[0].address.slice(-5)}`:"Creating address"}</b><small>Gas sponsored · Arc testnet SCA</small></div><Button tone="blue" onClick={()=>go("overview")}>Open your account <ArrowRight/></Button></div>}
+        {visibleStep === "success"&&preview?.activationDestination&&<div className="success-followup"><Button tone="cyan" disabled={continuing} onClick={()=>void continueToProject()}>{continuing?"Recording return…":preview.activationDestination.label} <ArrowUpRight/></Button><small>Authenticated return clicks are measured separately from project-verified activations.</small>{claimError&&<p className="auth-system-note is-error"><X/>{claimError}</p>}</div>}
       </section>
       <div className="claim-trust"><span><Lock/>Identity bound</span><span><Wallet/>Embedded wallet</span><span><Zap/>No gas needed</span></div>
     </main>
@@ -2166,6 +2188,8 @@ function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
   const [defaultAmount,setDefaultAmount]=useState("25");
   const [csvText,setCsvText]=useState("");
   const [activationEvent,setActivationEvent]=useState("account.created");
+  const [activationUrl,setActivationUrl]=useState("");
+  const [activationLabel,setActivationLabel]=useState("Continue to project");
   const [requireClaimCondition,setRequireClaimCondition]=useState(false);
   const [claimConditionEvent,setClaimConditionEvent]=useState("game.completed_3");
   const [claimConditionDescription,setClaimConditionDescription]=useState("Complete the required project action to unlock this reward.");
@@ -2232,6 +2256,7 @@ function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
       const campaign=await currentApi.post<CreatedCampaign>("/campaigns",{
         name,tokenAddress:tokenAddress||undefined,recipients,expiresInHours:168,
         activationEvent,referralReward,purpose,mode,
+        activationDestination:activationUrl.trim()?{url:activationUrl.trim(),label:activationLabel.trim()||"Continue to project"}:undefined,
         claimCondition:requireClaimCondition?{
           eventType:claimConditionEvent,
           label:claimConditionEvent==="game.completed_3"?"Complete 3 matches":claimConditionEvent==="purchase.completed"?"Complete your first purchase":claimConditionEvent==="event.attended"?"Verify event attendance":claimConditionEvent==="referral.qualified"?"Refer a qualified user":"Complete the project action",
@@ -2253,6 +2278,7 @@ function CampaignBuilder({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
         {step===2&&<div className="field-grid"><label className="full">Arc token contract<div className="token-address-row"><input value={tokenAddress} onChange={event=>{setTokenAddress(event.target.value);setInspectedToken(null)}} placeholder="Leave blank for Arc testnet USDC"/><button type="button" onClick={()=>void inspectCampaignToken()} disabled={inspectingToken||!tokenAddress.trim()}>{inspectingToken?<RefreshCw className="spin"/>:<Search/>}{inspectingToken?"Inspecting…":"Inspect contract"}</button></div></label>{inspectedToken?<div className="full"><TokenTrustPanel token={inspectedToken}/></div>:null}<label>Default reward per recipient<input value={defaultAmount} onChange={event=>setDefaultAmount(event.target.value)} inputMode="decimal"/></label><label>Expiration<select><option>7 days</option></select></label><p className="builder-note full"><ShieldCheck/>Current records reproducible contract observations before funding. These signals are not an audit or endorsement.</p></div>}
         {step===3&&<><div className="mode-tabs">{["Allowlist","Identity-bound"].map(x=><button type="button" className={mode===x?"active":""} onClick={()=>{setMode(x);setError(null)}} key={x}>{x}</button>)}</div><div className={`identity-mode-proof ${mode==="Identity-bound"?"active":""}`}><ShieldCheck/><div><b>{mode==="Identity-bound"?"The recipient must prove the assignment":"The private link is the claim credential"}</b><small>{mode==="Identity-bound"?"Email and wallet commitments are verified natively. X, game, and custom identities use a project-signed verifier attestation bound to the recipient wallet. A leaked link cannot redirect the reward.":"Any supported identity type can receive a private, single-use link."}</small></div></div><label className="upload-drop"><Upload/><h3>Drop a recipient CSV</h3><p>Columns: identity, identity_type, amount. Email, wallet, X, game, and custom IDs are accepted.</p><span className="cofi-button tone-ghost">Browse file</span><input type="file" accept=".csv,text/csv" onChange={event=>void upload(event.target.files?.[0]??null)}/></label><label className="csv-paste">Or paste recipient rows<textarea value={csvText} onChange={event=>setCsvText(event.target.value)} placeholder={"identity,identity_type,amount\nmember@example.com,email,25\n@playerone,x,50"}/></label><div className={`recipient-validation ${recipients.length?"valid":""}`}><CheckCircle2/><div><b>{recipients.length.toLocaleString()} valid recipients</b><small>{total.toLocaleString(undefined,{maximumFractionDigits:6})} total units will be fully funded</small></div></div></>}
         {step===4&&<div className="activation-builder"><label><span>Activation event</span><select value={activationEvent} onChange={event=>setActivationEvent(event.target.value)}><option value="account.created">Created embedded wallet</option><option value="project.onboarded">Completed project onboarding</option><option value="game.completed_3">Played 3 matches</option><option value="purchase.completed">Made first purchase</option><option value="custom.signed">Custom signed event</option></select></label><label><span>Referral reward</span><select value={referralReward} onChange={event=>setReferralReward(event.target.value)}><option>No referral reward</option><option>5 USDC per activated referral</option><option>Project token reward</option></select></label><label className="condition-toggle"><span><b>Gate settlement with verified proof</b><small>Require a project-signed action before the recipient can claim.</small></span><input type="checkbox" checked={requireClaimCondition} onChange={event=>setRequireClaimCondition(event.target.checked)}/></label>{requireClaimCondition&&<div className="condition-gate-builder"><Target/><div><label><span>Required action</span><select value={claimConditionEvent} onChange={event=>setClaimConditionEvent(event.target.value)}><option value="game.completed_3">Played 3 matches</option><option value="purchase.completed">Made first purchase</option><option value="event.attended">Verified event attendance</option><option value="referral.qualified">Qualified referral</option><option value="custom.signed">Custom signed project action</option></select></label><label><span>Recipient message</span><input value={claimConditionDescription} onChange={event=>setClaimConditionDescription(event.target.value)} maxLength={240}/></label></div><Status tone="cyan">Pre-claim gate</Status></div>}<div className="event-code"><Webhook/><code>{activationEvent}</code><Status tone="green">Attribution ready</Status></div></div>}
+        {step===4&&<div className="activation-destination-builder"><div><ArrowUpRight/><span><b>Post-claim destination</b><small>Bring recipients into your app after their walletless claim settles.</small></span><Status tone="cyan">Return path</Status></div><label>Secure project URL<input type="url" value={activationUrl} onChange={event=>setActivationUrl(event.target.value)} placeholder="https://yourproject.xyz/welcome" maxLength={500}/></label><label>Button label<input value={activationLabel} onChange={event=>setActivationLabel(event.target.value)} maxLength={50}/></label><p><ShieldCheck/>Authenticated return clicks stay separate from project-signed activation events.</p></div>}
         {step===5&&<><div className="fund-review"><div><small>CAMPAIGN</small><b>{name}</b></div><div><small>RECIPIENTS</small><b>{recipients.length.toLocaleString()}</b></div><div><small>TOTAL ALLOCATION</small><b>{total.toLocaleString(undefined,{maximumFractionDigits:6})} {tokenAddress?"TOKEN":"USDC"}</b></div><div><small>CLAIM SECURITY</small><b>{mode}</b></div><div><small>SETTLEMENT GATE</small><b>{requireClaimCondition?"Signed action proof":"Immediate claim"}</b></div><div><small>RECOVERY</small><b>Cancel or expiry refund</b></div></div>{created&&<div className="campaign-created-result"><CheckCircle2/><div><b>{fundingStep==="complete"?"Campaign live on Arc":"Campaign commitments secured"}</b><small>{created.recipientCount} {created.claimMode} links generated · {created.asset.symbol} · root {created.merkleRoot.slice(0,10)}…</small></div><div className="campaign-result-actions"><Button tone="ghost" onClick={()=>void copyFirstClaim()}>{copiedClaim?"Link copied":"Copy first link"} <Copy/></Button><Button tone="ghost" onClick={()=>downloadCampaignLinks(created)}>Download all <Download/></Button></div></div>}</>}
         {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
         <div className="form-actions"><Button tone="ghost" disabled={step===1||submitting} onClick={()=>setStep(step-1)}>Back</Button><Button tone="blue" type="submit" disabled={submitting||fundingStep==="complete"}>{step===5?(fundingStep==="creating"?"Building allowlist…":fundingStep==="approving"?"Approve token access…":fundingStep==="funding"?"Fund campaign vault…":fundingStep==="complete"?"Campaign live":auth.account?"Fund and publish":"Sign in to publish"):"Continue"} <ArrowRight/></Button></div>
@@ -2626,7 +2652,7 @@ function Analytics({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const network=useCampaignNetwork(Boolean(auth.account));
   const totals=network.analytics?.totals;
   return <><PageHero eyebrow="CAMPAIGN INTELLIGENCE" title="Find where the current accelerates—or breaks." copy="Compare verified targeting, claim settlement, and activation signals without hiding behind vanity metrics."/>
-    <div className="metric-grid-new"><MetricCard label="Recipients targeted" value={(totals?.targeted??0).toLocaleString()} icon={Users}/><MetricCard label="Claims settled" value={(totals?.claimed??0).toLocaleString()} icon={Gift}/><MetricCard label="Claim conversion" value={`${(totals?.claimRate??0).toFixed(1)}%`} icon={Activity}/><MetricCard label="Activation events" value={(totals?.activations??0).toLocaleString()} icon={Target}/></div>
+    <div className="metric-grid-new"><MetricCard label="Recipients targeted" value={(totals?.targeted??0).toLocaleString()} icon={Users}/><MetricCard label="Claims settled" value={(totals?.claimed??0).toLocaleString()} icon={Gift}/><MetricCard label="Returned to project" value={(totals?.destinationRecipients??0).toLocaleString()} change={`${(totals?.destinationRate??0).toFixed(1)}% of claimants`} icon={ArrowUpRight}/><MetricCard label="Verified activations" value={(totals?.activations??0).toLocaleString()} icon={Target}/></div>
     {network.error&&<p className="auth-system-note is-error"><X/>{network.error}</p>}
     <div className="analysis-grid"><div className="data-panel"><div className="panel-head"><div><h3>Campaign conversion</h3><p>Counts reconciled from confirmed Arc settlement</p></div><Status tone="green">Verifiable</Status></div><div className="conversion-current">{(network.analytics?.campaigns??[]).map(campaign=><div key={campaign.id}><span><b>{campaign.name}</b><small>{campaign.claimed.toLocaleString()} / {campaign.targeted.toLocaleString()}</small></span><i><b style={{width:`${campaign.claimRate}%`}}/></i><em>{campaign.claimRate.toFixed(1)}%</em></div>)}{!network.loading&&!network.analytics?.campaigns.length&&<div className="campaign-empty compact"><BarChart3/><b>No campaign data yet</b></div>}</div></div>
       <div className="data-panel"><div className="panel-head"><div><h3>Evidence ladder</h3><p>What Current CoFi can prove today</p></div></div>{[["Allowlist generated","Merkle root anchored before funding","Onchain"],["Campaign funded","Full token allocation deposited","Onchain"],["Recipient claimed","Unique bitmap index settled","Onchain"],["Wallet created","Circle user-controlled SCA","Circle"],["Activation completed","Signed project event","API"]].map((row,i)=><div className="quality-row" key={row[0]}><span className={`source-icon s-${i}`}><Network/></span><b>{row[0]}</b><span><small>EVIDENCE</small>{row[1]}</span><span><small>SOURCE</small>{row[2]}</span></div>)}</div></div>

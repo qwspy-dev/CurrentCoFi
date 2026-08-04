@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.12.0-encrypted-campaign-delivery-center",
+    version: "3.13.0-post-claim-activation-destinations",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -40,6 +40,7 @@ export default withApi((request) => ok(request, {
       post: { summary: "Recheck a project token or explicitly acknowledge its latest observed control baseline" },
     },
     "/links/resolve": { post: { summary: "Resolve a signed claim token into a safe public preview" } },
+    "/campaigns/destination": { post: { summary: "Record an authenticated post-claim return click and open the campaign's safe HTTPS destination" } },
     "/social-payments": {
       get: { summary: "List social payment requests, split progress, and sent-payment receipts" },
       post: { summary: "Create a USDC or Arc project-token username send, payment request, tip link, or split bill" },

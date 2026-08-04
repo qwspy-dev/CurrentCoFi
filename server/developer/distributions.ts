@@ -14,6 +14,7 @@ type DistributionInput = {
   recipients?: unknown;
   expiresInHours?: unknown;
   activationEvent?: unknown;
+  activationDestination?: unknown;
   referralReward?: unknown;
   claimCondition?: unknown;
   mode?: unknown;
@@ -106,6 +107,7 @@ export async function createDeveloperDistribution(
     recipients: parseRecipients(input.recipients),
     expiresInHours,
     activationEvent: optionalString(input.activationEvent, 100),
+    activationDestination: input.activationDestination,
     referralReward: optionalString(input.referralReward, 100),
     claimCondition: input.claimCondition,
     claimMode: parseCampaignClaimMode(input.mode),

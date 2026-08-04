@@ -688,6 +688,22 @@ export const claims = pgTable("claims", {
   index("claims_claimant_idx").on(table.claimantUserId),
 ]);
 
+export const campaignDestinationClicks = pgTable("campaign_destination_clicks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  distributionId: uuid("distribution_id").references(() => distributions.id, { onDelete: "cascade" }).notNull(),
+  allocationId: uuid("allocation_id").references(() => allocations.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  destinationOrigin: text("destination_origin").notNull(),
+  openCount: integer("open_count").default(1).notNull(),
+  firstOpenedAt: timestamp("first_opened_at", { withTimezone: true }).defaultNow().notNull(),
+  lastOpenedAt: timestamp("last_opened_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("campaign_destination_clicks_allocation_unique").on(table.allocationId),
+  index("campaign_destination_clicks_project_idx").on(table.projectId, table.lastOpenedAt),
+  index("campaign_destination_clicks_distribution_idx").on(table.distributionId, table.lastOpenedAt),
+]);
+
 export const vestingBatches = pgTable("vesting_batches", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),

@@ -10,6 +10,7 @@ import {
   activationEvents,
   allocations,
   auditEvents,
+  campaignDestinationClicks,
   campaignDeliveries,
   claims,
   distributions,
@@ -23,6 +24,7 @@ import { normalizeBoundIdentity, type CampaignClaimMode } from "../claims/identi
 import { inspectArcTokenTrust } from "../tokens/trust.js";
 import { buildCampaignTree } from "./merkle.js";
 import { parseClaimCondition } from "./conditions.js";
+import { parseActivationDestination } from "./destinations.js";
 
 const AMOUNT_PATTERN = /^\d{1,30}(?:\.\d{1,18})?$/;
 export type CampaignRecipientInput = {
@@ -116,6 +118,7 @@ export async function createCampaign(input: {
   recipients: CampaignRecipientInput[];
   expiresInHours: number;
   activationEvent?: string;
+  activationDestination?: unknown;
   referralReward?: string;
   claimMode?: CampaignClaimMode;
   claimCondition?: unknown;
@@ -129,6 +132,7 @@ export async function createCampaign(input: {
   }
   const claimMode = input.claimMode ?? "allowlist";
   const claimCondition = parseClaimCondition(input.claimCondition);
+  const activationDestination = parseActivationDestination(input.activationDestination);
   await projectAccess(input.userId, input.projectId);
   const db = getDb();
   const token = await resolveToken(input.projectId, input.tokenAddress);
@@ -187,6 +191,7 @@ export async function createCampaign(input: {
       claimMode,
       recipientPaysGas: false,
       activationEvent: input.activationEvent?.slice(0, 100) || null,
+      activationDestination,
       referralReward: input.referralReward?.slice(0, 100) || null,
       claimCondition,
     },
@@ -423,6 +428,15 @@ export async function campaignAnalytics(userId: string) {
       .where(inArray(activationEvents.distributionId, campaignIds))
       .groupBy(activationEvents.distributionId)
     : [];
+  const destinationRows = campaignIds.length
+    ? await getDb().select({
+      distributionId: campaignDestinationClicks.distributionId,
+      recipients: count(),
+      opens: sql<number>`sum(${campaignDestinationClicks.openCount})`,
+    }).from(campaignDestinationClicks)
+      .where(inArray(campaignDestinationClicks.distributionId, campaignIds))
+      .groupBy(campaignDestinationClicks.distributionId)
+    : [];
   const [attestationTotals] = campaignIds.length
     ? await getDb().select({
       verified: count(),
@@ -430,6 +444,8 @@ export async function campaignAnalytics(userId: string) {
     }).from(identityAttestations).where(inArray(identityAttestations.distributionId, campaignIds))
     : [{ verified: 0, consumed: 0 }];
   const activations = activationRows.reduce((sum, row) => sum + Number(row.total), 0);
+  const destinationRecipients = destinationRows.reduce((sum, row) => sum + Number(row.recipients), 0);
+  const destinationOpens = destinationRows.reduce((sum, row) => sum + Number(row.opens), 0);
   const confirmed = recipients.filter((recipient) => recipient.status === "confirmed").length;
   const targeted = recipients.length;
   const identityBoundCampaigns = campaigns.filter((campaign) => campaign.claimMode === "identity-bound");
@@ -445,6 +461,9 @@ export async function campaignAnalytics(userId: string) {
       targeted,
       claimed: confirmed,
       activations,
+      destinationRecipients,
+      destinationOpens,
+      destinationRate: confirmed ? Math.round((destinationRecipients / confirmed) * 10_000) / 100 : 0,
       claimRate: targeted ? Math.round((confirmed / targeted) * 10_000) / 100 : 0,
       activationRate: confirmed ? Math.round((activations / confirmed) * 10_000) / 100 : 0,
       identityBoundCampaigns: identityBoundCampaigns.length,
@@ -460,6 +479,8 @@ export async function campaignAnalytics(userId: string) {
       claimed: campaign.claimedCount,
       claimRate: campaign.claimRate,
       activations: Number(activationRows.find((row) => row.distributionId === campaign.id)?.total ?? 0),
+      destinationRecipients: Number(destinationRows.find((row) => row.distributionId === campaign.id)?.recipients ?? 0),
+      destinationOpens: Number(destinationRows.find((row) => row.distributionId === campaign.id)?.opens ?? 0),
     })),
   };
 }

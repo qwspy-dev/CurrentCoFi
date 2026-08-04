@@ -118,6 +118,7 @@ export type CreateDistributionInput = {
   recipients: CurrentRecipient[];
   expiresInHours?: number;
   activationEvent?: string;
+  activationDestination?: { url: string; label: string };
   referralReward?: string;
   mode?: "allowlist" | "identity-bound";
   claimCondition?: {
