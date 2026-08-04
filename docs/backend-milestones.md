@@ -54,3 +54,10 @@ External proof still required: run the first funded public testnet drop with out
 - Added normalized public API and TypeScript SDK surfaces for partner wallets, agents, community dashboards, and launch platforms.
 - Added responsive desktop/mobile discovery UI, filtering, search, loading, interrupted, and honest empty states.
 - Remaining external dependencies are unchanged: real pilot partners and usage, independent contract audit, final legal review, social-provider credentials, and Arc mainnet production infrastructure.
+
+# Discovery conversion attribution — complete
+
+- Daily-deduplicated impressions and opportunity opens use a one-way random-browser digest; no raw browser identifier, IP address, wallet, email, social identity, or user-agent record is stored.
+- Discovery cards and campaign intelligence separate anonymous interactions from reservations, bounty submissions, giveaway entries, confirmed claims, activations, and retention.
+- Public REST and TypeScript SDK integrations share the same validation and privacy contract.
+- Production migration `0029_happy_annihilus.sql` adds the isolated interaction ledger and compound deduplication boundary.

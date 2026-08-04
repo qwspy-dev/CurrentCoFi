@@ -39,6 +39,7 @@ export class Current {
     request;
     discovery = {
         list: () => this.publicGet("/api/v1/discovery"),
+        record: (input) => this.publicPost("/api/v1/discovery", input),
     };
     distributions = {
         create: (input) => this.signedPost("/api/v1/developer/distributions", input),
@@ -196,6 +197,10 @@ export class Current {
     }
     async publicGet(path) {
         const response = await this.request(`${this.baseUrl}${path}`, { headers: { accept: "application/json" } });
+        return parseResponse(response);
+    }
+    async publicPost(path, value) {
+        const response = await this.request(`${this.baseUrl}${path}`, { method: "POST", headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(value) });
         return parseResponse(response);
     }
     async signedPost(path, value) {

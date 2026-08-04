@@ -517,6 +517,7 @@ export type DiscoveryOpportunity = {
   publicUrl: string;
   funding: { fullyFunded: true; transactionHash: string | null; merkleRoot: string | null; network: "ARC-TESTNET" };
   placement: { tier: "current" | "surge" | "stream" | "standard"; label: string; rank: number; reason: string };
+  metrics: { impressions: number; opens: number; openRate: number; participation: number; participationLabel: string; boundary: string };
   createdAt: string;
 };
 
@@ -524,7 +525,7 @@ export type DiscoveryNetwork = {
   schemaVersion: "current-discovery-v1";
   generatedAt: string;
   items: DiscoveryOpportunity[];
-  totals: { opportunities: number; drops: number; bounties: number; giveaways: number; fundedProjects: number };
+  totals: { opportunities: number; drops: number; bounties: number; giveaways: number; fundedProjects: number; impressions: number; opens: number; participation: number };
   ranking: { order: string; safetyGate: string; disclosure: string };
   boundary: string;
 };
@@ -768,6 +769,7 @@ export class Current {
 
   readonly discovery = {
     list: () => this.publicGet<DiscoveryNetwork>("/api/v1/discovery"),
+    record: (input: { resourceType: "drop" | "bounty" | "giveaway"; resourceId: string; visitorId: string; eventType: "impression" | "open" }) => this.publicPost<{ accepted: true; deduplicatedBy: string; privacy: string }>("/api/v1/discovery", input),
   };
 
   readonly distributions = {
@@ -1059,6 +1061,11 @@ export class Current {
 
   private async publicGet<T>(path: string) {
     const response = await this.request(`${this.baseUrl}${path}`, { headers: { accept: "application/json" } });
+    return parseResponse<T>(response);
+  }
+
+  private async publicPost<T>(path: string, value: unknown) {
+    const response = await this.request(`${this.baseUrl}${path}`, { method: "POST", headers: { accept: "application/json", "content-type": "application/json" }, body: JSON.stringify(value) });
     return parseResponse<T>(response);
   }
 

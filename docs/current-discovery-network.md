@@ -16,6 +16,18 @@ Listings are ordered by active `$CURRENT` project-access tier and then recency. 
 
 The TypeScript SDK exposes the same public read through `current.discovery.list()` so wallets, agents, launch platforms, community dashboards, and partner applications can build their own Current-powered discovery experiences.
 
+## Conversion attribution
+
+The discovery client records impressions and opportunity opens with `POST /api/v1/discovery`. A random browser identifier is created locally, transformed into a one-way digest by the API, and deduplicated for each resource, event type, and UTC day. Current never persists the raw browser identifier, IP address, user agent, email, wallet, or social identity for these events.
+
+Public opportunity metrics keep three concepts separate:
+
+- `impressions` and `opens` are anonymous daily discovery interactions;
+- `participation` is a resource-specific product action such as a reservation, submission, or giveaway entry;
+- confirmed claims, funded wallets, activation events, and retention remain separate campaign evidence and are never inferred from clicks.
+
+SDK integrations can use `current.discovery.record(...)` to preserve the same attribution contract in partner-owned discovery surfaces.
+
 ## Trust boundary
 
 Discovery proves only what Current can verify: the opportunity is public, presently open, and backed by an active funded campaign record. Users still need to evaluate the project, asset, terms, and public campaign proof before participating.

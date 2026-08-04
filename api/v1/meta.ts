@@ -11,6 +11,8 @@ export default withApi((request) => ok(request, {
       "public-current-discovery-network",
       "fully-funded-opportunity-index",
       "transparent-current-access-placement",
+      "privacy-safe-discovery-attribution",
+      "discovery-to-participation-conversion",
       "circle-auth-orchestration",
       "embedded-wallet-session",
       "account-recovery",

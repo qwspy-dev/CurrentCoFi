@@ -50,4 +50,4 @@ Launch-vesting creation requires the exact `I_APPROVE_CURRENT_VESTING` phrase. A
 - Developer interface: `https://www.currentco.finance/#/developers`
 - Source package: `packages/mcp`
 
-The integration test launches the compiled server over stdio, connects through the official MCP client, discovers all fifteen tools, exercises public and authenticated reads, verifies signed write requests, and proves that missing approval is rejected.
+The integration test launches the compiled server over stdio, connects through the official MCP client, discovers all nineteen tools, exercises public and authenticated reads, verifies signed write requests, and proves that missing approval is rejected.

@@ -154,3 +154,12 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Empty and interrupted states are visually complete. Local development uses an explicit zero-opportunity fallback because Vinext serves Vercel function source files rather than executing them; production continues to require the real public API.
 - Reduced-motion users receive static current rings and non-animated loading surfaces.
 - Focused discovery checks, lint, TypeScript, packages, production build, security, developer/grant, SDK, and MCP regression suites pass.
+
+## Discovery conversion attribution QA · 2026-08-03
+
+- Inspected `/#/analytics` at 1440×900 and `/#/discover` at 390×844 after adding the conversion-attribution layer.
+- The project workspace now separates anonymous network impressions and opportunity opens from product participation, confirmed claims, activation, and retention; the rendered labels do not present attention as adoption.
+- Desktop preserves the campaign-intelligence hierarchy and adds a compact Discovery Network strip without displacing settlement evidence or the private-data boundary.
+- Mobile preserves the water-current hero, funded-only network proof, horizontally scrollable filters, complete zero-data state, transparent placement policy, and daily interaction totals without page-level overflow.
+- The rendered zero state is deliberate: no eligible funded opportunity currently exists, so visual QA does not fabricate campaigns or activity.
+- Captures: `qa-discovery-attribution-analytics.png` and `qa-discovery-attribution-mobile.png` (local QA artifacts; not release assets).

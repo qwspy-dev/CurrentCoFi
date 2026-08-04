@@ -1438,6 +1438,14 @@ export type DiscoveryOpportunity = {
         rank: number;
         reason: string;
     };
+    metrics: {
+        impressions: number;
+        opens: number;
+        openRate: number;
+        participation: number;
+        participationLabel: string;
+        boundary: string;
+    };
     createdAt: string;
 };
 export type DiscoveryNetwork = {
@@ -1450,6 +1458,9 @@ export type DiscoveryNetwork = {
         bounties: number;
         giveaways: number;
         fundedProjects: number;
+        impressions: number;
+        opens: number;
+        participation: number;
     };
     ranking: {
         order: string;
@@ -1748,6 +1759,16 @@ export declare class Current {
     private readonly request;
     readonly discovery: {
         list: () => Promise<DiscoveryNetwork>;
+        record: (input: {
+            resourceType: "drop" | "bounty" | "giveaway";
+            resourceId: string;
+            visitorId: string;
+            eventType: "impression" | "open";
+        }) => Promise<{
+            accepted: true;
+            deduplicatedBy: string;
+            privacy: string;
+        }>;
     };
     readonly distributions: {
         create: (input: CreateDistributionInput) => Promise<CreatedDistribution>;
@@ -2179,6 +2200,7 @@ export declare class Current {
     constructor(options: CurrentOptions);
     private get;
     private publicGet;
+    private publicPost;
     private signedPost;
 }
 export declare function verifyCurrentWebhook(input: {

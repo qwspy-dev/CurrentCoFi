@@ -338,6 +338,21 @@ export const publicDropSlots = pgTable("public_drop_slots", {
   index("public_drop_slots_available_idx").on(table.dropId, table.identityHash, table.position),
 ]);
 
+export const discoveryInteractions = pgTable("discovery_interactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  resourceType: text("resource_type").notNull(),
+  resourceId: uuid("resource_id").notNull(),
+  visitorHash: text("visitor_hash").notNull(),
+  eventType: text("event_type").notNull(),
+  dayBucket: text("day_bucket").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("discovery_interactions_daily_unique").on(table.resourceType, table.resourceId, table.visitorHash, table.eventType, table.dayBucket),
+  index("discovery_interactions_resource_idx").on(table.resourceType, table.resourceId, table.eventType),
+  index("discovery_interactions_project_day_idx").on(table.projectId, table.dayBucket),
+]);
+
 export const communityTreasuries = pgTable("community_treasuries", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
