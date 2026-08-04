@@ -146,3 +146,11 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - The signed-out state intentionally exposes no private recipient data or claim credentials.
 - Authenticated controls are covered by TypeScript, lint, focused integration checks, authorization checks, and the production database migration. Provider-confirmed delivery remains an explicit external boundary.
 - Captures: `qa-delivery-center-desktop.png`, `qa-delivery-center-mobile.png` (local QA artifacts, not committed).
+# Current Discovery Network QA · 2026-08-03
+
+- Inspected the rendered `#/discover` route at 1440×900 and 390×844 after the final implementation pass.
+- Desktop composition preserves the Current water-current identity while making the network totals, opportunity filters, funding promise, and transparent placement policy immediately legible.
+- Mobile deliberately moves the navigation behind the existing menu, stacks the network proof card, keeps filters horizontally scrollable, and preserves a single-column opportunity feed without page-level overflow.
+- Empty and interrupted states are visually complete. Local development uses an explicit zero-opportunity fallback because Vinext serves Vercel function source files rather than executing them; production continues to require the real public API.
+- Reduced-motion users receive static current rings and non-animated loading surfaces.
+- Focused discovery checks, lint, TypeScript, packages, production build, security, developer/grant, SDK, and MCP regression suites pass.

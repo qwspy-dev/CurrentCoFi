@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.13.0-post-claim-activation-destinations",
+    version: "3.14.0-current-discovery-network",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -18,6 +18,7 @@ export default withApi((request) => ok(request, {
       post: { summary: "Create, update, or resolve an operational incident" },
     },
     "/meta": { get: { summary: "Public chain, capability, and product metadata" } },
+    "/discovery": { get: { summary: "Discover fully funded, open Current drops, bounties, and giveaways with transparent $CURRENT access placement" } },
     "/auth/config": { get: { summary: "Public Circle wallet authentication configuration" } },
     "/auth/device-token": { post: { summary: "Create a Circle device-bound login token" } },
     "/auth/email-token": { post: { summary: "Begin a Circle email OTP login" } },

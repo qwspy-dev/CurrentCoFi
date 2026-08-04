@@ -504,6 +504,31 @@ export type EvidenceReportSummary = Omit<EvidenceReport, "snapshot"> & {
   totals: { campaigns: number; recipients: number; claims: number; activations: number };
 };
 
+export type DiscoveryOpportunity = {
+  id: string;
+  kind: "drop" | "bounty" | "giveaway";
+  title: string;
+  description: string;
+  category: string;
+  project: { id: string; name: string; logoUrl: string | null; websiteUrl: string | null };
+  reward: { amount: string; symbol: string; name: string };
+  progress: { label: string; current: number; maximum: number | null };
+  closesAt: string | null;
+  publicUrl: string;
+  funding: { fullyFunded: true; transactionHash: string | null; merkleRoot: string | null; network: "ARC-TESTNET" };
+  placement: { tier: "current" | "surge" | "stream" | "standard"; label: string; rank: number; reason: string };
+  createdAt: string;
+};
+
+export type DiscoveryNetwork = {
+  schemaVersion: "current-discovery-v1";
+  generatedAt: string;
+  items: DiscoveryOpportunity[];
+  totals: { opportunities: number; drops: number; bounties: number; giveaways: number; fundedProjects: number };
+  ranking: { order: string; safetyGate: string; disclosure: string };
+  boundary: string;
+};
+
 export type GrantReviewPackage = {
   schemaVersion: string;
   digest: string;
@@ -740,6 +765,10 @@ export class Current {
   private readonly signingSecret: string;
   private readonly baseUrl: string;
   private readonly request: typeof globalThis.fetch;
+
+  readonly discovery = {
+    list: () => this.publicGet<DiscoveryNetwork>("/api/v1/discovery"),
+  };
 
   readonly distributions = {
     create: (input: CreateDistributionInput) => this.signedPost<CreatedDistribution>(

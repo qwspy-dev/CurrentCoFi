@@ -2,10 +2,11 @@
 /* eslint-disable @next/next/no-img-element -- generated QR data URIs cannot use the image optimizer */
 
 import "./activation-destinations.css";
+import "./discovery.css";
 
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
-  Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2,
+  Braces, Check, CheckCircle2, ChevronDown, CircleDollarSign, Clock3, Code2, Compass,
   Copy, Download, Eye, ExternalLink, FileCheck2, Fingerprint, Gauge, Gift,
   Globe2, Handshake, HelpCircle, KeyRound, Layers3, Link2, Lock, LogOut, Menu,
   MoreHorizontal, Network, Pause, Play, Plus, QrCode, Radar, Radio, RefreshCw, Repeat2, Search, Send,
@@ -20,7 +21,7 @@ import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
 import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
-  | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "campaigns" | "bounty"
+  | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "campaigns" | "discover" | "bounty"
   | "new-campaign" | "funding" | "payroll" | "bounties" | "drops" | "drop" | "giveaways" | "giveaway" | "vesting" | "vesting-claim" | "treasury" | "public-treasury" | "recipients" | "deliveries" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "settings" | "states";
 
@@ -75,6 +76,9 @@ type WalletActionResult = {
   status?: string;
   transactionHash?: string | null;
 };
+
+type DiscoveryOpportunity={id:string;kind:"drop"|"bounty"|"giveaway";title:string;description:string;category:string;project:{id:string;name:string;logoUrl:string|null;websiteUrl:string|null};reward:{amount:string;symbol:string;name:string};progress:{label:string;current:number;maximum:number|null};closesAt:string|null;publicUrl:string;funding:{fullyFunded:true;transactionHash:string|null;merkleRoot:string|null;network:"ARC-TESTNET"};placement:{tier:"current"|"surge"|"stream"|"standard";label:string;rank:number;reason:string};createdAt:string};
+type DiscoveryNetworkState={schemaVersion:string;generatedAt:string;items:DiscoveryOpportunity[];totals:{opportunities:number;drops:number;bounties:number;giveaways:number;fundedProjects:number};ranking:{order:string;safetyGate:string;disclosure:string};boundary:string};
 
 type AssetTrustSignal={id:string;label:string;status:"verified"|"observed"|"caution"|"unavailable";detail:string};
 type AssetTrust={schemaVersion:string;network:string;address:string;symbol:string;name:string;decimals:number;totalSupply:string;totalSupplyAtomic:string;codeHash:string;codeSizeBytes:number;owner:string|null;proxyImplementation:string|null;observedCapabilities:string[];verified:boolean;posture:"circle-verified"|"review-required"|"standard-observations";distributionPolicy:"allowed"|"allowed-with-disclosure";signals:AssetTrustSignal[];controlDigest:string;reviewDigest:string;inspectedAt:string;explorerUrl:string;boundary:string};
@@ -1062,7 +1066,7 @@ function compactAddress(value:string) {
 }
 
 const validViews = new Set<View>([
-  "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "campaigns", "bounty",
+  "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "campaigns", "discover", "bounty",
   "new-campaign", "funding", "payroll", "bounties", "drops", "drop", "giveaways", "giveaway", "vesting", "vesting-claim", "treasury", "public-treasury", "recipients", "deliveries", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "settings", "states",
 ]);
@@ -1086,7 +1090,7 @@ const appNav = [
     ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2],
     ["create", "Create link", Link2],
     ["payments", "Social payments", CircleDollarSign],
-    ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["drops", "Public mass drops", Radio], ["vesting", "Launch vesting", Clock3], ["bounties", "Community bounties", Target], ["giveaways", "Verifiable giveaways", Gift], ["payroll", "Community payroll", Repeat2], ["treasury", "Community treasury", CircleDollarSign], ["recipients", "Recipients", Users], ["deliveries", "Delivery center", Send],
+    ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["discover", "Discover", Compass], ["drops", "Public mass drops", Radio], ["vesting", "Launch vesting", Clock3], ["bounties", "Community bounties", Target], ["giveaways", "Verifiable giveaways", Gift], ["payroll", "Community payroll", Repeat2], ["treasury", "Community treasury", CircleDollarSign], ["recipients", "Recipients", Users], ["deliveries", "Delivery center", Send],
     ["escrow", "Milestone escrow", Lock],
     ["commerce", "Merchant checkout", ShoppingBag],
     ["subscriptions", "Subscriptions", Repeat2],
@@ -3585,6 +3589,44 @@ function MilestoneEscrow({auth,go}:{auth:CircleAuth;go:(view:View)=>void}) {
 }
 /* eslint-enable react-hooks/purity */
 
+function DiscoveryNetwork() {
+  const [state,setState]=useState<DiscoveryNetworkState|null>(null);
+  const [filter,setFilter]=useState<"all"|DiscoveryOpportunity["kind"]>("all");
+  const [query,setQuery]=useState("");
+  const [error,setError]=useState<string|null>(null);
+  const load=useCallback(()=>currentApi.get<DiscoveryNetworkState>("/discovery").then(setState).catch(value=>{
+    if(location.hostname==="localhost"||location.hostname==="127.0.0.1")setState({schemaVersion:"current-discovery-v1",generatedAt:new Date().toISOString(),items:[],totals:{opportunities:0,drops:0,bounties:0,giveaways:0,fundedProjects:0},ranking:{order:"$CURRENT access tier, then recency",safetyGate:"Only open opportunities backed by an active, fully funded Arc campaign are eligible.",disclosure:"$CURRENT access can affect placement, never eligibility proof or endorsement. Every opportunity must pass the same funding and availability checks."},boundary:"Discovery is an index of verifiable Current opportunities, not an endorsement, investment recommendation, or guarantee of project quality."});
+    else setError(value instanceof Error?value.message:"The discovery current is temporarily unavailable.");
+  }),[]);
+  useEffect(()=>{void load()},[load]);
+  const items=useMemo(()=>state?.items.filter(item=>(filter==="all"||item.kind===filter)&&`${item.title} ${item.description} ${item.project.name} ${item.category} ${item.reward.symbol}`.toLowerCase().includes(query.trim().toLowerCase()))??[],[state,filter,query]);
+  const icon=(kind:DiscoveryOpportunity["kind"])=>kind==="drop"?<Radio/>:kind==="bounty"?<Target/>:<Gift/>;
+  const remaining=(item:DiscoveryOpportunity)=>item.progress.maximum===null?item.progress.label:`${Math.max(0,item.progress.maximum-item.progress.current).toLocaleString()} left`;
+  return <div className="discovery-network">
+    <section className="discovery-hero">
+      <div className="discovery-current" aria-hidden="true"><i/><i/><i/><span><Compass/></span></div>
+      <div><span className="eyebrow">CURRENT DISCOVERY NETWORK</span><h1>Find the next<br/><em>current.</em></h1><p>Explore funded USDC and project-token drops, bounties, and giveaways. Every listing is open, backed by a live Arc campaign, and ready for walletless participation.</p><div className="discovery-proof-row"><span><ShieldCheck/>Funding checked</span><span><Wallet/>No wallet required</span><span><Zap/>Gas sponsored</span></div></div>
+      <aside><small>LIVE NETWORK</small><strong>{state?.totals.opportunities??"—"}</strong><span>open opportunities</span><dl><div><dt>{state?.totals.fundedProjects??"—"}</dt><dd>funded projects</dd></div><div><dt>{state?.totals.drops??"—"}</dt><dd>live drops</dd></div><div><dt>{state?.totals.bounties??"—"}</dt><dd>bounties</dd></div></dl></aside>
+    </section>
+    <section className="discovery-toolbar">
+      <div className="discovery-tabs">{(["all","drop","bounty","giveaway"] as const).map(kind=><button className={filter===kind?"active":""} onClick={()=>setFilter(kind)} key={kind}>{kind==="all"?"All currents":kind==="drop"?"Drops":kind==="bounty"?"Bounties":"Giveaways"}<span>{kind==="all"?state?.totals.opportunities:kind==="drop"?state?.totals.drops:kind==="bounty"?state?.totals.bounties:state?.totals.giveaways}</span></button>)}</div>
+      <label><Search/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search projects or opportunities"/></label>
+    </section>
+    {!state&&!error&&<div className="discovery-loading">{[0,1,2].map(item=><article key={item}><i/><i/><i/><i/></article>)}</div>}
+    {error&&<div className="discovery-empty"><ShieldAlert/><h3>The current was interrupted.</h3><p>{error}</p><Button tone="blue" onClick={()=>{setError(null);void load()}}>Try again <RefreshCw/></Button></div>}
+    {state&&items.length>0&&<section className="discovery-grid">{items.map((item,index)=><article className={`discovery-card kind-${item.kind}`} key={item.id}>
+      <div className="discovery-card-top"><span className="discovery-kind">{icon(item.kind)}{item.kind}</span><span className={`discovery-tier tier-${item.placement.tier}`} title={item.placement.reason}>{item.placement.tier!=="standard"&&<Sparkles/>}{item.placement.label}</span></div>
+      <div className="discovery-project"><span>{item.project.logoUrl?<img src={item.project.logoUrl} alt=""/>:item.project.name.slice(0,1).toUpperCase()}</span><div><small>BY</small><b>{item.project.name}</b></div><em>#{String(index+1).padStart(2,"0")}</em></div>
+      <h2>{item.title}</h2><p>{item.description}</p>
+      <div className="discovery-reward"><small>{item.kind==="drop"?"PER CLAIM":"REWARD"}</small><strong>{item.reward.amount} <em>{item.reward.symbol}</em></strong><span><BadgeCheck/> Fully funded</span></div>
+      <div className="discovery-meta"><span><Clock3/>{item.closesAt?`Closes ${new Date(item.closesAt).toLocaleDateString(undefined,{month:"short",day:"numeric"})}`:"Open now"}</span><span><Users/>{remaining(item)}</span></div>
+      <button className="discovery-open" onClick={()=>location.assign(item.publicUrl)}>Open opportunity <ArrowUpRight/></button>
+    </article>)}</section>}
+    {state&&items.length===0&&<div className="discovery-empty"><Compass/><h3>No currents match that search.</h3><p>Clear the filters, or return when another fully funded opportunity opens.</p><button onClick={()=>{setFilter("all");setQuery("")}}>Clear filters</button></div>}
+    {state&&<section className="discovery-policy"><ShieldCheck/><div><span>TRANSPARENT PLACEMENT</span><h3>Access can improve placement. It cannot buy trust.</h3><p>{state.ranking.disclosure} {state.boundary}</p></div><aside><small>ELIGIBILITY GATE</small><b>Public + open</b><b>Fully funded</b><b>Arc proof available</b></aside></section>}
+  </div>;
+}
+
 function SettingsView({auth}:{auth:CircleAuth}) {
   const identityReturn=typeof location!=="undefined"?new URLSearchParams(location.search):new URLSearchParams();
   const [saved,setSaved]=useState(false);const [tab,setTab]=useState<"general"|"identity">(()=>identityReturn.has("identityLinked")||identityReturn.has("identityError")?"identity":"general");const [identityState,setIdentityState]=useState<IdentityWorkspace|null>(null);const [identityError,setIdentityError]=useState<string|null>(()=>identityReturn.has("identityError")?"The social identity could not be linked. Please try again.":null);const [linking,setLinking]=useState<string|null>(null);
@@ -3626,6 +3668,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "payments":page=<SocialPayments auth={auth} go={go}/>;break;
     case "onboarding":page=<ProjectOnboarding go={go}/>;break;
     case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
+    case "discover":page=<DiscoveryNetwork/>;break;
     case "drops":page=<PublicMassDrops go={go} auth={auth}/>;break;
     case "bounties":page=<CommunityBounties go={go} auth={auth}/>;break;
     case "giveaways":page=<CommunityGiveaways go={go} auth={auth}/>;break;

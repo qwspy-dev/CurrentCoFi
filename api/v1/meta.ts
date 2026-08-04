@@ -8,6 +8,9 @@ export default withApi((request) => ok(request, {
     liveModules: [
       "foundation-api",
       "public-network-metadata",
+      "public-current-discovery-network",
+      "fully-funded-opportunity-index",
+      "transparent-current-access-placement",
       "circle-auth-orchestration",
       "embedded-wallet-session",
       "account-recovery",

@@ -37,6 +37,9 @@ export class Current {
     signingSecret;
     baseUrl;
     request;
+    discovery = {
+        list: () => this.publicGet("/api/v1/discovery"),
+    };
     distributions = {
         create: (input) => this.signedPost("/api/v1/developer/distributions", input),
     };

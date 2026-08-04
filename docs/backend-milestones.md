@@ -47,3 +47,10 @@ External proof still required: run the first funded public testnet drop with out
 - Added auditable handoff state that never conflates operator preparation with third-party delivery confirmation or Arc claim settlement.
 - Added workspace API, scoped HMAC developer API, TypeScript SDK, approval-gated MCP tools, OpenAPI metadata, and privacy-safe grant-evidence aggregates.
 - Applied additive production database migration `0027_long_malcolm_colcord.sql`.
+# Latest autonomous milestone: Current Discovery Network
+
+- Shipped a public, funded-only index of open walletless drops, bounties, and verifiable giveaways.
+- Added transparent `$CURRENT` access-tier placement with explicit non-endorsement and investment-risk boundaries.
+- Added normalized public API and TypeScript SDK surfaces for partner wallets, agents, community dashboards, and launch platforms.
+- Added responsive desktop/mobile discovery UI, filtering, search, loading, interrupted, and honest empty states.
+- Remaining external dependencies are unchanged: real pilot partners and usage, independent contract audit, final legal review, social-provider credentials, and Arc mainnet production infrastructure.
