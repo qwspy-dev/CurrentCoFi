@@ -3,6 +3,7 @@
 
 import "./activation-destinations.css";
 import "./discovery.css";
+import "./acquisition.css";
 
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
@@ -381,6 +382,15 @@ type CampaignAnalytics = {
     destinationRecipients: number;
     destinationOpens: number;
   }>;
+  discovery: {
+    schemaVersion: "current-discovery-acquisition-v1";
+    period: { days: number; startsAt: string; generatedAt: string };
+    totals: { impressions: number; opens: number; participation: number; claims: number; activations: number };
+    rates: { openRate: number; participationRate: number; claimRate: number; activationRate: number; impressionToActivationRate: number };
+    daily: Array<{ day: string; impressions: number; opens: number }>;
+    opportunities: Array<{ id: string; distributionId: string; kind: "drop"|"bounty"|"giveaway"; title: string; impressions: number; opens: number; participation: number; claims: number; activations: number; rates: { openRate: number; participationRate: number; claimRate: number; activationRate: number; impressionToActivationRate: number }; createdAt: string }>;
+    boundary: string;
+  };
 };
 
 type PayrollWorkspace = {
@@ -2655,12 +2665,26 @@ function Referrals({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
 function Analytics({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   const network=useCampaignNetwork(Boolean(auth.account));
   const [discovery,setDiscovery]=useState<DiscoveryNetworkState|null>(null);
-  useEffect(()=>{const task=window.setTimeout(()=>{void currentApi.get<DiscoveryNetworkState>("/discovery").then(setDiscovery).catch(()=>undefined)},0);return()=>window.clearTimeout(task)},[]);
-  const totals=network.analytics?.totals;
-  return <><PageHero eyebrow="CAMPAIGN INTELLIGENCE" title="Find where the current accelerates—or breaks." copy="Compare verified targeting, claim settlement, and activation signals without hiding behind vanity metrics."/>
+    useEffect(()=>{const task=window.setTimeout(()=>{void currentApi.get<DiscoveryNetworkState>("/discovery").then(setDiscovery).catch(()=>undefined)},0);return()=>window.clearTimeout(task)},[]);
+    const totals=network.analytics?.totals;
+    const acquisition=network.analytics?.discovery;
+    const localAcquisitionQa=typeof window!=="undefined"&&(location.hostname==="localhost"||location.hostname==="127.0.0.1")&&new URLSearchParams(location.search).has("qaAcquisition");
+    const showAcquisition=Boolean(auth.account)||localAcquisitionQa;
+    const attention=auth.account?acquisition?.totals:discovery?.totals;
+    const recent=acquisition?.daily.slice(-14)??Array.from({length:14},(_,index)=>({day:`QA-${index+1}`,impressions:0,opens:0}));
+    const recentMax=Math.max(1,...recent.map(day=>day.impressions));
+    const funnel=[
+      ["Impressions",acquisition?.totals.impressions??0,"Daily-deduplicated attention",null],
+      ["Opportunity opens",acquisition?.totals.opens??0,"Intent to inspect",acquisition?.rates.openRate??0],
+      ["Participation",acquisition?.totals.participation??0,"Reservation, entry, or submission",acquisition?.rates.participationRate??0],
+      ["Arc claims",acquisition?.totals.claims??0,"Confirmed settlement",acquisition?.rates.claimRate??0],
+      ["Activations",acquisition?.totals.activations??0,"Signed project outcome",acquisition?.rates.activationRate??0],
+    ] as const;
+    return <><PageHero eyebrow="CAMPAIGN INTELLIGENCE" title="Find where the current accelerates—or breaks." copy="Compare verified targeting, claim settlement, and activation signals without hiding behind vanity metrics."/>
     <div className="metric-grid-new"><MetricCard label="Recipients targeted" value={(totals?.targeted??0).toLocaleString()} icon={Users}/><MetricCard label="Claims settled" value={(totals?.claimed??0).toLocaleString()} icon={Gift}/><MetricCard label="Returned to project" value={(totals?.destinationRecipients??0).toLocaleString()} change={`${(totals?.destinationRate??0).toFixed(1)}% of claimants`} icon={ArrowUpRight}/><MetricCard label="Verified activations" value={(totals?.activations??0).toLocaleString()} icon={Target}/></div>
     {network.error&&<p className="auth-system-note is-error"><X/>{network.error}</p>}
-    <div className="discovery-analytics-strip"><div><Compass/><span><small>DISCOVERY NETWORK</small><b>From attention to participation</b></span></div><span><small>IMPRESSIONS</small><b>{(discovery?.totals.impressions??0).toLocaleString()}</b></span><span><small>OPPORTUNITY OPENS</small><b>{(discovery?.totals.opens??0).toLocaleString()}</b></span><span><small>PARTICIPATION ACTIONS</small><b>{(discovery?.totals.participation??0).toLocaleString()}</b></span><button onClick={()=>go("discover")}>Open network <ArrowUpRight/></button></div>
+    <div className="discovery-analytics-strip"><div><Compass/><span><small>{auth.account?"PROJECT ACQUISITION":"DISCOVERY NETWORK"}</small><b>From attention to participation</b></span></div><span><small>IMPRESSIONS</small><b>{(attention?.impressions??0).toLocaleString()}</b></span><span><small>OPPORTUNITY OPENS</small><b>{(attention?.opens??0).toLocaleString()}</b></span><span><small>PARTICIPATION ACTIONS</small><b>{(attention?.participation??0).toLocaleString()}</b></span><button onClick={()=>go("discover")}>Open network <ArrowUpRight/></button></div>
+    {showAcquisition&&<section className="discovery-acquisition-panel"><header><div><Eyebrow>VERIFIABLE ACQUISITION</Eyebrow><h2>See exactly where attention becomes an active user.</h2><p>{acquisition?.boundary??"Anonymous attention, product participation, confirmed Arc claims, and signed activation events remain separate evidence classes."}</p></div><Status tone="green">Project scoped</Status></header><div className="acquisition-funnel">{funnel.map(([label,value,detail,rate],index)=><article key={label}><small>0{index+1}</small><strong>{value.toLocaleString()}</strong><b>{label}</b><p>{detail}</p>{rate!==null?<em>{rate.toFixed(1)}% from prior step</em>:<em>Anonymous signal</em>}</article>)}</div><div className="acquisition-evidence-grid"><div className="acquisition-current"><div><h3>14-day attention current</h3><p>Unique resource-level signals, grouped by UTC day</p></div><div className="acquisition-bars" aria-label="Fourteen-day discovery impressions and opens">{recent.map(day=><span key={day.day} title={`${day.day}: ${day.impressions} impressions, ${day.opens} opens`}><i style={{height:`${Math.max(4,day.impressions/recentMax*100)}%`}}/><b style={{height:`${Math.max(2,day.opens/recentMax*100)}%`}}/></span>)}</div><footer><span><i/>Impressions</span><span><i/>Opens</span><b>{acquisition?.rates.impressionToActivationRate.toFixed(2)??"0.00"}% impression → activation</b></footer></div><div className="acquisition-opportunities"><div><h3>Opportunity conversion</h3><p>Product outcomes stay distinct from attention</p></div>{acquisition?.opportunities.slice(0,5).map(item=><article key={`${item.kind}-${item.id}`}><span><small>{item.kind}</small><b>{item.title}</b></span><span><small>OPENED</small><b>{item.opens.toLocaleString()}</b></span><span><small>PARTICIPATED</small><b>{item.participation.toLocaleString()}</b></span><span><small>ACTIVATED</small><b>{item.activations.toLocaleString()}</b></span></article>)}{!network.loading&&!acquisition?.opportunities.length&&<div className="campaign-empty compact"><Compass/><b>No project opportunities yet</b><p>Fund a public drop, bounty, or giveaway to begin the acquisition record.</p></div>}</div></div></section>}
     <div className="analysis-grid"><div className="data-panel"><div className="panel-head"><div><h3>Campaign conversion</h3><p>Counts reconciled from confirmed Arc settlement</p></div><Status tone="green">Verifiable</Status></div><div className="conversion-current">{(network.analytics?.campaigns??[]).map(campaign=><div key={campaign.id}><span><b>{campaign.name}</b><small>{campaign.claimed.toLocaleString()} / {campaign.targeted.toLocaleString()}</small></span><i><b style={{width:`${campaign.claimRate}%`}}/></i><em>{campaign.claimRate.toFixed(1)}%</em></div>)}{!network.loading&&!network.analytics?.campaigns.length&&<div className="campaign-empty compact"><BarChart3/><b>No campaign data yet</b></div>}</div></div>
       <div className="data-panel"><div className="panel-head"><div><h3>Evidence ladder</h3><p>What Current CoFi can prove today</p></div></div>{[["Allowlist generated","Merkle root anchored before funding","Onchain"],["Campaign funded","Full token allocation deposited","Onchain"],["Recipient claimed","Unique bitmap index settled","Onchain"],["Wallet created","Circle user-controlled SCA","Circle"],["Activation completed","Signed project event","API"]].map((row,i)=><div className="quality-row" key={row[0]}><span className={`source-icon s-${i}`}><Network/></span><b>{row[0]}</b><span><small>EVIDENCE</small>{row[1]}</span><span><small>SOURCE</small>{row[2]}</span></div>)}</div></div>
     {!auth.account&&<div className="campaign-empty"><Lock/><h3>Your live analytics are private</h3><p>Sign in to inspect campaign settlement and conversion data.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>}</>;

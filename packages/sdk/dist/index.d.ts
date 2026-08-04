@@ -1134,6 +1134,7 @@ export type DeveloperAnalytics = {
         claims: number;
         activations: number;
     }>;
+    discovery: DiscoveryAcquisition;
 };
 export type ProtocolLiquidity = {
     network: string;
@@ -1467,6 +1468,53 @@ export type DiscoveryNetwork = {
         safetyGate: string;
         disclosure: string;
     };
+    boundary: string;
+};
+export type DiscoveryAcquisition = {
+    schemaVersion: "current-discovery-acquisition-v1";
+    period: {
+        days: number;
+        startsAt: string;
+        generatedAt: string;
+    };
+    totals: {
+        impressions: number;
+        opens: number;
+        participation: number;
+        claims: number;
+        activations: number;
+    };
+    rates: {
+        openRate: number;
+        participationRate: number;
+        claimRate: number;
+        activationRate: number;
+        impressionToActivationRate: number;
+    };
+    daily: Array<{
+        day: string;
+        impressions: number;
+        opens: number;
+    }>;
+    opportunities: Array<{
+        id: string;
+        distributionId: string;
+        kind: "drop" | "bounty" | "giveaway";
+        title: string;
+        impressions: number;
+        opens: number;
+        participation: number;
+        claims: number;
+        activations: number;
+        rates: {
+            openRate: number;
+            participationRate: number;
+            claimRate: number;
+            activationRate: number;
+            impressionToActivationRate: number;
+        };
+        createdAt: string;
+    }>;
     boundary: string;
 };
 export type GrantReviewPackage = {

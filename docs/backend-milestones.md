@@ -61,3 +61,10 @@ External proof still required: run the first funded public testnet drop with out
 - Discovery cards and campaign intelligence separate anonymous interactions from reservations, bounty submissions, giveaway entries, confirmed claims, activations, and retention.
 - Public REST and TypeScript SDK integrations share the same validation and privacy contract.
 - Production migration `0029_happy_annihilus.sql` adds the isolated interaction ledger and compound deduplication boundary.
+
+# Project acquisition intelligence — complete
+
+- Project-scoped acquisition connects Discovery impressions and opens to reservations, submissions, entries, confirmed Arc claims, and signed activation events without merging their meanings.
+- Campaign Intelligence now includes a five-stage funnel, 14-day attention current, per-opportunity outcomes, and explicit conversion rates.
+- Signed-in and scoped developer APIs return the same aggregate acquisition contract; the TypeScript SDK publishes its types.
+- No new storage or production secret is required. The milestone derives private project aggregates from the existing interaction, participation, settlement, and activation ledgers.

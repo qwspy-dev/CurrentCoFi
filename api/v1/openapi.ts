@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.15.0-discovery-conversion-attribution",
+    version: "3.16.0-project-acquisition-intelligence",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -63,7 +63,7 @@ export default withApi((request) => ok(request, {
       get: { summary: "Recover authorized encrypted private claim links and their handoff state" },
       post: { summary: "Record an operator-prepared claim-link handoff channel" },
     },
-    "/campaigns/analytics": { get: { summary: "Read live campaign targeting, claims, and activation totals" } },
+    "/campaigns/analytics": { get: { summary: "Read private campaign settlement and project-scoped discovery-to-activation acquisition intelligence" } },
     "/payroll": {
       get: { summary: "Read encrypted-roster community payroll schedules and Arc settlement runs" },
       post: { summary: "Create, pause, resume, or prepare a walletless USDC or project-token payroll run" },
@@ -216,7 +216,7 @@ export default withApi((request) => ok(request, {
       post: { summary: "Approve the campaign token and fund an agent-created campaign vault through an authorized Circle wallet" },
     },
     "/developer/analytics": {
-      get: { summary: "Read project analytics with a scoped API key" },
+      get: { summary: "Read project campaign, discovery acquisition, claim, activation, referral, and retention analytics with a scoped API key" },
     },
     "/integration-manifest": { get: { summary: "Read the digest-addressed public builder integration contract" } },
     "/network-proof": { get: { summary: "Read privacy-safe, digest-verifiable Arc testnet traction records" } },

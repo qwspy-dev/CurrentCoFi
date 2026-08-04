@@ -9,6 +9,7 @@ import {
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../../server/developer/webhooks.js";
 import { ApiError, ok, readJsonObject, withApi } from "../../server/http.js";
 import { parseCampaignClaimMode } from "../../server/claims/identity-binding.js";
+import { userDiscoveryAnalytics } from "../../server/discovery/analytics.js";
 
 function expiration(value: unknown) {
   const hours = typeof value === "number" ? value : Number(value ?? 168);
@@ -78,11 +79,12 @@ async function create(request: Request) {
 async function read(request: Request) {
   const session = await sessionFromRequest(request);
   const account = await persistSessionAccount(session);
-  const [campaigns, analytics] = await Promise.all([
+  const [campaigns, analytics, discovery] = await Promise.all([
     listCampaigns(account.userId),
     campaignAnalytics(account.userId),
+    userDiscoveryAnalytics(account.userId),
   ]);
-  return ok(request, { campaigns, analytics });
+  return ok(request, { campaigns, analytics: { ...analytics, discovery } });
 }
 
 export default withApi(

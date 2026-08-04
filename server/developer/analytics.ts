@@ -1,6 +1,7 @@
 import { and, count, eq, inArray } from "drizzle-orm";
 import { activationEvents, allocations, claims, distributions } from "../db/schema.js";
 import { getDb } from "../db/client.js";
+import { projectDiscoveryAnalytics } from "../discovery/analytics.js";
 
 export async function developerAnalytics(projectId: string) {
   const campaigns = await getDb().select({
@@ -10,9 +11,7 @@ export async function developerAnalytics(projectId: string) {
     recipientCount: distributions.recipientCount,
   }).from(distributions).where(eq(distributions.projectId, projectId));
   const campaignIds = campaigns.map((campaign) => campaign.id);
-  if (!campaignIds.length) {
-    return { totals: { campaigns: 0, recipients: 0, claims: 0, activations: 0 }, campaigns: [] };
-  }
+  if (!campaignIds.length) return { totals: { campaigns: 0, recipients: 0, claims: 0, activations: 0 }, campaigns: [], discovery: await projectDiscoveryAnalytics([projectId]) };
   const [claimRows, activationRows] = await Promise.all([
     getDb().select({ distributionId: allocations.distributionId, total: count() })
       .from(claims)
@@ -39,5 +38,6 @@ export async function developerAnalytics(projectId: string) {
       activations: rows.reduce((sum, campaign) => sum + campaign.activations, 0),
     },
     campaigns: rows,
+    discovery: await projectDiscoveryAnalytics([projectId]),
   };
 }

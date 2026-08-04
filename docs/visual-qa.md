@@ -163,3 +163,12 @@ Evidence captures: `qa-gateway-desktop.png`, `qa-gateway-mobile.png`, and `qa-ga
 - Mobile preserves the water-current hero, funded-only network proof, horizontally scrollable filters, complete zero-data state, transparent placement policy, and daily interaction totals without page-level overflow.
 - The rendered zero state is deliberate: no eligible funded opportunity currently exists, so visual QA does not fabricate campaigns or activity.
 - Captures: `qa-discovery-attribution-analytics.png` and `qa-discovery-attribution-mobile.png` (local QA artifacts; not release assets).
+
+## Project acquisition intelligence QA · 2026-08-03
+
+- Inspected the private acquisition composition at 1440×900 and 390×844 through a localhost-only zero-data QA switch; production still requires a real signed-in project session.
+- Desktop preserves the campaign-intelligence hierarchy while adding a five-stage dark-current funnel, 14-day signal comparison, and per-opportunity outcome surface.
+- Mobile deliberately turns the funnel into a vertical evidence path, keeps stage rates adjacent to their denominators, and stacks trend and opportunity evidence without horizontal overflow (`scrollWidth = 390`).
+- The zero-data state remains complete and truthful: it explains how to create the first measurable opportunity without inventing impressions, claims, activations, or external traction.
+- Browser inspection found meaningful content, the expected private-data boundary, no framework overlay, and no console errors.
+- Captures: `qa-acquisition-intelligence-desktop.png` and `qa-acquisition-intelligence-mobile-full.png` (local QA artifacts; not release assets).

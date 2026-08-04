@@ -29,6 +29,7 @@
     "delivery-center:test": "tsx tests/campaign-delivery-center.integration.ts",
     "activation-destinations:test": "tsx tests/post-claim-activation-destinations.integration.ts",
     "discovery:test": "tsx tests/current-discovery-network.integration.ts",
+    "acquisition:test": "tsx tests/discovery-acquisition-intelligence.integration.ts",
     "audit:manifest": "node scripts/security/audit-manifest.mjs --write",
     "audit:verify": "node scripts/security/audit-manifest.mjs",
     "db:generate": "drizzle-kit generate",
