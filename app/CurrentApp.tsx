@@ -7,6 +7,7 @@ import "./acquisition.css";
 import "./brand-studio.css";
 import "./project-onboarding.css";
 import "./workspace-access.css";
+import "./activity-center.css";
 
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
@@ -26,7 +27,7 @@ import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
 import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
-  | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "members" | "campaigns" | "discover" | "bounty"
+  | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "members" | "activity" | "campaigns" | "discover" | "bounty"
   | "new-campaign" | "funding" | "payroll" | "bounties" | "drops" | "drop" | "giveaways" | "giveaway" | "vesting" | "vesting-claim" | "treasury" | "public-treasury" | "recipients" | "deliveries" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "brand" | "settings" | "states";
 
@@ -37,6 +38,7 @@ type IdentityWorkspace = {identities:AccountIdentity[];available:{x:boolean;disc
 type WorkspaceRole = "owner"|"admin"|"operator"|"analyst"|"developer";
 type WorkspaceState = {activeProjectId:string;currentRole:WorkspaceRole;canManage:boolean;workspaces:Array<{id:string;name:string;slug:string;logoUrl:string|null;role:WorkspaceRole;active:boolean}>;members:Array<{userId:string;displayName:string;username:string;avatarUrl:string|null;role:WorkspaceRole;joinedAt:string;isCurrentUser:boolean}>;invitations:Array<{id:string;maskedEmail:string;role:WorkspaceRole;status:string;expiresAt:string;createdAt:string;acceptedAt:string|null}>};
 type PublicWorkspaceInvitation = {project:{id:string;name:string;logoUrl:string|null;websiteUrl:string|null};invitation:{id:string;maskedEmail:string;role:WorkspaceRole;status:string;expiresAt:string};acceptance:{requiresSignIn:boolean;requiresMatchingEmail:boolean}};
+type ProjectActivityState = {projectId:string;viewerRole:WorkspaceRole;range:{days:number;since:string;cappedAt:number};totals:{events:number;filtered:number;actors:number;attention:number;financial:number;categories:Record<string,number>};filters:{category:string|null;query:string};events:Array<{id:string;action:string;label:string;category:string;tone:"success"|"attention"|"neutral";actor:{type:string;name:string;detail:string|null};resource:{type:string;id:string|null};metadata:Record<string,string|number|boolean>;requestId:string|null;createdAt:string}>;privacy:string};
 type ProjectBrand = {primaryColor:string;accentColor:string;successColor:string;surface:"midnight"|"tide"|"light";headline:string;claimCta:string;poweredByCurrent:true};
 type BrandWorkspace = {name:string;description:string|null;logoUrl:string|null;websiteUrl:string|null;brand:ProjectBrand};
 type ProjectSetupWorkspace = {project:{id:string;slug:string;name:string;description:string|null;logoUrl:string|null;websiteUrl:string|null;network:string};owner:{displayName:string;username:string;role:"owner"}|null;tokens:Array<{address:string;symbol:string;name:string;decimals:number;verified:boolean;trust:unknown}>;counts:{campaigns:number;apiKeys:number;webhooks:number;pilots:number};readiness:{score:number;stage:string;requiredComplete:boolean;completed:number;total:number;checks:Array<{id:string;label:string;detail:string;complete:boolean;required:boolean}>}};
@@ -1098,7 +1100,7 @@ function compactAddress(value:string) {
 }
 
 const validViews = new Set<View>([
-  "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "members", "campaigns", "discover", "bounty",
+  "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "members", "activity", "campaigns", "discover", "bounty",
   "new-campaign", "funding", "payroll", "bounties", "drops", "drop", "giveaways", "giveaway", "vesting", "vesting-claim", "treasury", "public-treasury", "recipients", "deliveries", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "brand", "settings", "states",
 ]);
@@ -1119,7 +1121,7 @@ function viewFromHash(hash: string): View | null {
 
 const appNav = [
   { label: "Workspace", items: [
-    ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2], ["members", "Team access", Users], ["brand", "Brand studio", Sparkles],
+    ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2], ["members", "Team access", Users], ["activity", "Activity center", Activity], ["brand", "Brand studio", Sparkles],
     ["create", "Create link", Link2],
     ["payments", "Social payments", CircleDollarSign],
     ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["discover", "Discover", Compass], ["drops", "Public mass drops", Radio], ["vesting", "Launch vesting", Clock3], ["bounties", "Community bounties", Target], ["giveaways", "Verifiable giveaways", Gift], ["payroll", "Community payroll", Repeat2], ["treasury", "Community treasury", CircleDollarSign], ["recipients", "Recipients", Users], ["deliveries", "Delivery center", Send],
@@ -3756,6 +3758,30 @@ function BrandStudio({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   </>;
 }
 
+const activityCategories=[{id:"all",label:"All activity"},{id:"access",label:"Access"},{id:"distribution",label:"Distribution"},{id:"settlement",label:"Settlement"},{id:"commerce",label:"Commerce"},{id:"developer",label:"Developer"},{id:"evidence",label:"Evidence"},{id:"protocol",label:"Protocol"},{id:"operations",label:"Operations"}];
+
+function ActivityCenter({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
+  const [state,setState]=useState<ProjectActivityState|null>(null);const [loading,setLoading]=useState(Boolean(auth.account));const [error,setError]=useState<string|null>(null);const [category,setCategory]=useState("all");const [days,setDays]=useState("30");const [query,setQuery]=useState("");
+  const queryString=useMemo(()=>{const params=new URLSearchParams({days});if(category!=="all")params.set("category",category);if(query.trim())params.set("query",query.trim());return params.toString()},[category,days,query]);
+  const load=useCallback(async()=>{if(!auth.account){setLoading(false);return}setLoading(true);try{setState(await currentApi.get<ProjectActivityState>(`/activity?${queryString}`));setError(null)}catch(reason){setError(reason instanceof Error?reason.message:"Project activity is unavailable.")}finally{setLoading(false)}},[auth.account,queryString]);
+  useEffect(()=>{const task=window.setTimeout(()=>void load(),query?260:0);return()=>window.clearTimeout(task)},[load,query]);
+  const exportCsv=()=>{const anchor=document.createElement("a");anchor.href=`/api/v1/activity?${queryString}&format=csv`;anchor.download="current-project-activity.csv";anchor.click()};
+  const relative=(value:string)=>new Date(value).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+  return <><PageHero eyebrow="PROJECT OPERATIONS" title="Every important action. One accountable current." copy="Review who changed access, prepared distributions, moved value, called integrations, and published grant evidence—without exposing recipient identities or secrets." mode="branches"><Button tone="cyan" disabled={!auth.account||!state?.events.length} onClick={exportCsv}>Export audit CSV <Download/></Button></PageHero>
+    {!auth.account?<div className="campaign-empty activity-auth"><Lock/><h3>Project membership required</h3><p>The activity ledger contains private operational history. Open your Current account to enter the active workspace.</p><Button tone="blue" onClick={()=>go("claim")}>Open account <ArrowRight/></Button></div>:<>
+      <section className="activity-toolbar data-panel"><div className="activity-search"><Search/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search actions, actors, or resources" aria-label="Search project activity"/></div><select value={category} onChange={event=>setCategory(event.target.value)} aria-label="Activity category">{activityCategories.map(item=><option value={item.id} key={item.id}>{item.label}</option>)}</select><select value={days} onChange={event=>setDays(event.target.value)} aria-label="Activity range"><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select><button onClick={()=>void load()} aria-label="Refresh activity"><RefreshCw className={loading?"spin":""}/></button></section>
+      {error&&<div className="discovery-empty"><ShieldAlert/><h3>The activity current was interrupted.</h3><p>{error}</p><Button tone="blue" onClick={()=>void load()}>Try again <RefreshCw/></Button></div>}
+      {state&&<div className="activity-metrics"><MetricCard label="Recorded events" value={state.totals.events.toLocaleString()} icon={Activity}/><MetricCard label="Distinct actors" value={state.totals.actors.toLocaleString()} icon={Users}/><MetricCard label="Value-flow actions" value={state.totals.financial.toLocaleString()} icon={CircleDollarSign}/><MetricCard label="Needs attention" value={state.totals.attention.toLocaleString()} icon={ShieldAlert}/></div>}
+      <section className="activity-ledger data-panel"><div className="panel-head"><div><h3>Workspace activity ledger</h3><p>{state?`${state.totals.filtered} matching event${state.totals.filtered===1?"":"s"} · ${state.viewerRole} access`:"Reading the project ledger…"}</p></div><Status tone="green">Privacy filtered</Status></div>
+        {loading&&!state?<div className="activity-loading">{[1,2,3,4,5].map(item=><i key={item}/>)}</div>:null}
+        {!loading&&state?.events.map(event=><article className={`activity-event tone-${event.tone}`} key={event.id}><span className={`activity-category category-${event.category}`}>{event.category.slice(0,2).toUpperCase()}</span><div className="activity-event-main"><header><b>{event.label}</b><Status tone={event.tone==="success"?"green":event.tone==="attention"?"red":"grey"}>{event.category}</Status></header><p><strong>{event.actor.name}</strong>{event.actor.detail?` · ${event.actor.detail}`:""} · {event.resource.type}{event.resource.id?` · ${event.resource.id}`:""}</p>{Object.keys(event.metadata).length?<div className="activity-metadata">{Object.entries(event.metadata).slice(0,5).map(([key,value])=><span key={key}><small>{key.replace(/([A-Z])/g," $1")}</small><code>{String(value)}</code></span>)}</div>:null}</div><time title={new Date(event.createdAt).toLocaleString()}>{relative(event.createdAt)}</time></article>)}
+        {!loading&&state&&!state.events.length?<div className="campaign-empty compact"><Activity/><b>No matching project activity</b><p>Try a wider date range or clear the current filters.</p><button onClick={()=>{setCategory("all");setQuery("");setDays("30")}}>Clear filters</button></div>:null}
+      </section>
+      {state&&<section className="activity-privacy"><ShieldCheck/><div><b>Useful accountability without identity leakage</b><p>{state.privacy}</p></div><span>{state.range.days} day window · capped at {state.range.cappedAt.toLocaleString()} source events</span></section>}
+    </>}
+  </>;
+}
+
 function MembersSettings({auth}:{auth:CircleAuth}) {
   const invitationToken=typeof location!=="undefined"?new URLSearchParams(location.search).get("workspaceInvite"):null;
   const [state,setState]=useState<WorkspaceState|null>(null);const [preview,setPreview]=useState<PublicWorkspaceInvitation|null>(null);const [loading,setLoading]=useState(Boolean(auth.account));const [busy,setBusy]=useState<string|null>(null);const [error,setError]=useState<string|null>(null);const [inviteEmail,setInviteEmail]=useState("");const [inviteRole,setInviteRole]=useState<WorkspaceRole>("operator");const [createdLink,setCreatedLink]=useState<string|null>(null);
@@ -3834,6 +3860,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "payments":page=<SocialPayments auth={auth} go={go}/>;break;
     case "onboarding":page=<ProjectOnboarding go={go} auth={auth}/>;break;
     case "members":page=<WorkspaceMembersPage auth={auth}/>;break;
+    case "activity":page=<ActivityCenter auth={auth} go={go}/>;break;
     case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
     case "discover":page=<DiscoveryNetwork/>;break;
     case "drops":page=<PublicMassDrops go={go} auth={auth}/>;break;

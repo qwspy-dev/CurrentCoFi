@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.19.0-project-collaboration",
+    version: "3.20.0-project-activity-center",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -33,6 +33,9 @@ export default withApi((request) => ok(request, {
     "/workspaces/invitation": {
       get: { summary: "Resolve a secret-bearing workspace invitation without exposing the invited email" },
       post: { summary: "Accept an email-bound invitation and activate the joined project for the signed-in account" },
+    },
+    "/activity": {
+      get: { summary: "Review or export the active project's privacy-filtered operational audit ledger" },
     },
     "/developer/brand": {
       get: { summary: "Read project brand configuration with a scoped developer key" },
