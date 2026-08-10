@@ -15,7 +15,7 @@ assert.match(schema, /campaignDeliveries = pgTable\("campaign_deliveries"/);
 assert.match(schema, /claimUrlCiphertext/);
 assert.match(repository, /sealSecret\(link\.claimUrl\)/);
 assert.match(repository, /openSecret\(delivery\.claimUrlCiphertext\)/);
-assert.match(repository, /operator preparation, not third-party delivery confirmation/i);
+assert.match(repository, /Provider-confirmed delivery is kept distinct from operator handoff preparation/i);
 assert.match(app, /SECURE DELIVERY CURRENT/);
 assert.match(app, /QRCode\.toDataURL/);
 assert.match(app, /Secure CSV/);

@@ -76,6 +76,7 @@ const suites = [
   ["Public walletless drops", "drops:test"],
   ["Proof-gated public drops", "activation-drops:test"],
   ["Encrypted campaign delivery", "delivery-center:test"],
+  ["Automated campaign email delivery", "email-delivery:test"],
   ["Post-claim activation destinations", "activation-destinations:test"],
   ["Opportunity discovery", "discovery:test"],
   ["Acquisition intelligence", "acquisition:test"],

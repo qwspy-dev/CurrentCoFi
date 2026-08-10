@@ -28,6 +28,9 @@ export type ServerConfig = {
   DISCORD_OAUTH_CLIENT_SECRET?: string;
   TELEGRAM_BOT_USERNAME?: string;
   TELEGRAM_BOT_TOKEN?: string;
+  RESEND_API_KEY?: string;
+  RESEND_WEBHOOK_SECRET?: string;
+  CURRENT_DELIVERY_FROM_EMAIL?: string;
   CURRENT_COFI_INTERNAL_SECRET?: string;
   CLAIM_SIGNING_SECRET?: string;
   CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY?: `0x${string}`;
@@ -106,6 +109,9 @@ export function getServerConfig(): ServerConfig {
       DISCORD_OAUTH_CLIENT_SECRET: optional("DISCORD_OAUTH_CLIENT_SECRET"),
       TELEGRAM_BOT_USERNAME: optional("TELEGRAM_BOT_USERNAME"),
       TELEGRAM_BOT_TOKEN: optional("TELEGRAM_BOT_TOKEN"),
+      RESEND_API_KEY: optional("RESEND_API_KEY"),
+      RESEND_WEBHOOK_SECRET: optional("RESEND_WEBHOOK_SECRET"),
+      CURRENT_DELIVERY_FROM_EMAIL: optional("CURRENT_DELIVERY_FROM_EMAIL"),
       CURRENT_COFI_INTERNAL_SECRET: secret("CURRENT_COFI_INTERNAL_SECRET"),
       CLAIM_SIGNING_SECRET: secret("CLAIM_SIGNING_SECRET"),
       CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY: optional("CURRENT_CLAIM_AUTHORIZER_PRIVATE_KEY") as `0x${string}` | undefined,
@@ -172,6 +178,7 @@ export function getPublicConfig() {
       ),
       identityClaims: Boolean(config.CLAIM_SIGNING_SECRET),
       productionMutations: Boolean(config.DATABASE_URL && config.CLAIM_SIGNING_SECRET),
+      automatedEmailDelivery: Boolean(config.RESEND_API_KEY && config.CURRENT_DELIVERY_FROM_EMAIL),
       arcSettlement: Boolean(
         config.CURRENT_CLAIM_VAULT_ADDRESS &&
         config.CURRENT_CAMPAIGN_VAULT_ADDRESS &&
@@ -272,6 +279,7 @@ export function getReadiness() {
       config.CURRENT_RELEASE_ID
     ),
     productionObservability: Boolean(config.DATABASE_URL),
+    automatedEmailDelivery: Boolean(config.RESEND_API_KEY && config.CURRENT_DELIVERY_FROM_EMAIL),
     crosschainFunding: Boolean(
       config.DATABASE_URL &&
       config.CIRCLE_API_KEY &&

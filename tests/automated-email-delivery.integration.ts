@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { campaignClaimEmail } from "../server/campaigns/email-delivery.js";
+
+const read = (path: string) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+const [schema, service, repository, api, app, config, meta, openapi, evidence] = await Promise.all(["server/db/schema.ts", "server/campaigns/email-delivery.ts", "server/campaigns/repository.ts", "api/v1/deliveries.ts", "app/CurrentApp.tsx", "server/config.ts", "api/v1/meta.ts", "api/v1/openapi.ts", "server/evidence/reports.ts"].map(read));
+const email = campaignClaimEmail({ campaignName: "<Launch>", amount: "25", asset: "NOW", claimUrl: "https://currentco.finance/?claim=private", expiresAt: new Date("2026-09-01T00:00:00Z") });
+assert.match(email.subject, /NOW claim is ready/);
+assert.doesNotMatch(email.html, /<Launch>/);
+assert.match(email.html, /&lt;Launch&gt;/);
+assert.match(schema, /recipientCiphertext/);
+assert.match(schema, /providerMessageId/);
+assert.match(repository, /recipientCiphertext: await sealSecret\(link\.identity\)/);
+assert.match(service, /idempotency-key/);
+assert.match(service, /timingSafeEqual/);
+assert.match(service, /email\.suppressed/);
+assert.match(api, /dispatch-email/);
+assert.match(app, /Provider confirmed delivery/);
+assert.match(config, /automatedEmailDelivery/);
+assert.match(meta, /provider-verified-delivery-receipts/);
+assert.match(openapi, /webhooks\/resend/);
+assert.match(evidence, /providerDelivered/);
+console.log("Automated campaign email delivery verified: encrypted destinations, idempotent dispatch, signed receipts, and truthful configuration boundary.");

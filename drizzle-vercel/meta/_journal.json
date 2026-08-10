@@ -225,6 +225,13 @@
       "when": 1786401042163,
       "tag": "0031_unique_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1786403108941,
+      "tag": "0032_worthless_warlock",
+      "breakpoints": true
     }
   ]
 }

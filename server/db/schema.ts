@@ -734,16 +734,24 @@ export const campaignDeliveries = pgTable("campaign_deliveries", {
   allocationId: uuid("allocation_id").references(() => allocations.id, { onDelete: "cascade" }).notNull(),
   identityType: text("identity_type").notNull(),
   maskedIdentity: text("masked_identity").notNull(),
+  recipientCiphertext: text("recipient_ciphertext"),
   claimUrlCiphertext: text("claim_url_ciphertext").notNull(),
   channel: text("channel").default("unassigned").notNull(),
   status: text("status").default("ready").notNull(),
   sentAt: timestamp("sent_at", { withTimezone: true }),
+  providerMessageId: text("provider_message_id"),
+  attemptCount: integer("attempt_count").default(0).notNull(),
+  lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  failedAt: timestamp("failed_at", { withTimezone: true }),
+  failureCode: text("failure_code"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
   ...timestamps,
 }, (table) => [
   uniqueIndex("campaign_deliveries_allocation_unique").on(table.allocationId),
   index("campaign_deliveries_project_status_idx").on(table.projectId, table.status, table.createdAt),
   index("campaign_deliveries_distribution_idx").on(table.distributionId, table.createdAt),
+  index("campaign_deliveries_provider_message_idx").on(table.providerMessageId),
 ]);
 
 export const claims = pgTable("claims", {

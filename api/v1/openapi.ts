@@ -84,9 +84,10 @@ export default withApi((request) => ok(request, {
     "/campaigns/manage": { post: { summary: "Cancel a campaign or refund an expired campaign" } },
     "/campaigns/recipients": { get: { summary: "List masked recipient allocations and settlement states" } },
     "/deliveries": {
-      get: { summary: "Recover authorized encrypted private claim links and their handoff state" },
-      post: { summary: "Record an operator-prepared claim-link handoff channel" },
+      get: { summary: "Recover encrypted private claims and provider delivery receipts" },
+      post: { summary: "Record a handoff or idempotently dispatch an encrypted email claim" },
     },
+    "/webhooks/resend": { post: { summary: "Ingest signature-verified provider delivery events" } },
     "/campaigns/analytics": { get: { summary: "Read private campaign settlement and project-scoped discovery-to-activation acquisition intelligence" } },
     "/payroll": {
       get: { summary: "Read encrypted-roster community payroll schedules and Arc settlement runs" },

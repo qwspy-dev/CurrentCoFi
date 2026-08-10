@@ -241,6 +241,7 @@ export async function createCampaign(input: {
     allocationId: link.allocationId,
     identityType: link.identityType,
     maskedIdentity: prepared[index].masked,
+    recipientCiphertext: await sealSecret(link.identity),
     claimUrlCiphertext: await sealSecret(link.claimUrl),
     metadata: { encryptedCredential: true, generatedAt: new Date().toISOString() },
   }))));
@@ -280,8 +281,12 @@ export async function campaignDeliveryCenter(userId: string, projectId: string, 
     maskedIdentity: delivery.maskedIdentity, identityType: delivery.identityType, channel: delivery.channel,
     status: allocation.status === "confirmed" ? "claimed" : delivery.status, amount: formatAtomic(allocation.amountAtomic, token.decimals), asset: token.symbol,
     claimUrl: await openSecret(delivery.claimUrlCiphertext), sentAt: delivery.sentAt?.toISOString() ?? null, expiresAt: allocation.expiresAt?.toISOString() ?? null,
+    providerMessageId: delivery.providerMessageId, attemptCount: delivery.attemptCount,
+    deliveredAt: delivery.deliveredAt?.toISOString() ?? null, failedAt: delivery.failedAt?.toISOString() ?? null,
+    failureCode: delivery.failureCode,
+    emailEligible: delivery.identityType === "email" && Boolean(delivery.recipientCiphertext),
   })));
-  return { items, totals: { ready: items.filter((item) => item.status === "ready").length, handedOff: items.filter((item) => item.status === "handed_off").length, claimed: items.filter((item) => item.status === "claimed").length, campaigns: new Set(items.map((item) => item.distributionId)).size }, privacy: "Claim credentials are AES-GCM encrypted at rest and returned only to authorized project operators. Raw recipient identities are never returned. A handoff records operator preparation, not third-party delivery confirmation." };
+  return { items, totals: { ready: items.filter((item) => item.status === "ready").length, handedOff: items.filter((item) => item.status === "handed_off").length, accepted: items.filter((item) => item.status === "accepted").length, delivered: items.filter((item) => item.status === "delivered").length, failed: items.filter((item) => ["failed", "bounced", "suppressed", "complained"].includes(item.status)).length, claimed: items.filter((item) => item.status === "claimed").length, campaigns: new Set(items.map((item) => item.distributionId)).size }, delivery: { emailConfigured: Boolean(process.env.RESEND_API_KEY?.trim() && process.env.CURRENT_DELIVERY_FROM_EMAIL?.trim()), provider: "resend", webhookVerification: Boolean(process.env.RESEND_WEBHOOK_SECRET?.trim()) }, privacy: "Claim credentials and recipient destinations are AES-GCM encrypted at rest and returned only to authorized project operators. Raw recipient identities are never returned. Provider-confirmed delivery is kept distinct from operator handoff preparation." };
 }
 
 export function normalizeCampaignDeliveryChannel(value: string) {

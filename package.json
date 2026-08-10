@@ -30,6 +30,7 @@
     "drops:test": "tsx tests/public-walletless-drops.integration.ts",
     "activation-drops:test": "tsx tests/proof-gated-public-drops.integration.ts",
     "delivery-center:test": "tsx tests/campaign-delivery-center.integration.ts",
+    "email-delivery:test": "tsx tests/automated-email-delivery.integration.ts",
     "activation-destinations:test": "tsx tests/post-claim-activation-destinations.integration.ts",
     "discovery:test": "tsx tests/current-discovery-network.integration.ts",
     "acquisition:test": "tsx tests/discovery-acquisition-intelligence.integration.ts",

@@ -285,7 +285,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const commercePromise = projectCommerceEvidence(projectId);
   const escrowPromise = projectEscrowEvidence(projectId);
   const deliveryPromise = campaignIds.length
-    ? db.select({ id: campaignDeliveries.id, distributionId: campaignDeliveries.distributionId, channel: campaignDeliveries.channel, status: campaignDeliveries.status, allocationStatus: allocations.status, sentAt: campaignDeliveries.sentAt })
+    ? db.select({ id: campaignDeliveries.id, distributionId: campaignDeliveries.distributionId, channel: campaignDeliveries.channel, status: campaignDeliveries.status, allocationStatus: allocations.status, sentAt: campaignDeliveries.sentAt, deliveredAt: campaignDeliveries.deliveredAt, attemptCount: campaignDeliveries.attemptCount })
       .from(campaignDeliveries)
       .innerJoin(allocations, eq(allocations.id, campaignDeliveries.allocationId))
       .where(inArray(campaignDeliveries.distributionId, campaignIds))
@@ -527,10 +527,14 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       privateLinks: deliveryRows.length,
       ready: deliveryRows.filter((row) => row.status === "ready" && row.allocationStatus !== "confirmed").length,
       handedOff: deliveryRows.filter((row) => row.status === "handed_off" && row.allocationStatus !== "confirmed").length,
+      providerAccepted: deliveryRows.filter((row) => row.status === "accepted" && row.allocationStatus !== "confirmed").length,
+      providerDelivered: deliveryRows.filter((row) => row.status === "delivered" && row.allocationStatus !== "confirmed").length,
+      providerFailed: deliveryRows.filter((row) => ["failed", "bounced", "complained", "suppressed"].includes(row.status) && row.allocationStatus !== "confirmed").length,
+      deliveryAttempts: deliveryRows.reduce((sum, row) => sum + row.attemptCount, 0),
       claimed: deliveryRows.filter((row) => row.allocationStatus === "confirmed").length,
     },
     channels: Object.entries(deliveryRows.reduce<Record<string, number>>((result, row) => ({ ...result, [row.channel]: (result[row.channel] ?? 0) + 1 }), {})).map(([channel, total]) => ({ channel, total })),
-    privacy: "Recipient identities and encrypted private claim URLs are excluded from grant evidence. A handoff record does not assert third-party delivery confirmation.",
+    privacy: "Recipient identities and encrypted private claim URLs are excluded from grant evidence. Provider-confirmed email delivery and onchain claim settlement remain separate evidence classes.",
   };
   const bountyEvidence = {
     totals: {
