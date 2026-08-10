@@ -20,8 +20,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { currentApi } from "@/lib/api/client";
 import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
 import { CurrentClaimEmbed } from "@/packages/react/src";
@@ -1562,35 +1560,49 @@ function Marketing({ go }: { go: (v: View) => void }) {
   const proofNumber=(value:number|undefined)=>value===undefined?"—":value.toLocaleString();
 
   useLayoutEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce || !root.current) return;
-    const context = gsap.context(() => {
-      gsap.from("[data-hero-line]", { yPercent: 115, duration: 1.05, stagger: .09, ease: "power4.out" });
-      gsap.from("[data-hero-rest]", { y: 24, opacity: 0, duration: .72, stagger: .08, delay: .55, ease: "power3.out" });
-      gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((element) => {
-        gsap.from(element, {
-          y: 64, opacity: 0, duration: .9, ease: "power3.out",
-          scrollTrigger: { trigger: element, start: "top 82%", once: true }
+    let active = true;
+    let revert: (() => void) | undefined;
+
+    // Keep the cinematic runtime on the marketing route. Claim, account and
+    // project surfaces should not download GSAP just to render product UI.
+    void Promise.all([import("gsap"), import("gsap/ScrollTrigger")]).then(([gsapModule, scrollTriggerModule]) => {
+      if (!active || !root.current) return;
+      const gsap = gsapModule.default;
+      gsap.registerPlugin(scrollTriggerModule.ScrollTrigger);
+      const context = gsap.context(() => {
+        gsap.from("[data-hero-line]", { yPercent: 115, duration: 1.05, stagger: .09, ease: "power4.out" });
+        gsap.from("[data-hero-rest]", { y: 24, opacity: 0, duration: .72, stagger: .08, delay: .55, ease: "power3.out" });
+        gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((element) => {
+          gsap.from(element, {
+            y: 64, opacity: 0, duration: .9, ease: "power3.out",
+            scrollTrigger: { trigger: element, start: "top 82%", once: true }
+          });
         });
-      });
-      if (matchMedia("(min-width: 769px)").matches) {
-        const phases = gsap.utils.toArray<HTMLElement>(".story-phase");
-        const nodes = gsap.utils.toArray<HTMLElement>(".story-node");
-        const story = gsap.timeline({
-          scrollTrigger: { trigger: ".story-scroll", start: "top top", end: "+=240%", scrub: 1, pin: ".story-stage" }
+        if (matchMedia("(min-width: 769px)").matches) {
+          const phases = gsap.utils.toArray<HTMLElement>(".story-phase");
+          const nodes = gsap.utils.toArray<HTMLElement>(".story-node");
+          const story = gsap.timeline({
+            scrollTrigger: { trigger: ".story-scroll", start: "top top", end: "+=240%", scrub: 1, pin: ".story-stage" }
+          });
+          phases.forEach((phase, i) => {
+            story.to(phases, { opacity: (_, target) => target === phase ? 1 : 0, y: (_, target) => target === phase ? 0 : 18, duration: .35 }, i * .65);
+            story.to(nodes.slice(0, 4 + i * 4), { opacity: 1, scale: 1, stagger: .02, duration: .3 }, i * .65);
+          });
+        }
+        gsap.to(".fee-orbit-inner", {
+          rotate: 360, ease: "none",
+          scrollTrigger: { trigger: ".token-story", start: "top bottom", end: "bottom top", scrub: 1.2 }
         });
-        phases.forEach((phase, i) => {
-          story.to(phases, { opacity: (_, target) => target === phase ? 1 : 0, y: (_, target) => target === phase ? 0 : 18, duration: .35 }, i * .65);
-          story.to(nodes.slice(0, 4 + i * 4), { opacity: 1, scale: 1, stagger: .02, duration: .3 }, i * .65);
-        });
-      }
-      gsap.to(".fee-orbit-inner", {
-        rotate: 360, ease: "none",
-        scrollTrigger: { trigger: ".token-story", start: "top bottom", end: "bottom top", scrub: 1.2 }
-      });
-    }, root);
-    return () => context.revert();
+      }, root);
+      revert = () => context.revert();
+    }).catch(() => undefined);
+
+    return () => {
+      active = false;
+      revert?.();
+    };
   }, []);
 
   return (
