@@ -18,13 +18,16 @@ import {
   ReceiptText, Rocket, Settings, Share2, ShieldAlert, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Target,
   TestTube2, TrendingUp, Upload, Users, Wallet, Waves, Webhook, X, Zap
 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { currentApi } from "@/lib/api/client";
 import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
-import { CurrentClaimEmbed } from "@/packages/react/src";
+const Marketing = lazy(() => import("./Marketing"));
+const CurrentClaimEmbed = lazy(() =>
+  import("@/packages/react/src").then((module) => ({ default: module.CurrentClaimEmbed })),
+);
 
-type View =
+export type View =
   | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "members" | "activity" | "campaigns" | "discover" | "bounty"
   | "new-campaign" | "funding" | "payroll" | "bounties" | "drops" | "drop" | "giveaways" | "giveaway" | "vesting" | "vesting-claim" | "treasury" | "public-treasury" | "recipients" | "deliveries" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "brand" | "settings" | "states";
@@ -1550,216 +1553,6 @@ function GrantDossierView({go}:{go:(v:View)=>void}) {
       <section className="dossier-application-cta"><FileCheck2/><div><small>SUBMISSION-READY EXPORT</small><h2>Move from technical dossier to application answers.</h2><p>Open the evidence-backed packet, copy concise responses, and download the complete Markdown or JSON draft.</p></div><Button tone="blue" onClick={()=>go("grant-application")}>Open application packet <ArrowRight/></Button></section>
     </main>
   </div>;
-}
-
-function Marketing({ go }: { go: (v: View) => void }) {
-  const root = useRef<HTMLDivElement>(null);
-  const [menu, setMenu] = useState(false);
-  const [motionPaused, setMotionPaused] = useState(false);
-  const {proof}=useNetworkProof();
-  const proofNumber=(value:number|undefined)=>value===undefined?"—":value.toLocaleString();
-
-  useLayoutEffect(() => {
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce || !root.current) return;
-    let active = true;
-    let revert: (() => void) | undefined;
-
-    // Keep the cinematic runtime on the marketing route. Claim, account and
-    // project surfaces should not download GSAP just to render product UI.
-    void Promise.all([import("gsap"), import("gsap/ScrollTrigger")]).then(([gsapModule, scrollTriggerModule]) => {
-      if (!active || !root.current) return;
-      const gsap = gsapModule.default;
-      gsap.registerPlugin(scrollTriggerModule.ScrollTrigger);
-      const context = gsap.context(() => {
-        gsap.from("[data-hero-line]", { yPercent: 115, duration: 1.05, stagger: .09, ease: "power4.out" });
-        gsap.from("[data-hero-rest]", { y: 24, opacity: 0, duration: .72, stagger: .08, delay: .55, ease: "power3.out" });
-        gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((element) => {
-          gsap.from(element, {
-            y: 64, opacity: 0, duration: .9, ease: "power3.out",
-            scrollTrigger: { trigger: element, start: "top 82%", once: true }
-          });
-        });
-        if (matchMedia("(min-width: 769px)").matches) {
-          const phases = gsap.utils.toArray<HTMLElement>(".story-phase");
-          const nodes = gsap.utils.toArray<HTMLElement>(".story-node");
-          const story = gsap.timeline({
-            scrollTrigger: { trigger: ".story-scroll", start: "top top", end: "+=240%", scrub: 1, pin: ".story-stage" }
-          });
-          phases.forEach((phase, i) => {
-            story.to(phases, { opacity: (_, target) => target === phase ? 1 : 0, y: (_, target) => target === phase ? 0 : 18, duration: .35 }, i * .65);
-            story.to(nodes.slice(0, 4 + i * 4), { opacity: 1, scale: 1, stagger: .02, duration: .3 }, i * .65);
-          });
-        }
-        gsap.to(".fee-orbit-inner", {
-          rotate: 360, ease: "none",
-          scrollTrigger: { trigger: ".token-story", start: "top bottom", end: "bottom top", scrub: 1.2 }
-        });
-      }, root);
-      revert = () => context.revert();
-    }).catch(() => undefined);
-
-    return () => {
-      active = false;
-      revert?.();
-    };
-  }, []);
-
-  return (
-    <div className="site" ref={root}>
-      <header className="marketing-nav">
-        <Brand light onClick={() => go("home")}/>
-        <nav aria-label="Main navigation">
-          <a href="#network">Network</a><a href="#product">Product</a>
-          <a href="#developers">Developers</a><a href="#current">$CURRENT</a>
-        </nav>
-        <div className="nav-actions">
-          <button className="nav-text" onClick={() => go("overview")}>Sign in</button>
-          <Button tone="light" onClick={() => go("new-campaign")}>Launch a current <ArrowUpRight size={15}/></Button>
-          <button className="menu-trigger" aria-label="Open navigation" onClick={() => setMenu(!menu)}>{menu ? <X/> : <Menu/>}</button>
-        </div>
-      </header>
-      {menu && <div className="mobile-ocean-menu">
-        {["Network","Product","Developers","$CURRENT"].map(item => <a key={item} href={`#${item === "$CURRENT" ? "current" : item.toLowerCase()}`} onClick={() => setMenu(false)}>{item}<ArrowUpRight/></a>)}
-        <Button tone="cyan" onClick={() => go("new-campaign")}>Launch a current <ArrowRight/></Button>
-      </div>}
-
-      <main>
-        <section className="cinematic-hero">
-          <div className="hero-media" aria-hidden="true">
-            <video className="hero-video" autoPlay muted playsInline loop poster="/media/currentdes-start.jpg" style={{opacity: motionPaused ? 0 : 1}}>
-              <source src="/media/currentdes-hero.mp4" type="video/mp4"/>
-            </video>
-            <div className="hero-shade"/>
-          </div>
-          <div className="hero-copy-new">
-            <Eyebrow light><Sparkles/> THE ACTIVATION LAYER FOR ARC</Eyebrow>
-            <h1><span><b data-hero-line>Turn any audience</b></span><span><b data-hero-line>into active</b></span><span className="cyan"><b data-hero-line>token users.</b></span></h1>
-            <p data-hero-rest>Distribute USDC or your project token to anyone. No wallet, gas, or crypto knowledge required. Every claim creates a funded account and a measurable user.</p>
-            <div className="hero-actions" data-hero-rest>
-              <Button tone="cyan" onClick={() => go("new-campaign")}>Create a distribution <ArrowRight/></Button>
-              <button className="experience-link" onClick={() => go("claim")}><span><Play/></span>Experience a claim</button>
-            </div>
-          </div>
-          <div className="hero-bottom" data-hero-rest>
-            <div><strong>{proofNumber(proof?.totals.fundedWallets)}</strong><span>verified wallets funded</span></div>
-            <div><strong>{proofNumber(proof?.totals.campaigns)}</strong><span>testnet currents</span></div>
-            <div><strong>{proof?`${proof.rates.activationRate}%`:"—"}</strong><span>verified activation rate</span></div>
-            <button aria-label={motionPaused ? "Play hero animation" : "Pause hero animation"} onClick={() => setMotionPaused(!motionPaused)}>{motionPaused ? <Play/> : <Pause/>}</button>
-          </div>
-        </section>
-
-        <section className="proof-section" id="network">
-          <Eyebrow>VERIFIED ARC TESTNET</Eyebrow>
-          <div className="proof-number" data-reveal><small>Confirmed test USDC claimed · no monetary value</small><strong>{proof?`${formatAtomic(proof.totals.usdcClaimedAtomic)} USDC`:"Verifying…"}</strong></div>
-          <div className="proof-grid" data-reveal>
-            <div><b>{proofNumber(proof?.totals.fundedWallets)}</b><span>confirmed funded wallets</span></div>
-            <div><b>{proofNumber(proof?.totals.activatedUsers)}</b><span>distinct activated users</span></div>
-            <div><b>{proofNumber(proof?.totals.campaigns)}</b><span>recorded testnet campaigns</span></div>
-            <div><b>0</b><span>gas required to claim</span></div>
-          </div>
-          <div className="network-proof-cta" data-reveal><div><BadgeCheck/><span><b>Verified-records-only</b><small>Replay the product loop, inspect the source rules, or open the complete Circle reviewer dossier.</small></span></div><div className="network-proof-cta-actions"><Button tone="ghost" onClick={()=>go("reviewer-demo")}>Verified replay <Play/></Button><Button tone="ghost" onClick={()=>go("grant-dossier")}>Grant dossier <BadgeCheck/></Button><Button tone="blue" onClick={()=>go("network-proof")}>Network proof <ArrowUpRight/></Button></div></div>
-        </section>
-
-        <section className="story-scroll" id="product">
-          <div className="story-stage">
-            <div className="story-title"><Eyebrow light>YOU SCROLL, VALUE FLOWS</Eyebrow><h2>What is<br/><em>Current CoFi?</em></h2></div>
-            <div className="story-visual">
-              <FluidCanvas mode="network"/>
-              <div className="story-source"><span>C</span><small>PROJECT SOURCE</small></div>
-              <div className="story-nodes">{Array.from({length:12},(_,i)=><span className={`story-node n-${i}`} key={i}>{i > 7 ? <Wallet/> : <Users/>}</span>)}</div>
-            </div>
-            <div className="story-copy">
-              <article className="story-phase">
-                <span>01 / 03</span><h3>Fund the current.</h3>
-                <p>Deposit USDC or any supported project token into a fully funded distribution.</p>
-              </article>
-              <article className="story-phase">
-                <span>02 / 03</span><h3>Reach beyond wallets.</h3>
-                <p>Assign value to emails, social identities, game accounts, QR codes, or private links.</p>
-              </article>
-              <article className="story-phase">
-                <span>03 / 03</span><h3>Activate real users.</h3>
-                <p>Create embedded wallets, sponsor every claim, attribute referrals, and measure retention.</p>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        <section className="possibilities">
-          <Eyebrow>ONE PROTOCOL, MANY CURRENTS</Eyebrow>
-          <h2 data-reveal>Move value through<br/>the communities that create it.</h2>
-          <div className="word-current">
-            {["Token launches","Social payments","Game rewards","Bounties","Referrals","Agent payments","Event drops","Community payroll"].map(x=><span key={x}>{x}<i/></span>)}
-          </div>
-        </section>
-
-        <section className="claim-feature">
-          <div className="claim-feature-copy" data-reveal>
-            <Eyebrow>WALLETLESS CLAIMS</Eyebrow>
-            <h2>A funded account appears when the value arrives.</h2>
-            <p>Recipients open a link, sign in, and claim. Current CoFi verifies identity, creates the embedded wallet, sponsors gas, and records the activation.</p>
-            <ul><li><Check/>USDC and project tokens</li><li><Check/>Email, social, game account, QR, or link</li><li><Check/>Expiration, recovery, and refunds</li></ul>
-            <Button tone="dark" onClick={() => go("claim")}>Experience the claim <ArrowRight/></Button>
-          </div>
-          <div className="claim-device-scene" data-reveal>
-            <FluidCanvas mode="network"/>
-            <div className="claim-phone">
-              <div className="phone-sensor"/><span className="mini-project">T</span>
-              <small>Tidebreak sent you</small><strong>2,500 TIDE</strong><em>≈ $42.80</em>
-              <div className="identity-chip"><Fingerprint/>Claim with your social identity</div>
-              <button>Claim — no gas required</button>
-            </div>
-            <span className="claim-event event-one"><Wallet/>Wallet created</span>
-            <span className="claim-event event-two"><CheckCircle2/>User activated</span>
-          </div>
-        </section>
-
-        <section className="surface-section">
-          <div className="surface-heading" data-reveal><Eyebrow>THE OPERATING LAYER</Eyebrow><h2>Distribution is only the beginning.</h2></div>
-          <div className="surface-grid">
-            <article className="surface-card dark" data-reveal>
-              <span>01</span><Network/><h3>Campaigns + attribution</h3><p>Import recipients, branch referral currents, define activation events, and see exactly which sources create retained users.</p>
-              <div className="mini-funnel">{["Targeted","Opened","Wallet","Claimed","Active"].map((x,i)=><span key={x} style={{"--w":`${100-i*13}%`} as React.CSSProperties}><b>{x}</b></span>)}</div>
-            </article>
-            <article className="surface-card water" id="developers" data-reveal>
-              <span>02</span><Braces/><h3>Built for software and agents</h3><p>One API for distributions, claims, referrals, activation events, webhooks, and policy-bound autonomous rewards.</p>
-              <pre><code><i>const</i> current = <i>await</i> cofi.distributions.create({"{"}<br/>  asset: <b>&quot;USDC&quot;</b>, recipients: audience,<br/>  walletless: <b>true</b>, attribution: <b>true</b><br/>{"}"})</code></pre>
-              <Button tone="dark" onClick={() => go("developers")}>Explore the developer layer <ArrowRight/></Button>
-            </article>
-          </div>
-        </section>
-
-        <section className="token-story" id="current">
-          <div className="token-copy-new" data-reveal>
-            <Eyebrow light>THE PRODUCT FEE CURRENT</Eyebrow>
-            <h2>Every product fee reinforces <em>$CURRENT.</em></h2>
-            <p>A transparent portion of Current CoFi fees accumulates in USDC and purchases `$CURRENT` from the market in efficient batches. Projects also lock `$CURRENT` to access larger distribution currents, advanced attribution, promotion, and sponsored claims.</p>
-            <div className="allocation-row"><span><b>35%</b>Buyback reserve</span><span><b>25%</b>Gas sponsorship</span><span><b>20%</b>Liquidity</span><span><b>20%</b>Operations</span></div>
-            <Button tone="cyan" onClick={() => go("token")}>View the transparent current <ArrowRight/></Button>
-          </div>
-          <div className="fee-orbit" data-reveal>
-            <FluidCanvas mode="orbit"/>
-            <div className="fee-orbit-inner"><span className="current-coin">$C</span><i/><i/><i/></div>
-            <span className="orbit-label l-a">USDC fees</span><span className="orbit-label l-b">market buy</span><span className="orbit-label l-c">burn · lock · liquidity</span>
-          </div>
-        </section>
-
-        <section className="roadmap-scene">
-          <div data-reveal><Eyebrow>THE CURRENT EXPANDS</Eyebrow><h2>One distribution layer.<br/>An entire community economy.</h2></div>
-          <div className="roadmap-current" data-reveal>
-            {[["Live","Token + USDC distribution"],["Live","Merchant checkout"],["Live","Milestone escrow"],["Live","Subscriptions"],["Live","Cross-chain USDC"]].map(([time,title],i)=><article key={title}><span>{i+1}</span><small>{time}</small><h3>{title}</h3></article>)}
-          </div>
-        </section>
-
-        <section className="final-current">
-          <FluidCanvas mode="branches"/>
-          <div data-reveal><Eyebrow light>THE NEXT AUDIENCE IS ALREADY WAITING</Eyebrow><h2>Start the current.</h2><p>Turn an offchain community into funded wallets, active users, and measurable growth.</p><Button tone="cyan" onClick={() => go("new-campaign")}>Create a distribution <ArrowRight/></Button></div>
-        </section>
-      </main>
-      <footer className="site-footer"><Brand/><p>Walletless distribution and activation infrastructure for the Arc economy.</p><div><button onClick={()=>go("developers")}>Developers</button><button onClick={()=>go("token")}>$CURRENT</button><a href="#product">Product</a></div><small>© 2026 Current CoFi · Testnet experience</small></footer>
-    </div>
-  );
 }
 
 function ClaimView({ go, auth }: { go: (v: View) => void; auth: CircleAuth }) {
@@ -3414,7 +3207,7 @@ X-Current-Signature: <HMAC-SHA256>
     <div className="developer-grid"><article><Braces/><span>SERVER SDK</span><h3>Distribution API</h3><p>Create signed USDC and project-token campaigns from a backend or launchpad.</p><code>current.distributions.create()</code></article><article><Fingerprint/><span>IDENTITY NETWORK</span><h3>Verifier adapters</h3><p>Bind X, game, ticket, or community identities to a new Arc wallet without exposing the identity onchain.</p><code>current.identities.attest()</code></article><article><Webhook/><span>EVENT DELIVERY</span><h3>Signed webhooks</h3><p>Receive campaign, identity, claim, activation, referral, refund, and delivery events.</p><code>identity.verified</code></article><article><Bot/><span>MACHINE-READABLE</span><h3>Agent tools</h3><p>Let autonomous software create distributions and report activations within scoped policies.</p><code>create_distribution</code></article><article><Layers3/><span>REACT PACKAGE</span><h3>Embeddable claims</h3><p>Put Current’s walletless reward card and referral links directly inside another app.</p><code>&lt;CurrentClaimEmbed /&gt;</code></article><article><FileCheck2/><span>GRANT EVIDENCE</span><h3>Proof API</h3><p>Freeze campaign outcomes and public Arc anchors into a digest-verified reviewer report.</p><code>current.evidence.create()</code></article></div>
     <div className="quickstart-panel" id="sdk-quickstart"><div><Eyebrow>PRODUCTION QUICKSTART</Eyebrow><h2>Create a verified activation current.</h2><ol><li><span>1</span>Install the Current SDK or MCP server</li><li><span>2</span>Create a scoped project key</li><li><span>3</span>Generate identity-bound claim links</li><li><span>4</span>Attest external identities</li><li><span>5</span>Measure real activation</li></ol><div className="code-tabs">{(["sdk","verifier","react","curl","mcp"] as const).map(tab=><button className={sample===tab?"active":""} key={tab} onClick={()=>setSample(tab)}>{tab==="sdk"?"Distribution":tab==="verifier"?"Verifier adapter":tab==="react"?"React embed":tab==="mcp"?"MCP server":"Raw API"}</button>)}</div></div><pre><button className="code-copy" onClick={()=>void copy()}>{copied?<Check/>:<Copy/>}{copied?"Copied":"Copy"}</button><code>{snippets[sample]}</code></pre></div>
     <div className="verifier-story"><div><Eyebrow>IDENTITY WITHOUT CUSTODY</Eyebrow><h2>Bring any community identity into an Arc wallet.</h2><p>The project verifies the account it already understands—an X profile, game account, ticket, Discord member, or internal customer—and signs a short-lived attestation to the recipient’s Current wallet. Current checks the campaign allocation, API-key scope, wallet binding, expiry, and replay state before signing the onchain claim.</p></div><div className="verifier-flow"><span><b>01</b>Project OAuth or account proof<small>Identity stays with the project</small></span><i/><span><b>02</b>HMAC-signed attestation<small>Hashed identity + exact wallet</small></span><i/><span><b>03</b>Gasless Arc settlement<small>Single-use claim authorization</small></span></div></div>
-    <div className="integration-lab"><div className="integration-lab-copy"><Eyebrow>EMBED LAB</Eyebrow><h2>The claim experience travels with your product.</h2><p>Games, communities, launchpads, and AI agents can embed a branded reward without rebuilding wallet creation, claim resolution, or gasless onboarding.</p><div><span><CheckCircle2/> No wallet required</span><span><CheckCircle2/> Referral attribution preserved</span><span><CheckCircle2/> Hosted fallback included</span></div><Button tone="blue" onClick={()=>go("api-keys")}>Start integrating <ArrowRight/></Button></div><div className="integration-lab-preview"><div className="embed-browser"><header><i/><i/><i/><span>play.example/rewards</span></header><main><CurrentClaimEmbed compact accent="#22e4d5" onOpen={()=>go("claim")} preview={{amount:"250",asset:"TIDE",claimable:true,expiresAt:"2026-08-14T00:00:00.000Z",message:"Complete your first match to activate this reward.",project:{name:"Tidebreak",logoUrl:null},sender:"Tidebreak community",status:"claimable"}}/></main></div></div></div>
+    <div className="integration-lab"><div className="integration-lab-copy"><Eyebrow>EMBED LAB</Eyebrow><h2>The claim experience travels with your product.</h2><p>Games, communities, launchpads, and AI agents can embed a branded reward without rebuilding wallet creation, claim resolution, or gasless onboarding.</p><div><span><CheckCircle2/> No wallet required</span><span><CheckCircle2/> Referral attribution preserved</span><span><CheckCircle2/> Hosted fallback included</span></div><Button tone="blue" onClick={()=>go("api-keys")}>Start integrating <ArrowRight/></Button></div><div className="integration-lab-preview"><div className="embed-browser"><header><i/><i/><i/><span>play.example/rewards</span></header><main><Suspense fallback={<div className="embed-loading" aria-label="Loading claim preview"/>}><CurrentClaimEmbed compact accent="#22e4d5" onOpen={()=>go("claim")} preview={{amount:"250",asset:"TIDE",claimable:true,expiresAt:"2026-08-14T00:00:00.000Z",message:"Complete your first match to activate this reward.",project:{name:"Tidebreak",logoUrl:null},sender:"Tidebreak community",status:"claimable"}}/></Suspense></main></div></div></div>
   </>;
 }
 
@@ -3951,5 +3744,5 @@ export default function CurrentApp() {
     setTransition(true);
     setTimeout(()=>{setView(next); location.hash=`/${next}`; scrollTo({top:0,behavior:"instant" as ScrollBehavior}); setTimeout(()=>setTransition(false),120)},260);
   };
-  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Marketing go={go}/>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="pay"?<HostedSocialPayment go={go} auth={auth}/>:view==="bounty"?<HostedBounty go={go}/>:view==="drop"?<HostedPublicDrop go={go}/>:view==="giveaway"?<HostedGiveaway go={go}/>:view==="vesting-claim"?<HostedVesting go={go}/>:view==="public-treasury"?<PublicTreasury go={go}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="grant-application"?<GrantApplicationView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:view==="proof-health"?<GrantProofHealthView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
+  return <><div className={`route-current ${transition?"active":""}`} aria-hidden="true"><i/></div>{view==="home"?<Suspense fallback={<div className="site route-loading" aria-label="Loading Current CoFi"/>}><Marketing go={go}/></Suspense>:view==="claim"?<ClaimView go={go} auth={auth}/>:view==="pay"?<HostedSocialPayment go={go} auth={auth}/>:view==="bounty"?<HostedBounty go={go}/>:view==="drop"?<HostedPublicDrop go={go}/>:view==="giveaway"?<HostedGiveaway go={go}/>:view==="vesting-claim"?<HostedVesting go={go}/>:view==="public-treasury"?<PublicTreasury go={go}/>:view==="checkout"?<HostedCheckout go={go} auth={auth}/>:view==="subscribe"?<HostedSubscription go={go} auth={auth}/>:view==="certification"?<IntegrationCertificateView go={go}/>:view==="network-proof"?<NetworkProofView go={go}/>:view==="grant-dossier"?<GrantDossierView go={go}/>:view==="grant-application"?<GrantApplicationView go={go}/>:view==="proof-explorer"?<CampaignProofExplorerView go={go}/>:view==="reviewer-demo"?<ReviewerDemoView go={go}/>:view==="project-token-proof"?<ProjectTokenProofView go={go}/>:view==="proof-health"?<GrantProofHealthView go={go}/>:<AppShell view={view} go={go} auth={auth}/>}</>;
 }

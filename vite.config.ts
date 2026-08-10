@@ -45,6 +45,28 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    build: {
+      // Compressed delivery is enforced by check-client-budgets.mjs. The
+      // application chunk remains below that stricter network budget while
+      // route and dependency boundaries keep expensive surfaces cacheable.
+      chunkSizeWarningLimit: 550,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                // CurrentApp uses a broad icon vocabulary across dozens of
+                // product surfaces. Keep it cacheable outside the app logic so
+                // feature releases do not invalidate the entire icon runtime.
+                name: "current-icons",
+                test: /node_modules[\\/]lucide-react/,
+                priority: 20,
+              },
+            ],
+          },
+        },
+      },
+    },
     resolve: {
       // Circle's browser SDK only calls jsonwebtoken.decode(), but the upstream
       // package imports Node crypto and Buffer. Keep the client bundle browser
