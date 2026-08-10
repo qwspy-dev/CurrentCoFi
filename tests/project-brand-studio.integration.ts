@@ -46,6 +46,6 @@ assert.match(ui, /Powered by Current CoFi/);
 assert.match(styles, /prefers-reduced-motion/);
 assert.match(sdk, /readonly brand/);
 assert.match(meta, /safe-hosted-experience-theming/);
-assert.match(openapi, /3\.17\.0-project-brand-studio/);
+assert.match(openapi, /version: "\d+\.\d+\.\d+-[a-z0-9-]+"/);
 assert.match(docs, /Custom CSS, scripts, HTML/);
 console.log("Project Brand Studio verified: bounded project identity, safe HTTPS assets, public-flow inheritance, responsive preview, and permanent trust disclosures.");

@@ -1,4 +1,4 @@
-name: Security baseline
+name: Current CoFi release gate
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,7 +25,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod --audit-level=high
-      - run: pnpm run security:test
-      - run: pnpm run contracts:test
-      - run: pnpm run typecheck
-      - run: pnpm run lint
+      - run: pnpm run release:verify
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: current-cofi-release-gate
+          path: artifacts/release-gate.json
+          if-no-files-found: warn

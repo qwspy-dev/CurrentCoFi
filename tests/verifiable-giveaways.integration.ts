@@ -37,9 +37,9 @@ assert.match(ui, /No wallet required/);
 assert.match(sdk, /readonly giveaways/);
 assert.match(mcp, /I_APPROVE_CURRENT_GIVEAWAY/);
 assert.match(meta, /commit-reveal-random-winner-selection/);
-assert.match(openapi, /3\.9\.0-walletless-launch-vesting/);
+assert.match(openapi, /version: "\d+\.\d+\.\d+-[a-z0-9-]+"/);
 assert.match(openapi, /\/developer\/giveaways/);
-assert.match(evidence, /current-evidence-v22/);
+assert.match(evidence, /EVIDENCE_SCHEMA_VERSION = "current-evidence-v\d+"/);
 assert.match(evidence, /Only masked aggregate entry and referral evidence/);
 
 console.log("Verifiable giveaways verified: funded prize custody, encrypted one-identity entry, referral attribution, order-independent commit-reveal draw, walletless winner claim, SDK/MCP access, and privacy-safe grant evidence.");

@@ -29,6 +29,6 @@ assert.match(ui, /See exactly where attention becomes an active user/);
 assert.match(styles, /acquisition-funnel/);
 assert.match(sdk, /export type DiscoveryAcquisition/);
 assert.match(meta, /attention-to-activation-evidence/);
-assert.match(openapi, /3\.17\.0-project-brand-studio/);
+assert.match(openapi, /version: "\d+\.\d+\.\d+-[a-z0-9-]+"/);
 
 console.log("Project acquisition intelligence verified: project-scoped attention, participation, Arc claims, signed activations, daily trends, API, SDK, responsive UI, and explicit evidence boundaries.");

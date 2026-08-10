@@ -43,3 +43,9 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# local visual QA and dev-server captures
+/.tmp-*
+/qa-*.png
+/document.documentElement.clientWidth*
+/innerWidth

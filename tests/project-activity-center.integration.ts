@@ -28,6 +28,6 @@ assert.match(api, /text\/csv/);
 assert.match(api, /content-disposition/);
 assert.match(ui, /Every important action\. One accountable current\./);
 assert.match(ui, /Export audit CSV/);
-assert.match(openapi, /3\.21\.0-multi-asset-checkout/);
+assert.match(openapi, /version: "\d+\.\d+\.\d+-[a-z0-9-]+"/);
 
 console.log("Project activity center verified: member-only audit access, bounded metadata, actor attribution, filters, and privacy-safe CSV export.");

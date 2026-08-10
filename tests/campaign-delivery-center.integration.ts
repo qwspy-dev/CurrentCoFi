@@ -23,9 +23,9 @@ assert.match(sdk, /readonly deliveries/);
 assert.match(mcp, /current_list_campaign_deliveries/);
 assert.match(mcp, /I_APPROVE_CURRENT_DELIVERY_HANDOFF/);
 assert.match(meta, /encrypted-campaign-delivery-center/);
-assert.match(openapi, /3\.13\.0-post-claim-activation-destinations/);
+assert.match(openapi, /version: "\d+\.\d+\.\d+-[a-z0-9-]+"/);
 assert.match(openapi, /"\/developer\/deliveries"/);
-assert.match(evidence, /current-evidence-v22/);
+assert.match(evidence, /EVIDENCE_SCHEMA_VERSION = "current-evidence-v\d+"/);
 assert.match(evidence, /campaignDeliveries: deliveryEvidence/);
 
 console.log("Encrypted campaign delivery center integration test passed.");

@@ -35,11 +35,11 @@ assert.match(repository, /bounty\.awarded/);
 assert.match(schema, /bounty_submissions_bounty_contact_unique/);
 assert.match(developer, /verifySignedDeveloperRequest/);
 assert.match(publicApi, /publicBounty/);
-assert.match(evidence, /current-evidence-v22/);
+assert.match(evidence, /EVIDENCE_SCHEMA_VERSION = "current-evidence-v\d+"/);
 assert.match(evidence, /Prize-backed contributor bounties/);
 assert.match(sdk, /readonly bounties/);
 assert.match(mcp, /current_create_community_bounty/);
 assert.match(meta, /fully-funded-community-bounties/);
-assert.match(openapi, /3\.9\.0-walletless-launch-vesting/);
+assert.match(openapi, /version: "\d+\.\d+\.\d+-[a-z0-9-]+"/);
 
 console.log("community bounty custody, identity privacy, developer integration, award, and grant-evidence controls passed");

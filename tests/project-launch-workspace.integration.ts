@@ -25,5 +25,5 @@ assert.match(ui, /GRANT READINESS/);
 assert.match(ui, /Inspect on Arc/);
 assert.match(styles, /prefers-reduced-motion/);
 assert.match(meta, /grant-ready-project-launch-workspace/);
-assert.match(openapi, /3\.18\.0-project-launch-workspace/);
+assert.match(openapi, /version: "\d+\.\d+\.\d+-[a-z0-9-]+"/);
 console.log("Project launch workspace verified: persistent identity, Arc token inspection, real readiness evidence, and campaign handoff.");

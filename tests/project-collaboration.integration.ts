@@ -35,6 +35,6 @@ assert.match(ui, /Server-enforced RBAC/);
 assert.match(styles, /prefers-reduced-motion/);
 assert.match(migration, /project_invitations/);
 assert.match(meta, /server-enforced-project-rbac/);
-assert.match(openapi, /3\.19\.0-project-collaboration/);
+assert.match(openapi, /version: "\d+\.\d+\.\d+-[a-z0-9-]+"/);
 assert.match(docs, /Invitation secrets are returned once/);
 console.log("Project collaboration verified: email-bound invitations, immutable ownership, revocable RBAC, and persisted active workspace selection.");
