@@ -233,10 +233,13 @@ export type MerchantCommerce = {
   checkouts: Array<{
     id: string; slug: string; title: string; description: string | null; status: string;
     amount: string; amountAtomic: string; currency: string; checkoutUrl: string;
+    paymentAssets: Array<{ address: string; symbol: string; decimals: number; settlement: "direct" | "routed-to-usdc"; available: boolean }>;
+    settlementBoundary: string;
     expiresAt: string | null; successUrl: string | null; createdAt: string;
   }>;
   payments: Array<{
     id: string; receiptNumber: string; status: string; amount: string; currency: string;
+    paymentAsset: { address: string; symbol: string; amount: string; amountAtomic: string; settlementMode: "direct-usdc" | "routed-token" };
     customerAddress: string; merchantAddress: string; paymentTransactionHash: string | null;
     refundTransactionHash: string | null; paidAt: string | null; refundedAt: string | null;
   }>;

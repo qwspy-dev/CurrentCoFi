@@ -176,7 +176,8 @@ async function accountActivity(userId: string) {
 
   activity.push(...checkoutRows.map(({ payment, checkout }) => ({
     id: `checkout:${payment.id}`, kind: "checkout" as const, direction: "out" as const, title: checkout.title,
-    amount: formatAtomic(payment.amountAtomic, 6), symbol: checkout.currency, status: payment.status,
+    amount: typeof (payment.metadata as Record<string, unknown>).paymentAmount === "string" ? String((payment.metadata as Record<string, unknown>).paymentAmount) : formatAtomic(payment.amountAtomic, 6),
+    symbol: typeof (payment.metadata as Record<string, unknown>).paymentAssetSymbol === "string" ? String((payment.metadata as Record<string, unknown>).paymentAssetSymbol) : checkout.currency, status: payment.status,
     transactionHash: payment.paymentTransactionHash, occurredAt: (payment.paidAt ?? payment.createdAt).toISOString(),
   })));
   activity.push(...subscriptionRows.map(({ payment, plan }) => ({

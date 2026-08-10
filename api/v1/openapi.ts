@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.20.0-project-activity-center",
+    version: "3.21.0-multi-asset-checkout",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -135,7 +135,8 @@ export default withApi((request) => ok(request, {
       post: { summary: "Create a merchant settlement profile or publish a fixed-price USDC checkout" },
     },
     "/checkout/public": { get: { summary: "Resolve a public hosted checkout without exposing private merchant data" } },
-    "/checkout/pay": { post: { summary: "Prepare or confirm an exact USDC transfer from a Current wallet to the merchant" } },
+    "/checkout/quote": { get: { summary: "Quote a fail-closed project-token route into exact merchant USDC settlement" } },
+    "/checkout/pay": { post: { summary: "Prepare or confirm direct USDC or exact-input project-token settlement from a user-controlled Current wallet" } },
     "/checkout/refund": { post: { summary: "Prepare or confirm a refund from the merchant settlement wallet" } },
     "/checkout/receipt": { get: { summary: "Verify a confirmed or refunded Arc checkout receipt" } },
     "/subscriptions": {

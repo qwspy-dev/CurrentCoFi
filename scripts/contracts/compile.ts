@@ -46,6 +46,7 @@ export function compileContracts() {
       "CurrentVenueRegistryGovernor.sol": { content: readSource("contracts/CurrentVenueRegistryGovernor.sol") },
       "CurrentReleaseRegistry.sol": { content: readSource("contracts/CurrentReleaseRegistry.sol") },
       "CurrentReleaseGovernor.sol": { content: readSource("contracts/CurrentReleaseGovernor.sol") },
+      "CurrentCheckoutRouter.sol": { content: readSource("contracts/CurrentCheckoutRouter.sol") },
       "test/MockUSDC.sol": { content: readSource("contracts/test/MockUSDC.sol") },
       "test/MockExchangeAdapter.sol": { content: readSource("contracts/test/MockExchangeAdapter.sol") },
       "test/CurrentTestnetExchangeAdapter.sol": {
@@ -56,6 +57,9 @@ export function compileContracts() {
       },
       "test/CurrentTestnetPartnerToken.sol": {
         content: readSource("contracts/test/CurrentTestnetPartnerToken.sol"),
+      },
+      "test/CurrentTestnetCheckoutAdapter.sol": {
+        content: readSource("contracts/test/CurrentTestnetCheckoutAdapter.sol"),
       },
     },
     settings: {
@@ -86,6 +90,7 @@ export function compileContracts() {
   const currentVenueRegistryGovernor = output.contracts?.["CurrentVenueRegistryGovernor.sol"]?.CurrentVenueRegistryGovernor;
   const currentReleaseRegistry = output.contracts?.["CurrentReleaseRegistry.sol"]?.CurrentReleaseRegistry;
   const currentReleaseGovernor = output.contracts?.["CurrentReleaseGovernor.sol"]?.CurrentReleaseGovernor;
+  const currentCheckoutRouter = output.contracts?.["CurrentCheckoutRouter.sol"]?.CurrentCheckoutRouter;
   const mockUsdc = output.contracts?.["test/MockUSDC.sol"]?.MockUSDC;
   const mockExchangeAdapter = output.contracts?.["test/MockExchangeAdapter.sol"]?.MockExchangeAdapter;
   const currentTestnetExchangeAdapter =
@@ -94,6 +99,8 @@ export function compileContracts() {
     output.contracts?.["test/CurrentTestnetLiquidityAdapter.sol"]?.CurrentTestnetLiquidityAdapter;
   const currentTestnetPartnerToken =
     output.contracts?.["test/CurrentTestnetPartnerToken.sol"]?.CurrentTestnetPartnerToken;
+  const currentTestnetCheckoutAdapter =
+    output.contracts?.["test/CurrentTestnetCheckoutAdapter.sol"]?.CurrentTestnetCheckoutAdapter;
   if (
     !vault?.evm.bytecode.object ||
     !campaignVault?.evm.bytecode.object ||
@@ -111,11 +118,13 @@ export function compileContracts() {
     !currentVenueRegistryGovernor?.evm.bytecode.object ||
     !currentReleaseRegistry?.evm.bytecode.object ||
     !currentReleaseGovernor?.evm.bytecode.object ||
+    !currentCheckoutRouter?.evm.bytecode.object ||
     !mockUsdc?.evm.bytecode.object ||
     !mockExchangeAdapter?.evm.bytecode.object ||
     !currentTestnetExchangeAdapter?.evm.bytecode.object ||
     !currentTestnetLiquidityAdapter?.evm.bytecode.object ||
-    !currentTestnetPartnerToken?.evm.bytecode.object
+    !currentTestnetPartnerToken?.evm.bytecode.object ||
+    !currentTestnetCheckoutAdapter?.evm.bytecode.object
   ) {
     throw new Error("Solidity compilation produced no bytecode.");
   }
@@ -181,6 +190,10 @@ export function compileContracts() {
       abi: currentReleaseGovernor.abi,
       bytecode: `0x${currentReleaseGovernor.evm.bytecode.object}` as `0x${string}`,
     },
+    currentCheckoutRouter: {
+      abi: currentCheckoutRouter.abi,
+      bytecode: `0x${currentCheckoutRouter.evm.bytecode.object}` as `0x${string}`,
+    },
     mockUsdc: { abi: mockUsdc.abi, bytecode: `0x${mockUsdc.evm.bytecode.object}` as `0x${string}` },
     mockExchangeAdapter: {
       abi: mockExchangeAdapter.abi,
@@ -197,6 +210,10 @@ export function compileContracts() {
     currentTestnetPartnerToken: {
       abi: currentTestnetPartnerToken.abi,
       bytecode: `0x${currentTestnetPartnerToken.evm.bytecode.object}` as `0x${string}`,
+    },
+    currentTestnetCheckoutAdapter: {
+      abi: currentTestnetCheckoutAdapter.abi,
+      bytecode: `0x${currentTestnetCheckoutAdapter.evm.bytecode.object}` as `0x${string}`,
     },
   };
 }
@@ -248,5 +265,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   fs.writeFileSync(path.join(outputDirectory, "CurrentReleaseRegistry.json"), JSON.stringify(compiled.currentReleaseRegistry, null, 2));
   fs.writeFileSync(path.join(outputDirectory, "CurrentReleaseGovernor.json"), JSON.stringify(compiled.currentReleaseGovernor, null, 2));
   fs.writeFileSync(path.join(outputDirectory, "CurrentTestnetPartnerToken.json"), JSON.stringify(compiled.currentTestnetPartnerToken, null, 2));
+  fs.writeFileSync(path.join(outputDirectory, "CurrentCheckoutRouter.json"), JSON.stringify(compiled.currentCheckoutRouter, null, 2));
+  fs.writeFileSync(path.join(outputDirectory, "CurrentTestnetCheckoutAdapter.json"), JSON.stringify(compiled.currentTestnetCheckoutAdapter, null, 2));
   console.log("Current protocol contracts compiled successfully.");
 }

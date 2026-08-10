@@ -14,10 +14,10 @@ const auditManifest = {
   },
   "scope": {
     "path": "security/audit-scope.json",
-    "sha256": "f99c133cc7786d3a8ef5f1f707ce3fff44d6058a53b772e5eefcc17df002c7ff",
-    "contracts": 16,
-    "serverBoundaries": 13,
-    "priorityProperties": 8
+    "sha256": "e468de73983f974018135cc0beb1cf52d3177d61d62a59cd31879cd691c0ef0a",
+    "contracts": 18,
+    "serverBoundaries": 15,
+    "priorityProperties": 9
   },
   "sources": [
     {
@@ -194,6 +194,28 @@ const auditManifest = {
         "sha256": "ea1a883c8e12b1ecbcdb037d39d519a4ecf089a6aa24d8d7d0eae7d24787a2f3",
         "creationBytecodeSha256": "99ff6e75f50175b40f947ac90bf7eaad03c455c5471ae0ee1d48babe0ba6992c",
         "abiEntries": 38
+      }
+    },
+    {
+      "path": "contracts/CurrentCheckoutRouter.sol",
+      "bytes": 4504,
+      "sha256": "b96369c05b85effc291e51c400f0a7b198fbcdaada1a416b2cdaddeb25a72cb0",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentCheckoutRouter.json",
+        "sha256": "906b7a45b74f661bdffefa5b9590f83b84d0d00c27af66fafa37029df752198a",
+        "creationBytecodeSha256": "c5e04c9856a2dc5fe0e0b07a6f1054f82e14af5dcc329f7bbc53b06466feabc0",
+        "abiEntries": 26
+      }
+    },
+    {
+      "path": "contracts/test/CurrentTestnetCheckoutAdapter.sol",
+      "bytes": 1957,
+      "sha256": "9891ae45a7374fbc6ccf32fcef23abe0ebf9a6609b165b197de09cee324a9ae7",
+      "artifact": {
+        "path": "contracts/artifacts/CurrentTestnetCheckoutAdapter.json",
+        "sha256": "ca48d7002a91ae7cd6975d7f34acfae5066277bfc7f3d2f3f9a86b41fd50260d",
+        "creationBytecodeSha256": "7cba51ccb266809b9b33c03a38cd024be5c68b5d826bae3bd0396842d2dab3ed",
+        "abiEntries": 12
       }
     }
   ],

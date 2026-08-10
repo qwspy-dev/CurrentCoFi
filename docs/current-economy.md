@@ -10,6 +10,8 @@ Current CoFi's token dashboard reads its numbers directly from Arc testnet. It n
 - `CurrentAccessManager`: converts a project's active, noncustodial lock into an expiring Stream, Surge, or Current product tier.
 - `CurrentBuybackGovernor`: queues adapter updates and buybacks behind a public delay. A separately controlled guardian can cancel pending operations but cannot move protocol funds.
 - `CurrentTestnetExchangeAdapter`: testnet-only fixed-rate liquidity used to prove the complete fee-to-purchase path before a mainnet venue exists.
+- `CurrentCheckoutRouter`: user-controlled exact-input checkout settlement. Only owner-approved token and adapter pairs can convert into an exact USDC merchant receipt; unused input returns atomically.
+- `CurrentTestnetCheckoutAdapter`: isolated fixed-rate `$CURRENT` to test-USDC route used only to prove the checkout path. It is not a market, price feed, or production liquidity claim.
 
 ## Buyback execution
 
@@ -32,6 +34,8 @@ Access expires with the underlying lock. The access manager never takes custody 
 ## User-wallet actions
 
 Project locks and product-fee proofs use the same Circle user-controlled wallet challenge flow as distributions. Users explicitly approve the asset and then explicitly approve the lock or fee route. A confirmed lock receives a third wallet challenge that activates its product tier. Current CoFi records every challenge, reconciles the transactions, and emits `current.locked`, `current.access-activated`, or `fee.routed` webhooks after confirmation.
+
+Project-token checkout uses two user-controlled wallet confirmations: an exact token approval to the isolated checkout router, followed by an atomic settlement call. The router refuses unapproved routes, stale deadlines, excessive input, and any adapter execution that fails to increase the merchant's USDC balance by the exact checkout price. Direct USDC checkout remains a one-confirmation wallet-to-merchant transfer.
 
 ## Testnet boundary
 

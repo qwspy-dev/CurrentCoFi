@@ -8,7 +8,7 @@ assert.equal(readiness.assurance, "internal-review-only");
 assert.equal(readiness.mainnetApproved, false);
 assert.equal(readiness.verification.externalAuditStatus, "pending");
 assert.equal(readiness.verification.scopeDriftGate, true);
-assert.equal(readiness.sources.length, 16);
+assert.equal(readiness.sources.length, 18);
 assert.equal(new Set(readiness.sources.map((item) => item.path)).size, readiness.sources.length);
 assert.match(readiness.manifestDigest, /^[a-f0-9]{64}$/);
 assert.ok(readiness.sources.every((item) => item.path.startsWith("contracts/") && /^[a-f0-9]{64}$/.test(item.sha256)));

@@ -1,0 +1,187 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "router_",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "current_",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "usdc_",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "currentPerUsdcMicro_",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "InvalidAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "OnlyRouter",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "QuoteExceeded",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "RouteUnavailable",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        }
+      ],
+      "name": "SafeERC20FailedOperation",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "current",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "currentPerUsdcMicro",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "tokenIn",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "usdcToken",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "usdcOut",
+          "type": "uint256"
+        }
+      ],
+      "name": "quoteExactUSDC",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "router",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "tokenIn",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "usdcToken",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amountInMaximum",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "usdcOut",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "merchant",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "",
+          "type": "bytes"
+        }
+      ],
+      "name": "swapExactUSDC",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "usdc",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x610100604052348015610010575f5ffd5b5060405161089638038061089683398101604081905261002f916100c2565b6001600160a01b038416158061004c57506001600160a01b038316155b8061005e57506001600160a01b038216155b80610067575080155b156100855760405163e6c4247b60e01b815260040160405180910390fd5b6001600160a01b0393841660805291831660a05290911660c05260e05261010a565b80516001600160a01b03811681146100bd575f5ffd5b919050565b5f5f5f5f608085870312156100d5575f5ffd5b6100de856100a7565b93506100ec602086016100a7565b92506100fa604086016100a7565b6060959095015193969295505050565b60805160a05160c05160e0516107316101655f395f818160ea015261025101525f81816078015281816101c6015261039101525f818161011101528181610170015261034f01525f818161014b015261029701526107315ff3fe608060405234801561000f575f5ffd5b506004361061006f575f3560e01c80639fa6a6e31161004d5780639fa6a6e31461010c578063e144492614610133578063f887ea4014610146575f5ffd5b80633e413bee14610073578063679d9607146100c45780639f6f986b146100e5575b5f5ffd5b61009a7f000000000000000000000000000000000000000000000000000000000000000081565b60405173ffffffffffffffffffffffffffffffffffffffff90911681526020015b60405180910390f35b6100d76100d23660046105cd565b61016d565b6040519081526020016100bb565b6100d77f000000000000000000000000000000000000000000000000000000000000000081565b61009a7f000000000000000000000000000000000000000000000000000000000000000081565b6100d7610141366004610607565b61027e565b61009a7f000000000000000000000000000000000000000000000000000000000000000081565b5f7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff168473ffffffffffffffffffffffffffffffffffffffff1614158061021557507f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff1614155b1561024c576040517f9295213600000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6102767f0000000000000000000000000000000000000000000000000000000000000000836106b9565b949350505050565b5f3373ffffffffffffffffffffffffffffffffffffffff7f000000000000000000000000000000000000000000000000000000000000000016146102ee576040517f9e41bdd700000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b6102f988888761016d565b905085811115610335576040517ff50a9be100000000000000000000000000000000000000000000000000000000815260040160405180910390fd5b61037773ffffffffffffffffffffffffffffffffffffffff7f0000000000000000000000000000000000000000000000000000000000000000163330846103c3565b6103b873ffffffffffffffffffffffffffffffffffffffff7f000000000000000000000000000000000000000000000000000000000000000016858761042a565b979650505050505050565b6103d184848484600161048a565b610424576040517f5274afe700000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff851660048201526024015b60405180910390fd5b50505050565b610437838383600161051d565b610485576040517f5274afe700000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff8416600482015260240161041b565b505050565b6040517f23b872dd000000000000000000000000000000000000000000000000000000005f81815273ffffffffffffffffffffffffffffffffffffffff8781166004528616602452604485905291602083606481808c5af1925060015f5114831661050c578383151615610500573d5f823e3d81fd5b5f883b113d1516831692505b604052505f60605295945050505050565b6040517fa9059cbb000000000000000000000000000000000000000000000000000000005f81815273ffffffffffffffffffffffffffffffffffffffff8616600452602485905291602083604481808b5af1925060015f5114831661059957838315161561058d573d5f823e3d81fd5b5f873b113d1516831692505b60405250949350505050565b803573ffffffffffffffffffffffffffffffffffffffff811681146105c8575f5ffd5b919050565b5f5f5f606084860312156105df575f5ffd5b6105e8846105a5565b92506105f6602085016105a5565b929592945050506040919091013590565b5f5f5f5f5f5f5f60c0888a03121561061d575f5ffd5b610626886105a5565b9650610634602089016105a5565b95506040880135945060608801359350610650608089016105a5565b925060a088013567ffffffffffffffff81111561066b575f5ffd5b8801601f81018a1361067b575f5ffd5b803567ffffffffffffffff811115610691575f5ffd5b8a60208284010111156106a2575f5ffd5b602082019350809250505092959891949750929550565b80820281158282048414176106f5577f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b9291505056fea2646970667358221220ba594bfac7abc4d0a9924323ec96979ead65c2b1f36e273b1a242612027bbaaf64736f6c63430008240033"
+}

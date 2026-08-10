@@ -10,11 +10,12 @@
     "contracts/CurrentToken.sol", "contracts/CurrentLockVault.sol", "contracts/CurrentFeeRouter.sol",
     "contracts/CurrentBuybackGovernor.sol", "contracts/CurrentLiquidityVault.sol", "contracts/CurrentLiquidityGovernor.sol",
     "contracts/CurrentPartnerVault.sol", "contracts/CurrentPartnerGovernor.sol", "contracts/CurrentLiquidityVenueRegistry.sol",
-    "contracts/CurrentVenueRegistryGovernor.sol", "contracts/CurrentReleaseRegistry.sol", "contracts/CurrentReleaseGovernor.sol"
+    "contracts/CurrentVenueRegistryGovernor.sol", "contracts/CurrentReleaseRegistry.sol", "contracts/CurrentReleaseGovernor.sol",
+    "contracts/CurrentCheckoutRouter.sol", "contracts/test/CurrentTestnetCheckoutAdapter.sol"
   ],
   "serverBoundaries": [
-    "server/auth", "server/branding", "server/claims", "server/campaigns", "server/developer", "server/security", "server/releases",
-    "api/v1/auth", "api/v1/brand.ts", "api/v1/links", "api/v1/campaigns", "api/v1/developer", "api/v1/agent-actions"
+    "server/auth", "server/branding", "server/claims", "server/campaigns", "server/commerce", "server/developer", "server/security", "server/releases",
+    "api/v1/auth", "api/v1/brand.ts", "api/v1/links", "api/v1/campaigns", "api/v1/checkout", "api/v1/developer", "api/v1/agent-actions"
   ],
   "priorityProperties": [
     "No claim can be redirected, replayed, or exceed its allocation.",
@@ -24,7 +25,8 @@
     "Raw recipient identities and authentication secrets never appear in public responses, logs, evidence, or onchain state.",
     "Project branding cannot inject markup, scripts, CSS, credential-bearing URLs, or suppress Current's settlement disclosures.",
     "Release, venue, and adapter attestations fail closed when runtime bytecode differs.",
-    "A conditional claim cannot settle without a live project-scoped proof bound to its exact allocation, event type, identity commitment, and destination wallet."
+    "A conditional claim cannot settle without a live project-scoped proof bound to its exact allocation, event type, identity commitment, and destination wallet.",
+    "A project-token checkout cannot exceed its exact approved input, use a disabled route, outlive its deadline, or complete without the merchant receiving the exact USDC price."
   ],
   "excluded": [
     "Third-party Circle, Arc RPC, CCTP, Gateway, OAuth provider, and liquidity venue implementations",
