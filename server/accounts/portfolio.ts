@@ -14,9 +14,11 @@ import {
   subscriptionPlans,
   subscriptions,
   tokens,
+  walletSwaps,
   walletTransfers,
 } from "../db/schema.js";
 import { formatAtomic } from "../campaigns/repository.js";
+import { consumerSwapCapability } from "./swaps.js";
 
 const balanceAbi = parseAbi(["function balanceOf(address) view returns (uint256)"]);
 const multicallAddress = "0xcA11bde05977b3631167028862bE2a173976CA11" as Address;
@@ -32,7 +34,7 @@ type PortfolioToken = {
 
 export type PortfolioActivity = {
   id: string;
-  kind: "claim" | "social-payment" | "checkout" | "subscription" | "wallet-transfer";
+  kind: "claim" | "social-payment" | "checkout" | "subscription" | "wallet-transfer" | "wallet-swap";
   direction: "in" | "out";
   title: string;
   amount: string;
@@ -159,6 +161,9 @@ async function accountActivity(userId: string) {
   const transferRows = await db.select().from(walletTransfers)
     .where(eq(walletTransfers.userId, userId)).orderBy(desc(walletTransfers.createdAt)).limit(100);
 
+  const swapRows = await db.select().from(walletSwaps)
+    .where(eq(walletSwaps.userId, userId)).orderBy(desc(walletSwaps.createdAt)).limit(100);
+
   const activity: PortfolioActivity[] = claimRows.map(({ claim, allocation, distribution, token }) => ({
     id: `claim:${claim.id}`, kind: "claim", direction: "in", title: distribution.name,
     amount: formatAtomic(allocation.amountAtomic, token.decimals), symbol: token.symbol, status: claim.status,
@@ -191,6 +196,12 @@ async function accountActivity(userId: string) {
     amount: formatAtomic(transfer.amountAtomic, transfer.decimals), symbol: transfer.symbol, status: transfer.status,
     transactionHash: transfer.transactionHash, occurredAt: (transfer.confirmedAt ?? transfer.createdAt).toISOString(),
   })));
+  activity.push(...swapRows.map((swap) => ({
+    id: `wallet-swap:${swap.id}`, kind: "wallet-swap" as const, direction: "out" as const,
+    title: `Converted to ${formatAtomic(swap.usdcOutAtomic, 6)} USDC`,
+    amount: formatAtomic(swap.amountInAtomic, swap.tokenInDecimals), symbol: swap.tokenInSymbol, status: swap.status,
+    transactionHash: swap.settlementTransactionHash, occurredAt: (swap.confirmedAt ?? swap.createdAt).toISOString(),
+  })));
   return sortPortfolioActivity(activity).slice(0, 100);
 }
 
@@ -207,6 +218,7 @@ export async function getAccountPortfolio(userId: string, walletAddress: string)
     blockNumber: balances.blockNumber,
     provenance: "Balances are read directly from Arc testnet. Activity comes from persisted Current CoFi settlement records.",
     valuationBoundary: "Only USDC is included in the displayed portfolio total. Project tokens remain unpriced without a trustworthy market source.",
+    swapCapability: consumerSwapCapability(),
     totals: {
       verifiedUsd: totalVerifiedUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6, useGrouping: false }),
       assets: balances.items.length,

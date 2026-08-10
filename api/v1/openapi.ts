@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.21.0-multi-asset-checkout",
+    version: "3.22.0-consumer-exact-usdc-swaps",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -61,6 +61,7 @@ export default withApi((request) => ok(request, {
     },
     "/portfolio": { get: { summary: "Read verified Arc token balances and unified signed-in account activity" } },
     "/portfolio/transfer": { post: { summary: "Prepare or confirm an exact authenticated Arc ERC-20 wallet transfer" } },
+    "/portfolio/swap": { post: { summary: "Quote, prepare, or confirm a fail-closed project-token conversion into exact test USDC" } },
     "/tokens/inspect": { post: { summary: "Read Arc ERC-20 metadata, bytecode integrity, proxy, ownership, supply, and monitored control signals" } },
     "/asset-trust": {
       get: { summary: "List approved and current Arc token-control baselines, campaign coverage, drift, and review history" },

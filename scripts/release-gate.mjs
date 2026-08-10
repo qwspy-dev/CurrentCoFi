@@ -64,6 +64,7 @@ const suites = [
   ["Social and community payments", "social:test"],
   ["Verified account portfolio", "portfolio:test"],
   ["Authenticated wallet transfers", "wallet-transfer:test"],
+  ["Exact-output consumer swaps", "consumer-swap:test"],
   ["Arc asset trust", "token-trust:test"],
   ["Project-token control monitoring", "token-monitor:test"],
   ["Conditional campaigns", "conditions:test"],

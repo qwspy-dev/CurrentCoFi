@@ -35,6 +35,7 @@ export default withApi((request) => ok(request, {
       "persistent-accounts",
       "verified-onchain-account-portfolio",
       "authenticated-multi-asset-wallet-transfers",
+      "governed-exact-output-consumer-swaps",
       "multi-asset-balance-discovery",
       "unified-account-activity",
       "conservative-project-token-valuation",

@@ -152,6 +152,39 @@ export const walletTransfers = pgTable("wallet_transfers", {
   index("wallet_transfers_status_idx").on(table.status, table.updatedAt),
 ]);
 
+export const walletSwaps = pgTable("wallet_swaps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  circleWalletId: text("circle_wallet_id").notNull(),
+  walletAddress: text("wallet_address").notNull(),
+  tokenInAddress: text("token_in_address").notNull(),
+  tokenInSymbol: text("token_in_symbol").notNull(),
+  tokenInName: text("token_in_name").notNull(),
+  tokenInDecimals: integer("token_in_decimals").notNull(),
+  amountInAtomic: numeric("amount_in_atomic", { precision: 78, scale: 0 }).notNull(),
+  usdcOutAtomic: numeric("usdc_out_atomic", { precision: 78, scale: 0 }).notNull(),
+  routerAddress: text("router_address").notNull(),
+  adapterAddress: text("adapter_address").notNull(),
+  status: text("status").default("authorizing").notNull(),
+  phase: text("phase").default("approval").notNull(),
+  approvalChallengeId: text("approval_challenge_id"),
+  settlementChallengeId: text("settlement_challenge_id"),
+  approvalTransactionHash: text("approval_transaction_hash"),
+  settlementTransactionHash: text("settlement_transaction_hash"),
+  settlementDeadline: timestamp("settlement_deadline", { withTimezone: true }),
+  receiptNumber: text("receipt_number").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("wallet_swaps_receipt_unique").on(table.receiptNumber),
+  uniqueIndex("wallet_swaps_approval_challenge_unique").on(table.approvalChallengeId),
+  uniqueIndex("wallet_swaps_settlement_challenge_unique").on(table.settlementChallengeId),
+  uniqueIndex("wallet_swaps_settlement_transaction_unique").on(table.settlementTransactionHash),
+  index("wallet_swaps_user_created_idx").on(table.userId, table.createdAt),
+  index("wallet_swaps_status_idx").on(table.status, table.updatedAt),
+]);
+
 export const distributions = pgTable("distributions", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
