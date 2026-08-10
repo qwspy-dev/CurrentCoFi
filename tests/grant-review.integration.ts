@@ -14,4 +14,5 @@ for (const requirement of [
 ]) assert.match(source, new RegExp(requirement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 assert.match(source, /evidenceDigest\(packageBody\)/);
 assert.match(source, /getPublicEvidenceReport/);
+assert.match(source, /settledEscrowMilestones/);
 console.log("Circle grant review package criteria, privacy, integrity, and milestone boundaries passed.");

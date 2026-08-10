@@ -19,6 +19,10 @@ A submitted milestone may enter `disputed` before an arbitrator resolves it. An 
 
 The signed developer API can prepare and list agreements at `/api/v1/developer/escrow`. Funding and all value-moving actions remain Circle wallet challenges initiated by an authorized party through `/api/v1/escrow/actions`. Events are available as signed `escrow.*` webhooks.
 
+## Grant evidence
+
+Every immutable project evidence report includes a privacy-safe escrow ledger. It publishes agreement and milestone states, asset-denominated secured/released/refunded totals, terms and delivery-proof digests, the configured escrow contract, and funding/submission/settlement transaction anchors. Client, provider, arbitrator, and refund addresses are deliberately excluded. The grant score credits escrow only after both a funded agreement and an Arc-settled milestone exist; source code or configuration alone never counts as usage.
+
 ## Production boundary
 
 The current deployment target is Arc testnet, where assets have no monetary value. Independent contract review, production credentials, legal terms, monitoring, and a mainnet go/no-go review remain mandatory before real-value use.

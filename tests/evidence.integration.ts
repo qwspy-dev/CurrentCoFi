@@ -37,14 +37,21 @@ assert.deepEqual(readiness, {
 });
 
 const reports = await readFile(new URL("../server/evidence/reports.ts", import.meta.url), "utf8");
-assert.match(reports, /current-evidence-v22/);
+assert.match(reports, /current-evidence-v23/);
 assert.match(reports, /Direct merchant USDC settlement/);
 assert.match(reports, /Subscriber-controlled recurring USDC/);
 assert.match(reports, /checkoutVolume/);
 assert.match(reports, /subscriptionVolume/);
+assert.match(reports, /Proof-gated milestone escrow/);
+assert.match(reports, /fundedEscrowAgreements/);
+assert.match(reports, /settledEscrowMilestones/);
+assert.match(reports, /Milestone escrow terms digests, funding receipts, delivery proofs/);
 assert.match(reports, /Prize-backed contributor bounties/);
 assert.match(reports, /bountySubmissions/);
 assert.doesNotMatch(reports, /customerAddress: row\.payment\.customerAddress/);
 assert.doesNotMatch(reports, /subscriberAddress: row\.subscription\.subscriberAddress/);
+assert.doesNotMatch(reports, /clientAddress: row\.agreement\.clientAddress/);
+assert.doesNotMatch(reports, /providerAddress: row\.agreement\.providerAddress/);
+assert.doesNotMatch(reports, /arbitratorAddress: row\.agreement\.arbitratorAddress/);
 
 console.log("Canonical grant-evidence digest and readiness scoring passed.");

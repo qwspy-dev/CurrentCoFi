@@ -20,6 +20,8 @@ import {
   crosschainFundingIntents,
   distributions,
   evidenceReports,
+  escrowAgreements,
+  escrowMilestones,
   gatewayFundingIntents,
   giveawayEntries,
   giveaways,
@@ -47,7 +49,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v22";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v23";
 
 type Criterion = {
   id: string;
@@ -205,6 +207,74 @@ async function projectCommerceEvidence(projectId: string) {
   };
 }
 
+async function projectEscrowEvidence(projectId: string) {
+  const db = getDb();
+  const agreements = await db.select({ agreement: escrowAgreements, token: tokens })
+    .from(escrowAgreements)
+    .innerJoin(tokens, eq(tokens.id, escrowAgreements.tokenId))
+    .where(eq(escrowAgreements.projectId, projectId))
+    .orderBy(desc(escrowAgreements.createdAt))
+    .limit(100);
+  const agreementIds = agreements.map((row) => row.agreement.id);
+  const milestones = agreementIds.length
+    ? await db.select().from(escrowMilestones)
+      .where(inArray(escrowMilestones.agreementId, agreementIds))
+      .orderBy(escrowMilestones.agreementId, escrowMilestones.position)
+    : [];
+  const assetMap = new Map<string, { symbol: string; address: string; secured: bigint; released: bigint; refunded: bigint; agreements: number }>();
+  for (const row of agreements) {
+    const key = row.token.contractAddress.toLowerCase();
+    const current = assetMap.get(key) ?? { symbol: row.token.symbol, address: row.token.contractAddress, secured: BigInt(0), released: BigInt(0), refunded: BigInt(0), agreements: 0 };
+    current.secured += BigInt(row.agreement.totalAmountAtomic);
+    current.released += BigInt(row.agreement.releasedAmountAtomic);
+    current.refunded += BigInt(row.agreement.refundedAmountAtomic);
+    current.agreements += 1;
+    assetMap.set(key, current);
+  }
+  return {
+    totals: {
+      agreements: agreements.length,
+      funded: agreements.filter((row) => Boolean(row.agreement.fundingTransactionHash)).length,
+      active: agreements.filter((row) => ["active", "disputed", "cancellation_requested"].includes(row.agreement.status)).length,
+      completed: agreements.filter((row) => row.agreement.status === "completed").length,
+      disputed: milestones.filter((milestone) => milestone.status === "disputed").length,
+      submitted: milestones.filter((milestone) => Boolean(milestone.submissionTransactionHash)).length,
+      settled: milestones.filter((milestone) => Boolean(milestone.settlementTransactionHash)).length,
+    },
+    assets: [...assetMap.values()].map((asset) => {
+      const decimals = agreements.find((row) => row.token.contractAddress.toLowerCase() === asset.address.toLowerCase())?.token.decimals ?? 18;
+      return { symbol: asset.symbol, address: asset.address, agreements: asset.agreements, secured: formatAtomic(asset.secured.toString(), decimals), released: formatAtomic(asset.released.toString(), decimals), refunded: formatAtomic(asset.refunded.toString(), decimals) };
+    }),
+    agreements: agreements.map((row) => ({
+      id: row.agreement.id,
+      name: row.agreement.name,
+      status: row.agreement.status,
+      asset: { symbol: row.token.symbol, address: row.token.contractAddress },
+      totalAmount: formatAtomic(row.agreement.totalAmountAtomic, row.token.decimals),
+      releasedAmount: formatAtomic(row.agreement.releasedAmountAtomic, row.token.decimals),
+      refundedAmount: formatAtomic(row.agreement.refundedAmountAtomic, row.token.decimals),
+      milestoneCount: row.agreement.milestoneCount,
+      nextMilestone: row.agreement.nextMilestone,
+      anchors: { contractDealId: row.agreement.contractDealId, contractAddress: row.agreement.contractAddress, termsHash: row.agreement.termsHash, fundingTransactionHash: row.agreement.fundingTransactionHash },
+      milestones: milestones.filter((milestone) => milestone.agreementId === row.agreement.id).map((milestone) => ({
+        position: milestone.position,
+        title: milestone.title,
+        status: milestone.status,
+        amount: formatAtomic(milestone.amountAtomic, row.token.decimals),
+        dueAt: milestone.dueAt.toISOString(),
+        proofHash: milestone.proofHash,
+        submissionTransactionHash: milestone.submissionTransactionHash,
+        settlementTransactionHash: milestone.settlementTransactionHash,
+        submittedAt: milestone.submittedAt?.toISOString() ?? null,
+        settledAt: milestone.settledAt?.toISOString() ?? null,
+      })),
+      createdAt: row.agreement.createdAt.toISOString(),
+    })),
+    privacy: "Agreement terms digests, amounts, states, and public Arc transaction anchors only. Client, provider, arbitrator, and refund addresses are excluded from grant evidence.",
+    boundary: "A configured contract proves deployability; funded and settled counts increase only from persisted Circle-wallet-authorized Arc receipts.",
+  };
+}
+
 async function buildSnapshot(projectId: string, distributionId?: string) {
   const db = getDb();
   const project = await db.query.projects.findFirst({ where: eq(projects.id, projectId) });
@@ -213,6 +283,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const campaignIds = campaigns.map((campaign) => campaign.id);
   const config = getServerConfig();
   const commercePromise = projectCommerceEvidence(projectId);
+  const escrowPromise = projectEscrowEvidence(projectId);
   const deliveryPromise = campaignIds.length
     ? db.select({ id: campaignDeliveries.id, distributionId: campaignDeliveries.distributionId, channel: campaignDeliveries.channel, status: campaignDeliveries.status, allocationStatus: allocations.status, sentAt: campaignDeliveries.sentAt })
       .from(campaignDeliveries)
@@ -444,6 +515,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       : [],
   ]);
   const commerce = await commercePromise;
+  const escrow = await escrowPromise;
   const deliveryRows = await deliveryPromise;
   const [bountyRows, bountySubmissionRows] = await bountyPromise;
   const [giveawayRows, giveawayEntryRows] = await giveawayPromise;
@@ -790,6 +862,13 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       evidence: `${commerce.subscriptions.confirmedCycles} explicitly approved subscription cycle${commerce.subscriptions.confirmedCycles === 1 ? "" : "s"} totaling ${commerce.subscriptions.volume} USDC.`,
     },
     {
+      id: "milestone-escrow-settlement",
+      label: "Proof-gated milestone escrow",
+      weight: 10,
+      passed: escrow.totals.funded > 0 && escrow.totals.settled > 0,
+      evidence: `${escrow.totals.funded} funded escrow agreement${escrow.totals.funded === 1 ? "" : "s"}, ${escrow.totals.submitted} proof submission${escrow.totals.submitted === 1 ? "" : "s"}, and ${escrow.totals.settled} Arc-settled milestone${escrow.totals.settled === 1 ? "" : "s"}.`,
+    },
+    {
       id: "community-bounties",
       label: "Prize-backed contributor bounties",
       weight: 10,
@@ -931,6 +1010,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       releaseRegistryAddress: config.CURRENT_RELEASE_REGISTRY_ADDRESS ?? null,
       releaseGovernorAddress: config.CURRENT_RELEASE_GOVERNOR_ADDRESS ?? null,
       releaseId: config.CURRENT_RELEASE_ID ?? null,
+      milestoneEscrowAddress: config.CURRENT_MILESTONE_ESCROW_ADDRESS ?? null,
     },
     readiness: evidenceReadiness(criteria),
     totals: {
@@ -962,6 +1042,9 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       activeSubscriptions: commerce.subscriptions.active,
       subscriptionCycles: commerce.subscriptions.confirmedCycles,
       subscriptionVolume: commerce.subscriptions.volume,
+      escrowAgreements: escrow.totals.agreements,
+      fundedEscrowAgreements: escrow.totals.funded,
+      settledEscrowMilestones: escrow.totals.settled,
       bounties: bountyEvidence.totals.bounties,
       fundedBounties: bountyEvidence.totals.funded,
       bountySubmissions: bountyEvidence.totals.submissions,
@@ -991,6 +1074,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       treasuryPayments: treasuryEvidence.totals.executed,
     },
     commerce,
+    escrow,
     bounties: bountyEvidence,
     giveaways: giveawayEvidence,
     publicDrops: publicDropEvidence,
@@ -1054,6 +1138,7 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
         "Human-authorized agent campaign vault settlements",
         "Circle Gateway deposits, EOA burn intents, attestations, and Arc mint hashes",
         "Current release registry manifest, runtime bytecode validations, delayed governance, and rollback controls",
+        "Milestone escrow terms digests, funding receipts, delivery proofs, and bounded settlement transactions",
       ],
     },
   };
