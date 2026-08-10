@@ -83,6 +83,32 @@ export const projectMembers = pgTable("project_members", {
   index("project_members_user_idx").on(table.userId),
 ]);
 
+export const userWorkspacePreferences = pgTable("user_workspace_preferences", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  activeProjectId: uuid("active_project_id").references(() => projects.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("user_workspace_preferences_project_idx").on(table.activeProjectId)]);
+
+export const projectInvitations = pgTable("project_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  invitedByUserId: uuid("invited_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  emailHash: text("email_hash").notNull(),
+  maskedEmail: text("masked_email").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  role: memberRole("role").default("operator").notNull(),
+  status: text("status").default("pending").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("project_invitations_token_unique").on(table.tokenHash),
+  index("project_invitations_project_status_idx").on(table.projectId, table.status, table.createdAt),
+  index("project_invitations_email_status_idx").on(table.emailHash, table.status, table.expiresAt),
+]);
+
 export const tokens = pgTable("tokens", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),

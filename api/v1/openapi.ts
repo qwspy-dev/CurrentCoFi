@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.18.0-project-launch-workspace",
+    version: "3.19.0-project-collaboration",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -25,6 +25,14 @@ export default withApi((request) => ok(request, {
     "/project-setup": {
       get: { summary: "Read persisted project identity, Arc token setup, ownership, and grant-readiness evidence" },
       post: { summary: "Publish project identity and inspect an optional Arc project token before campaign launch" },
+    },
+    "/workspaces": {
+      get: { summary: "Read accessible projects, active workspace, members, roles, and masked invitation history" },
+      post: { summary: "Switch workspace, create or revoke a secure invitation, or administer a non-owner member" },
+    },
+    "/workspaces/invitation": {
+      get: { summary: "Resolve a secret-bearing workspace invitation without exposing the invited email" },
+      post: { summary: "Accept an email-bound invitation and activate the joined project for the signed-in account" },
     },
     "/developer/brand": {
       get: { summary: "Read project brand configuration with a scoped developer key" },

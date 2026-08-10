@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { ApiError } from "../http.js";
 import type { CurrentSession } from "../auth/session.js";
 import { getDb } from "../db/client.js";
-import { identities, projectMembers, projects, users, wallets } from "../db/schema.js";
+import { identities, projectMembers, projects, users, userWorkspacePreferences, wallets } from "../db/schema.js";
 import { sha256 } from "../security/crypto.js";
 
 function usernameBase(displayName: string) {
@@ -82,6 +82,14 @@ export async function persistSessionAccount(session: CurrentSession) {
 
 export async function getOrCreatePersonalProject(userId: string, displayName: string) {
   const db = getDb();
+  const preference = await db.query.userWorkspacePreferences.findFirst({ where: eq(userWorkspacePreferences.userId, userId) });
+  if (preference?.activeProjectId) {
+    const activeMembership = await db.query.projectMembers.findFirst({ where: and(eq(projectMembers.userId, userId), eq(projectMembers.projectId, preference.activeProjectId)) });
+    if (activeMembership) {
+      const activeProject = await db.query.projects.findFirst({ where: eq(projects.id, activeMembership.projectId) });
+      if (activeProject) return activeProject;
+    }
+  }
   const membership = await db.query.projectMembers.findFirst({
     where: and(eq(projectMembers.userId, userId), eq(projectMembers.role, "owner")),
   });
@@ -100,6 +108,7 @@ export async function getOrCreatePersonalProject(userId: string, displayName: st
     set: { updatedAt: new Date() },
   }).returning();
   await db.insert(projectMembers).values({ projectId: project.id, userId, role: "owner" }).onConflictDoNothing();
+  await db.insert(userWorkspacePreferences).values({ userId, activeProjectId: project.id }).onConflictDoUpdate({ target: userWorkspacePreferences.userId, set: { activeProjectId: project.id, updatedAt: new Date() } });
   return project;
 }
 

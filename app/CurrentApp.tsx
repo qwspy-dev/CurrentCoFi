@@ -6,6 +6,7 @@ import "./discovery.css";
 import "./acquisition.css";
 import "./brand-studio.css";
 import "./project-onboarding.css";
+import "./workspace-access.css";
 
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
@@ -25,7 +26,7 @@ import { useCircleWalletAuth } from "@/lib/auth/circle-wallet";
 import { CurrentClaimEmbed } from "@/packages/react/src";
 
 type View =
-  | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "campaigns" | "discover" | "bounty"
+  | "home" | "claim" | "overview" | "account" | "create" | "payments" | "pay" | "onboarding" | "members" | "campaigns" | "discover" | "bounty"
   | "new-campaign" | "funding" | "payroll" | "bounties" | "drops" | "drop" | "giveaways" | "giveaway" | "vesting" | "vesting-claim" | "treasury" | "public-treasury" | "recipients" | "deliveries" | "referrals" | "analytics" | "pilots" | "evidence" | "grant" | "token" | "partners" | "venues" | "launch" | "operations" | "security" | "asset-trust"
   | "escrow" | "commerce" | "checkout" | "subscriptions" | "subscribe" | "developers" | "integration-lab" | "certification" | "network-proof" | "grant-dossier" | "grant-application" | "proof-explorer" | "reviewer-demo" | "project-token-proof" | "proof-health" | "api-keys" | "webhooks" | "agents" | "brand" | "settings" | "states";
 
@@ -33,6 +34,9 @@ type ClaimStep = "ready" | "auth" | "creating" | "claiming" | "success";
 type CircleAuth = ReturnType<typeof useCircleWalletAuth>;
 type AccountIdentity = {id:string;provider:string;verifiedAt:string|null;profile:{username:string|null;displayName:string|null;avatarUrl:string|null}};
 type IdentityWorkspace = {identities:AccountIdentity[];available:{x:boolean;discord:boolean;telegram:boolean}};
+type WorkspaceRole = "owner"|"admin"|"operator"|"analyst"|"developer";
+type WorkspaceState = {activeProjectId:string;currentRole:WorkspaceRole;canManage:boolean;workspaces:Array<{id:string;name:string;slug:string;logoUrl:string|null;role:WorkspaceRole;active:boolean}>;members:Array<{userId:string;displayName:string;username:string;avatarUrl:string|null;role:WorkspaceRole;joinedAt:string;isCurrentUser:boolean}>;invitations:Array<{id:string;maskedEmail:string;role:WorkspaceRole;status:string;expiresAt:string;createdAt:string;acceptedAt:string|null}>};
+type PublicWorkspaceInvitation = {project:{id:string;name:string;logoUrl:string|null;websiteUrl:string|null};invitation:{id:string;maskedEmail:string;role:WorkspaceRole;status:string;expiresAt:string};acceptance:{requiresSignIn:boolean;requiresMatchingEmail:boolean}};
 type ProjectBrand = {primaryColor:string;accentColor:string;successColor:string;surface:"midnight"|"tide"|"light";headline:string;claimCta:string;poweredByCurrent:true};
 type BrandWorkspace = {name:string;description:string|null;logoUrl:string|null;websiteUrl:string|null;brand:ProjectBrand};
 type ProjectSetupWorkspace = {project:{id:string;slug:string;name:string;description:string|null;logoUrl:string|null;websiteUrl:string|null;network:string};owner:{displayName:string;username:string;role:"owner"}|null;tokens:Array<{address:string;symbol:string;name:string;decimals:number;verified:boolean;trust:unknown}>;counts:{campaigns:number;apiKeys:number;webhooks:number;pilots:number};readiness:{score:number;stage:string;requiredComplete:boolean;completed:number;total:number;checks:Array<{id:string;label:string;detail:string;complete:boolean;required:boolean}>}};
@@ -1094,7 +1098,7 @@ function compactAddress(value:string) {
 }
 
 const validViews = new Set<View>([
-  "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "campaigns", "discover", "bounty",
+  "home", "claim", "overview", "account", "create", "payments", "pay", "onboarding", "members", "campaigns", "discover", "bounty",
   "new-campaign", "funding", "payroll", "bounties", "drops", "drop", "giveaways", "giveaway", "vesting", "vesting-claim", "treasury", "public-treasury", "recipients", "deliveries", "referrals", "analytics", "pilots", "evidence", "grant", "token", "partners", "venues", "launch", "operations", "security", "asset-trust",
   "escrow", "commerce", "checkout", "subscriptions", "subscribe", "developers", "integration-lab", "certification", "network-proof", "grant-dossier", "grant-application", "proof-explorer", "reviewer-demo", "project-token-proof", "proof-health", "api-keys", "webhooks", "agents", "brand", "settings", "states",
 ]);
@@ -1115,7 +1119,7 @@ function viewFromHash(hash: string): View | null {
 
 const appNav = [
   { label: "Workspace", items: [
-    ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2], ["brand", "Brand studio", Sparkles],
+    ["overview", "Overview", Gauge], ["account", "My account", Wallet], ["onboarding", "Project setup", Globe2], ["members", "Team access", Users], ["brand", "Brand studio", Sparkles],
     ["create", "Create link", Link2],
     ["payments", "Social payments", CircleDollarSign],
     ["funding", "Crosschain funding", Globe2], ["campaigns", "Campaigns", Layers3], ["discover", "Discover", Compass], ["drops", "Public mass drops", Radio], ["vesting", "Launch vesting", Clock3], ["bounties", "Community bounties", Target], ["giveaways", "Verifiable giveaways", Gift], ["payroll", "Community payroll", Repeat2], ["treasury", "Community treasury", CircleDollarSign], ["recipients", "Recipients", Users], ["deliveries", "Delivery center", Send],
@@ -3752,6 +3756,43 @@ function BrandStudio({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
   </>;
 }
 
+function MembersSettings({auth}:{auth:CircleAuth}) {
+  const invitationToken=typeof location!=="undefined"?new URLSearchParams(location.search).get("workspaceInvite"):null;
+  const [state,setState]=useState<WorkspaceState|null>(null);const [preview,setPreview]=useState<PublicWorkspaceInvitation|null>(null);const [loading,setLoading]=useState(Boolean(auth.account));const [busy,setBusy]=useState<string|null>(null);const [error,setError]=useState<string|null>(null);const [inviteEmail,setInviteEmail]=useState("");const [inviteRole,setInviteRole]=useState<WorkspaceRole>("operator");const [createdLink,setCreatedLink]=useState<string|null>(null);
+  const refresh=useCallback(async()=>{if(!auth.account){setLoading(false);return}setLoading(true);try{setState(await currentApi.get<WorkspaceState>("/workspaces"));setError(null)}catch(reason){setError(reason instanceof Error?reason.message:"Workspace access is unavailable.")}finally{setLoading(false)}},[auth.account]);
+  useEffect(()=>{const task=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(task)},[refresh]);
+  useEffect(()=>{if(!invitationToken)return;currentApi.get<PublicWorkspaceInvitation>(`/workspaces/invitation?token=${encodeURIComponent(invitationToken)}`).then(setPreview).catch(reason=>setError(reason instanceof Error?reason.message:"This workspace invitation is unavailable."))},[invitationToken]);
+  const action=async(body:Record<string,unknown>,key:string)=>{setBusy(key);setError(null);try{await currentApi.post("/workspaces",body);await refresh()}catch(reason){setError(reason instanceof Error?reason.message:"The workspace change could not be completed.")}finally{setBusy(null)}};
+  const invite=async()=>{setBusy("invite");setError(null);setCreatedLink(null);try{const result=await currentApi.post<{inviteUrl:string}>("/workspaces",{action:"invite",email:inviteEmail,role:inviteRole});setCreatedLink(result.inviteUrl);setInviteEmail("");await refresh()}catch(reason){setError(reason instanceof Error?reason.message:"The invitation could not be created.")}finally{setBusy(null)}};
+  const accept=async()=>{if(!invitationToken)return;setBusy("accept");setError(null);try{await currentApi.post("/workspaces/invitation",{token:invitationToken});history.replaceState(null,"",`${location.pathname}#/members`);location.reload()}catch(reason){setError(reason instanceof Error?reason.message:"The invitation could not be accepted.");setBusy(null)}};
+  if(!auth.account)return <section className="settings-panel members-panel"><div className="workspace-empty"><Lock/><h3>Open your Current account</h3><p>Sign in with the email address that received the invitation. Wallet access never transfers to the project.</p></div></section>;
+  return <section className="settings-panel members-panel"><div className="panel-head"><div><h3>Members & workspaces</h3><p>Invite collaborators with the smallest role they need, then switch every Current surface into the right project.</p></div><Status tone="green">Server-enforced RBAC</Status></div>
+    {preview&&<div className="workspace-invite-preview"><span>{preview.project.logoUrl?<img src={preview.project.logoUrl} alt=""/>:preview.project.name.slice(0,2).toUpperCase()}</span><div><Eyebrow>WORKSPACE INVITATION</Eyebrow><h3>Join {preview.project.name}</h3><p>{preview.invitation.maskedEmail} · {preview.invitation.role} access · expires {new Date(preview.invitation.expiresAt).toLocaleDateString()}</p></div><Button tone="blue" disabled={busy==="accept"} onClick={()=>void accept()}>{busy==="accept"?"Joining…":"Accept invitation"} <ArrowRight/></Button></div>}
+    {loading&&<div className="evidence-loading"><RefreshCw className="spin"/><div><b>Reconciling workspace access</b><small>Reading active membership, invitations, and role boundaries.</small></div></div>}
+    {error&&<p className="auth-system-note is-error"><X/>{error}</p>}
+    {!loading&&state&&<><div className="workspace-summary"><div><small>ACTIVE WORKSPACE</small><strong>{state.workspaces.find(item=>item.active)?.name}</strong><p>Your role: {state.currentRole}</p></div><div><small>TEAM</small><strong>{state.members.length}</strong><p>Verified Current accounts</p></div><div><small>PENDING</small><strong>{state.invitations.filter(item=>item.status==="pending").length}</strong><p>Seven-day secure links</p></div></div>
+      {state.canManage&&<div className="member-invite-form"><div><h4>Invite a collaborator</h4><p>The link is shown once. Current stores only a hash and masked email.</p></div><input type="email" value={inviteEmail} onChange={event=>setInviteEmail(event.target.value)} placeholder="builder@project.xyz"/><select value={inviteRole} onChange={event=>setInviteRole(event.target.value as WorkspaceRole)}><option value="admin">Admin</option><option value="operator">Operator</option><option value="analyst">Analyst</option><option value="developer">Developer</option></select><Button tone="blue" disabled={!inviteEmail||busy!==null} onClick={()=>void invite()}>{busy==="invite"?"Securing…":"Create invite"} <Plus/></Button></div>}
+      {createdLink&&<div className="workspace-secret"><ShieldCheck/><div><b>Invitation link created</b><code>{createdLink}</code><small>Copy it now. The secret cannot be recovered later.</small></div><button onClick={()=>void navigator.clipboard.writeText(createdLink)} aria-label="Copy invitation"><Copy/></button></div>}
+      <div className="workspace-member-list"><div className="workspace-list-head"><b>Project members</b><span>{state.members.length} accounts</span></div>{state.members.map(member=><article key={member.userId}><i>{member.avatarUrl?<img src={member.avatarUrl} alt=""/>:member.displayName.slice(0,2).toUpperCase()}</i><div><b>{member.displayName}{member.isCurrentUser&&<em>You</em>}</b><small>@{member.username} · joined {new Date(member.joinedAt).toLocaleDateString()}</small></div>{member.role==="owner"||!state.canManage||member.isCurrentUser?<Status tone={member.role==="owner"?"green":"cyan"}>{member.role}</Status>:<><select value={member.role} disabled={busy!==null} onChange={event=>void action({action:"update-role",userId:member.userId,role:event.target.value},`role:${member.userId}`)}><option value="admin">Admin</option><option value="operator">Operator</option><option value="analyst">Analyst</option><option value="developer">Developer</option></select><button disabled={busy!==null} onClick={()=>void action({action:"remove-member",userId:member.userId},`remove:${member.userId}`)} aria-label={`Remove ${member.displayName}`}><X/></button></>}</article>)}</div>
+      {!!state.invitations.length&&<div className="workspace-invitation-list"><div className="workspace-list-head"><b>Invitation history</b><span>Emails stay masked</span></div>{state.invitations.map(inviteRow=><article key={inviteRow.id}><MailIcon/><div><b>{inviteRow.maskedEmail}</b><small>{inviteRow.role} · expires {new Date(inviteRow.expiresAt).toLocaleDateString()}</small></div><Status tone={inviteRow.status==="pending"?"blue":inviteRow.status==="accepted"?"green":"grey"}>{inviteRow.status}</Status>{inviteRow.status==="pending"&&state.canManage&&<button disabled={busy!==null} onClick={()=>void action({action:"revoke-invitation",invitationId:inviteRow.id},`revoke:${inviteRow.id}`)}>Revoke</button>}</article>)}</div>}
+      <div className="workspace-role-guide">{[{role:"Admin",copy:"Members, campaigns, and operations."},{role:"Operator",copy:"Campaign and settlement operations."},{role:"Analyst",copy:"Workspace review; fund operations blocked."},{role:"Developer",copy:"Workspace context; credentials remain separately scoped."}].map(item=><span key={item.role}><b>{item.role}</b><small>{item.copy}</small></span>)}</div></>}
+  </section>;
+}
+
+function WorkspaceSwitch({auth}:{auth:CircleAuth}) {
+  const [state,setState]=useState<WorkspaceState|null>(null);const [open,setOpen]=useState(false);const [busy,setBusy]=useState(false);
+  useEffect(()=>{if(!auth.account)return;currentApi.get<WorkspaceState>("/workspaces").then(setState).catch(()=>undefined)},[auth.account]);
+  const active=state?.workspaces.find(item=>item.active);
+  const switchTo=async(projectId:string)=>{if(projectId===state?.activeProjectId){setOpen(false);return}setBusy(true);try{await currentApi.post("/workspaces",{action:"switch",projectId});location.reload()}finally{setBusy(false)}};
+  return <div className={`project-switch workspace-switch ${open?"is-open":""}`}><button onClick={()=>setOpen(current=>!current)} disabled={!auth.account||busy}><span>{active?.logoUrl?<img src={active.logoUrl} alt=""/>:(active?.name??"Current").slice(0,1)}</span><div><b>{active?.name??"Preview workspace"}</b><small>{active?`${active.role} · Arc testnet`:"Arc testnet"}</small></div><ChevronDown/></button>{open&&<div className="workspace-switch-menu">{state?.workspaces.map(item=><button key={item.id} onClick={()=>void switchTo(item.id)}><i>{item.logoUrl?<img src={item.logoUrl} alt=""/>:item.name.slice(0,1)}</i><span><b>{item.name}</b><small>{item.role}</small></span>{item.active&&<Check/>}</button>)}<button className="workspace-manage" onClick={()=>{location.hash="/members";setOpen(false)}}><Settings/>Manage access</button></div>}</div>;
+}
+
+function MailIcon(){return <span className="workspace-mail">@</span>}
+
+function WorkspaceMembersPage({auth}:{auth:CircleAuth}) {
+  return <><PageHero eyebrow="PROJECT COLLABORATION" title="One project. Precisely scoped access." copy="Invite the team through private, email-bound links and keep every campaign, API key, and Arc approval inside the active workspace."/><div className="workspace-page-switch"><WorkspaceSwitch auth={auth}/><div><b>Active workspace boundary</b><small>Switching changes the project scope used by every Current API and dashboard.</small></div></div><MembersSettings auth={auth}/></>;
+}
+
 function SettingsView({auth}:{auth:CircleAuth}) {
   const identityReturn=typeof location!=="undefined"?new URLSearchParams(location.search):new URLSearchParams();
   const [saved,setSaved]=useState(false);const [tab,setTab]=useState<"general"|"identity">(()=>identityReturn.has("identityLinked")||identityReturn.has("identityError")?"identity":"general");const [identityState,setIdentityState]=useState<IdentityWorkspace|null>(null);const [identityError,setIdentityError]=useState<string|null>(()=>identityReturn.has("identityError")?"The social identity could not be linked. Please try again.":null);const [linking,setLinking]=useState<string|null>(null);
@@ -3792,6 +3833,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "create":page=<CreateLink auth={auth} go={go}/>;break;
     case "payments":page=<SocialPayments auth={auth} go={go}/>;break;
     case "onboarding":page=<ProjectOnboarding go={go} auth={auth}/>;break;
+    case "members":page=<WorkspaceMembersPage auth={auth}/>;break;
     case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
     case "discover":page=<DiscoveryNetwork/>;break;
     case "drops":page=<PublicMassDrops go={go} auth={auth}/>;break;
