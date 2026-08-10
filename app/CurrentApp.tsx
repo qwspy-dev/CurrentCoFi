@@ -5,6 +5,7 @@ import "./activation-destinations.css";
 import "./discovery.css";
 import "./acquisition.css";
 import "./brand-studio.css";
+import "./project-onboarding.css";
 
 import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, BadgeCheck, BarChart3, Bell, Bot,
@@ -34,6 +35,8 @@ type AccountIdentity = {id:string;provider:string;verifiedAt:string|null;profile
 type IdentityWorkspace = {identities:AccountIdentity[];available:{x:boolean;discord:boolean;telegram:boolean}};
 type ProjectBrand = {primaryColor:string;accentColor:string;successColor:string;surface:"midnight"|"tide"|"light";headline:string;claimCta:string;poweredByCurrent:true};
 type BrandWorkspace = {name:string;description:string|null;logoUrl:string|null;websiteUrl:string|null;brand:ProjectBrand};
+type ProjectSetupWorkspace = {project:{id:string;slug:string;name:string;description:string|null;logoUrl:string|null;websiteUrl:string|null;network:string};owner:{displayName:string;username:string;role:"owner"}|null;tokens:Array<{address:string;symbol:string;name:string;decimals:number;verified:boolean;trust:unknown}>;counts:{campaigns:number;apiKeys:number;webhooks:number;pilots:number};readiness:{score:number;stage:string;requiredComplete:boolean;completed:number;total:number;checks:Array<{id:string;label:string;detail:string;complete:boolean;required:boolean}>}};
+type InspectedSetupToken = {address:string;symbol:string;name:string;decimals:number;verified:boolean;network:string;warning:string|null;trust?:unknown};
 type BrandedProject = {name:string;description?:string|null;logoUrl:string|null;websiteUrl?:string|null;brand:ProjectBrand};
 const brandStyle=(brand?:ProjectBrand):CSSProperties|undefined=>brand?({"--project-primary":brand.primaryColor,"--project-accent":brand.accentColor,"--project-success":brand.successColor} as CSSProperties):undefined;
 function useProjectBrand(brand?:ProjectBrand){
@@ -1999,7 +2002,8 @@ function CreateLink({auth,go}:{auth:CircleAuth;go:(v:View)=>void}) {
       <aside className="live-link-preview"><FluidCanvas/><Eyebrow light>LIVE PREVIEW</Eyebrow><span className="preview-token">{asset[0]}</span><small>You’re sending</small><strong>{amount || "0"} {asset}</strong><p>{message}</p><button>Claim — no gas required</button>{created&&<div className="created-toast"><CheckCircle2/>{fundingStep==="complete"?"Vault funded":"Link secured"}</div>}</aside></div></>;
 }
 
-function ProjectOnboarding({go}:{go:(v:View)=>void}) {
+/* Retained in git history only; the live workspace below replaces this static prototype.
+function LegacyProjectOnboarding({go}:{go:(v:View)=>void}) {
   const [step,setStep]=useState(1);
   return <><PageHero eyebrow="PROJECT ONBOARDING" title="Connect your source." copy="Create the organization, verify the token, fund gas sponsorship, and invite the people who operate your currents."/>
     <div className="onboarding-shell"><div className="onboarding-progress">{["Project","Token","Team","Review"].map((x,i)=><span className={step>=i+1?"active":""} key={x}><i>{step>i+1?<Check/>:i+1}</i>{x}</span>)}</div>
@@ -2010,6 +2014,34 @@ function ProjectOnboarding({go}:{go:(v:View)=>void}) {
         {step===4&&<div className="review-stack"><span><CheckCircle2/><b>Project identity</b><small>Tidebreak</small></span><span><CheckCircle2/><b>Token verified</b><small>TIDE · 18 decimals</small></span><span><CheckCircle2/><b>Team permissions</b><small>1 owner</small></span></div>}
         <div className="form-actions"><Button tone="ghost" disabled={step===1} onClick={()=>setStep(Math.max(1,step-1))}>Back</Button><Button tone="blue" onClick={()=>step<4?setStep(step+1):go("new-campaign")}>{step<4?"Continue":"Create first campaign"} <ArrowRight/></Button></div>
       </div></div></>;
+}
+*/
+
+function ProjectOnboarding({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
+  const [step,setStep]=useState(1);const [workspace,setWorkspace]=useState<ProjectSetupWorkspace|null>(null);const [loading,setLoading]=useState(Boolean(auth.account));const [saving,setSaving]=useState(false);const [inspecting,setInspecting]=useState(false);const [error,setError]=useState<string|null>(null);const [saved,setSaved]=useState(false);
+  const [name,setName]=useState("");const [websiteUrl,setWebsiteUrl]=useState("");const [description,setDescription]=useState("");const [logoUrl,setLogoUrl]=useState("");const [tokenAddress,setTokenAddress]=useState("");const [inspectedToken,setInspectedToken]=useState<InspectedSetupToken|null>(null);
+  const hydrate=useCallback((value:ProjectSetupWorkspace)=>{setWorkspace(value);setName(value.project.name);setWebsiteUrl(value.project.websiteUrl??"");setDescription(value.project.description??"");setLogoUrl(value.project.logoUrl??"");if(value.tokens[0]){setTokenAddress(value.tokens[0].address);setInspectedToken({...value.tokens[0],network:value.project.network,warning:value.tokens[0].verified?null:"Contract metadata was read directly from Arc."})}},[]);
+  const load=useCallback(async()=>{if(!auth.account){setLoading(false);return}setLoading(true);try{hydrate(await currentApi.get<ProjectSetupWorkspace>("/project-setup"));setError(null)}catch(reason){setError(reason instanceof Error?reason.message:"Project setup is unavailable.")}finally{setLoading(false)}},[auth.account,hydrate]);
+  useEffect(()=>{const task=window.setTimeout(()=>void load(),0);return()=>window.clearTimeout(task)},[load]);
+  const inspect=async()=>{setInspecting(true);setError(null);try{setInspectedToken(await currentApi.post<InspectedSetupToken>("/tokens/inspect",{address:tokenAddress}))}catch(reason){setInspectedToken(null);setError(reason instanceof Error?reason.message:"The token could not be inspected on Arc.")}finally{setInspecting(false)}};
+  const publish=async()=>{setSaving(true);setError(null);try{const result=await currentApi.post<ProjectSetupWorkspace>("/project-setup",{name,websiteUrl,description,logoUrl,tokenAddress:inspectedToken?.address});hydrate(result);setSaved(true)}catch(reason){setError(reason instanceof Error?reason.message:"The launch workspace could not be published.")}finally{setSaving(false)}};
+  const next=async()=>{if(step===1&&(!name.trim()||!description.trim()||!/^https:\/\//i.test(websiteUrl))){setError("Add a project name, description, and HTTPS website before continuing.");return}if(step===4){await publish();return}setError(null);setStep(current=>Math.min(4,current+1))};
+  const readiness=workspace?.readiness;
+  if(!auth.account)return <><PageHero eyebrow="PROJECT LAUNCH WORKSPACE" title="Build the proof before the pitch." copy="Publish a real project identity, inspect an Arc token, and turn the setup into verifiable grant readiness."/><div className="project-setup-boundary"><Lock/><h3>Open your embedded wallet first</h3><p>Your project identity, token review, and readiness evidence are private to its owner.</p><Button tone="blue" onClick={()=>go("claim")}>Open Current account <ArrowRight/></Button></div></>;
+  return <><PageHero eyebrow="PROJECT LAUNCH WORKSPACE" title="Connect the source. Prove the current." copy="Publish the project, inspect its Arc token, confirm ownership, and move directly into a measurable testnet campaign."/>
+    {loading?<div className="evidence-loading"><RefreshCw className="spin"/><div><b>Reading launch evidence</b><small>Reconciling the project, wallet, token, and integration record.</small></div></div>:<div className="project-setup-layout">
+      <section className="project-setup-main"><div className="onboarding-progress">{["Project","Token","Access","Review"].map((label,index)=><span className={step>=index+1?"active":""} key={label}><i>{step>index+1?<Check/>:index+1}</i>{label}</span>)}</div>
+        <div className="form-panel onboarding-card"><div className="setup-heading"><div><Eyebrow>STEP {step} OF 4</Eyebrow><h2>{["Publish the project identity","Inspect the project token","Confirm the operating boundary","Review the launch source"][step-1]}</h2></div><Status tone="cyan">Arc testnet</Status></div>
+          {step===1&&<div className="field-grid"><label>Project name<input value={name} onChange={event=>setName(event.target.value)} maxLength={80}/></label><label>HTTPS website<input value={websiteUrl} onChange={event=>setWebsiteUrl(event.target.value)} placeholder="https://project.xyz"/></label><label className="full">Logo URL <small>(optional HTTPS asset)</small><input value={logoUrl} onChange={event=>setLogoUrl(event.target.value)} placeholder="https://project.xyz/logo.png"/></label><label className="full">What does this project activate?<textarea value={description} onChange={event=>setDescription(event.target.value)} maxLength={500} placeholder="Explain the audience and the useful action after a claim."/></label></div>}
+          {step===2&&<div className="setup-token-stage"><div className="token-inspector"><label>Arc project-token contract <small>(optional—USDC works by default)</small><div><input value={tokenAddress} onChange={event=>{setTokenAddress(event.target.value);setInspectedToken(null)}} placeholder="0x…"/><Button tone="ghost" disabled={!tokenAddress||inspecting} onClick={()=>void inspect()}>{inspecting?"Inspecting…":"Inspect on Arc"} <Search/></Button></div></label></div>{inspectedToken?<article className="inspected-token-card"><span>{inspectedToken.symbol.slice(0,2)}</span><div><Status tone={inspectedToken.verified?"green":"cyan"}>{inspectedToken.verified?"Circle-listed":"Onchain inspected"}</Status><h3>{inspectedToken.name} <small>{inspectedToken.symbol}</small></h3><code>{inspectedToken.address}</code><p>{inspectedToken.decimals} decimals · {inspectedToken.network}</p></div><ShieldCheck/></article>:<div className="token-optional-note"><CircleDollarSign/><div><b>USDC distribution is already available</b><p>Add the project token only when you want Current to inspect and distribute that ERC-20 alongside USDC.</p></div></div>}</div>}
+          {step===3&&<div className="setup-access-stage"><div className="team-invite"><span>{workspace?.owner?.displayName.slice(0,2).toUpperCase()??"CO"}</span><div><b>{workspace?.owner?.displayName??auth.account.displayName}</b><small>@{workspace?.owner?.username??"current-owner"} · Owner · Full access</small></div><Status tone="green">Verified</Status></div><div className="access-boundary-grid"><article><ShieldCheck/><b>Wallet approvals stay human</b><p>Circle challenges remain bound to the signed-in owner. Project tokens never authorize wallet access.</p></article><article><Braces/><b>Integrations stay scoped</b><p>API keys, webhooks, and agents receive explicit permissions and can be revoked independently.</p></article><article><Users/><b>Team expansion stays controlled</b><p>Owner, admin, operator, analyst, and developer roles are enforced server-side as collaborators are added.</p></article></div></div>}
+          {step===4&&<div className="review-stack project-review-stack"><span><CheckCircle2/><b>Project identity</b><small>{name} · {websiteUrl}</small></span><span className={inspectedToken?"":"optional"}>{inspectedToken?<CheckCircle2/>:<CircleDollarSign/>}<b>{inspectedToken?"Project token inspected":"USDC-first launch"}</b><small>{inspectedToken?`${inspectedToken.symbol} · ${inspectedToken.decimals} decimals`:"A project token can be added later"}</small></span><span><CheckCircle2/><b>Owner boundary</b><small>{workspace?.owner?.displayName??auth.account.displayName} controls wallet approvals</small></span><span><Rocket/><b>Next measurable milestone</b><small>Create, fund, and deliver the first walletless Arc testnet campaign</small></span></div>}
+          {error&&<p className="auth-system-note is-error"><X/>{error}</p>}{saved&&<p className="auth-system-note"><CheckCircle2/>Launch workspace published. Your readiness evidence is now persistent.</p>}
+          <div className="form-actions"><Button tone="ghost" disabled={step===1||saving} onClick={()=>setStep(current=>Math.max(1,current-1))}>Back</Button>{saved?<Button tone="cyan" onClick={()=>go("new-campaign")}>Create first campaign <ArrowRight/></Button>:<Button tone="blue" disabled={saving} onClick={()=>void next()}>{saving?"Publishing evidence…":step<4?"Continue":"Publish launch workspace"} <ArrowRight/></Button>}</div>
+        </div></section>
+      <aside className="setup-readiness"><header><div><Eyebrow>GRANT READINESS</Eyebrow><h3>{readiness?.score??0}%</h3></div><Status tone={readiness?.requiredComplete?"green":"blue"}>{readiness?.stage.replaceAll("-"," ")??"setup required"}</Status></header><div className="readiness-ring" style={{"--readiness":`${readiness?.score??0}%`} as CSSProperties}><span>{readiness?.completed??0}<small>of {readiness?.total??7}</small></span></div><div className="readiness-checks">{readiness?.checks.map(check=><button key={check.id} onClick={()=>check.id==="campaign"?go("new-campaign"):check.id==="developer"?go("api-keys"):check.id==="webhook"?go("webhooks"):check.id==="pilot"?go("pilots"):undefined}><i className={check.complete?"complete":""}>{check.complete?<Check/>:<span/>}</i><span><b>{check.label}{check.required&&<em>Required</em>}</b><small>{check.detail}</small></span></button>)}</div><footer><ShieldCheck/><span><b>Evidence, not a self-reported checklist</b><small>Current calculates this from persisted project records and Arc-connected product activity.</small></span></footer></aside>
+    </div>}
+  </>;
 }
 
 function Campaigns({go,auth}:{go:(v:View)=>void;auth:CircleAuth}) {
@@ -3759,7 +3791,7 @@ function AppShell({view,go,auth}:{view:View;go:(v:View)=>void;auth:CircleAuth}) 
     case "account":page=<AccountPortfolio go={go} auth={auth}/>;break;
     case "create":page=<CreateLink auth={auth} go={go}/>;break;
     case "payments":page=<SocialPayments auth={auth} go={go}/>;break;
-    case "onboarding":page=<ProjectOnboarding go={go}/>;break;
+    case "onboarding":page=<ProjectOnboarding go={go} auth={auth}/>;break;
     case "campaigns":page=<Campaigns go={go} auth={auth}/>;break;
     case "discover":page=<DiscoveryNetwork/>;break;
     case "drops":page=<PublicMassDrops go={go} auth={auth}/>;break;

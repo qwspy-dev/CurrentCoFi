@@ -4,7 +4,7 @@ export default withApi((request) => ok(request, {
   openapi: "3.1.0",
   info: {
     title: "Current CoFi API",
-    version: "3.17.0-project-brand-studio",
+    version: "3.18.0-project-launch-workspace",
     description: "Identity-bound walletless USDC and project-token activation infrastructure for Arc.",
   },
   servers: [{ url: "/api/v1" }],
@@ -21,6 +21,10 @@ export default withApi((request) => ok(request, {
     "/brand": {
       get: { summary: "Read the authenticated project's safe hosted-experience brand system" },
       post: { summary: "Publish bounded colors, copy, and HTTPS project identity across Current hosted flows" },
+    },
+    "/project-setup": {
+      get: { summary: "Read persisted project identity, Arc token setup, ownership, and grant-readiness evidence" },
+      post: { summary: "Publish project identity and inspect an optional Arc project token before campaign launch" },
     },
     "/developer/brand": {
       get: { summary: "Read project brand configuration with a scoped developer key" },

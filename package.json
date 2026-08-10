@@ -31,6 +31,7 @@
     "discovery:test": "tsx tests/current-discovery-network.integration.ts",
     "acquisition:test": "tsx tests/discovery-acquisition-intelligence.integration.ts",
     "brand:test": "tsx tests/project-brand-studio.integration.ts",
+    "onboarding:test": "tsx tests/project-launch-workspace.integration.ts",
     "audit:manifest": "node scripts/security/audit-manifest.mjs --write",
     "audit:verify": "node scripts/security/audit-manifest.mjs",
     "db:generate": "drizzle-kit generate",
