@@ -9,7 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "performance:test": "pnpm run build && node scripts/check-client-budgets.mjs",
-    "vercel:build": "pnpm run packages:build && pnpm run build && node scripts/generate-vercel-static.mjs",
+    "vercel:build": "pnpm run packages:build && pnpm run build && node scripts/check-client-budgets.mjs && node scripts/generate-vercel-static.mjs",
     "start": "vinext start",
     "test": "pnpm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint app api lib server db worker packages examples *.ts *.mjs",
