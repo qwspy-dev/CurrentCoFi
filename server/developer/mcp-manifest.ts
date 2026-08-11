@@ -21,6 +21,7 @@ const body = {
     { name: "current_get_proof_health", access: "public", kind: "read", purpose: "Verify live grant evidence and external boundaries." },
     { name: "current_get_network_proof", access: "public", kind: "read", purpose: "Read privacy-safe Arc testnet traction." },
     { name: "current_get_grant_application", access: "public", kind: "read", purpose: "Read the canonical Circle application packet." },
+    { name: "current_get_reviewer_bundle_manifest", access: "public", kind: "read", purpose: "Verify the downloadable Circle reviewer bundle and its per-file SHA-256 evidence." },
     { name: "current_get_integration_manifest", access: "public", kind: "read", purpose: "Discover builder integration paths." },
     { name: "current_get_campaign_analytics", access: "scoped-project-key", kind: "read", purpose: "Read project activation outcomes." },
     { name: "current_get_programmable_commerce", access: "scoped-project-key", kind: "read", purpose: "Read checkout links, atomic split receipts, affiliate payouts, and customer USDC rewards." },

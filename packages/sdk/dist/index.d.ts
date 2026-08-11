@@ -486,6 +486,32 @@ export type GrantApplicationPacket = {
     };
     reviewerLinks: Record<string, string>;
 };
+export type GrantReviewerBundleManifest = {
+    schemaVersion: string;
+    product: string;
+    environment: string;
+    generatedAt: string;
+    boundary: string;
+    bundleDigest: string;
+    privacy: string;
+    applicationDigest: string;
+    dossierDigest: string;
+    securityDigest: string;
+    auditManifestDigest: string;
+    integrationDigest: string;
+    mcpDigest: string;
+    verification: {
+        algorithm: "SHA-256";
+        instructions: string;
+    };
+    files: Array<{
+        path: string;
+        mediaType: string;
+        bytes: number;
+        sha256: string;
+    }>;
+    reviewerLinks: Record<string, string>;
+};
 export type CreateDistributionInput = {
     name: string;
     tokenAddress?: string;
@@ -2182,6 +2208,8 @@ export declare class Current {
     readonly dossier: {
         get: () => Promise<PublicGrantDossier>;
         application: () => Promise<GrantApplicationPacket>;
+        reviewerBundle: () => Promise<GrantReviewerBundleManifest>;
+        reviewerBundleDownloadUrl: () => string;
     };
     readonly proofs: {
         campaigns: () => Promise<CampaignProofExplorer>;

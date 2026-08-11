@@ -36,7 +36,7 @@ const shipped = [
   { id: "conditional-campaigns", label: "Verifiable conditional settlement", detail: "Projects can require a signed, wallet-bound action proof before a reward is authorized. Proofs expire, cannot cross allocations or projects, and are consumed after confirmed settlement." },
   { id: "circle-funding", label: "Circle-native funding paths", detail: "CCTP V2 and Gateway intent, signing, direct mint, campaign-vault settlement, and public transaction evidence." },
   { id: "developer-platform", label: "Reusable builder infrastructure", detail: "HMAC APIs, TypeScript SDK, React embed, durable webhooks, identity adapters, and integration certification." },
-  { id: "agent-runtime", label: "Installable policy-bound MCP server", detail: "Nineteen MCP tools, read-only defaults, scoped credentials, exact approval phrases, spending limits, signed requests, treasury and giveaway access, and honest Arc settlement evidence." },
+  { id: "agent-runtime", label: "Installable policy-bound MCP server", detail: "Twenty-two MCP tools, read-only defaults, scoped credentials, exact approval phrases, spending limits, signed requests, reviewer evidence, programmable commerce, treasury and giveaway access, and honest Arc settlement evidence." },
   { id: "operations", label: "Production-style assurance", detail: "Release manifests, runtime bytecode checks, delayed governance, incident response, security package, and proof APIs." },
   { id: "audit-readiness", label: "Reproducible independent-review handoff", detail: "A deterministic manifest pins every scoped contract source, compiler artifact, dependency lockfile, and Arc deployment snapshot; drift fails the security gate while external-audit status remains explicitly pending." },
 ] as const;
@@ -64,6 +64,8 @@ const links = {
   grantApplication: "https://www.currentco.finance/#/grant-application",
   grantApplicationApi: "https://www.currentco.finance/api/v1/grant-application",
   grantApplicationMarkdown: "https://www.currentco.finance/api/v1/grant-application/markdown",
+  reviewerBundle: "https://www.currentco.finance/api/v1/grant-bundle",
+  reviewerBundleDownload: "https://www.currentco.finance/api/v1/grant-bundle/download",
   developers: "https://www.currentco.finance/#/developers",
   integrationManifest: "https://www.currentco.finance/api/v1/integration-manifest",
   mcpManifest: "https://www.currentco.finance/api/v1/mcp-manifest",

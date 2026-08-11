@@ -11,8 +11,8 @@ function stable(value: unknown): string {
 const manifest = mcpManifest();
 const { digest, ...body } = manifest;
 assert.equal(digest, createHash("sha256").update(stable(body)).digest("hex"));
-assert.equal(manifest.tools.length, 21);
-assert.equal(manifest.tools.filter((tool) => tool.kind === "read").length, 12);
+assert.equal(manifest.tools.length, 22);
+assert.equal(manifest.tools.filter((tool) => tool.kind === "read").length, 13);
 const writes = manifest.tools.filter((tool) => tool.kind === "write");
 assert.equal(writes.length, 9);
 assert.ok(writes.every((tool) => "approval" in tool && tool.approval.startsWith("I_APPROVE_CURRENT_")));
@@ -23,4 +23,4 @@ assert.equal(manifest.distribution.sourceReady, true);
 assert.equal(manifest.distribution.registryStatus, "publication-required");
 assert.match(manifest.safety.distributionBoundary, /external release step/i);
 assert.doesNotMatch(JSON.stringify(manifest), /seed phrase\s*:/i);
-console.log("MCP manifest verified: canonical digest, twenty-one tools, read-only default, explicit write approvals, policy-bound commerce, encrypted delivery recovery, and honest settlement boundary.");
+console.log("MCP manifest verified: canonical digest, twenty-two tools, reviewer bundle verification, read-only default, explicit write approvals, policy-bound commerce, encrypted delivery recovery, and honest settlement boundary.");

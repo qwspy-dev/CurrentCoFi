@@ -222,7 +222,7 @@ const auditManifest = {
   "reproducibility": {
     "lockfile": {
       "path": "pnpm-lock.yaml",
-      "sha256": "a7a1bd62b5bb6c3eed52efd400272fbae8971786382252681d3c7e92562d8c6d"
+      "sha256": "6b40e365f44655d1ec4d83aaf2ee00e18ef137511126ea13ffce134a4578cd86"
     },
     "deployment": {
       "path": "deployments/arc-testnet.json",

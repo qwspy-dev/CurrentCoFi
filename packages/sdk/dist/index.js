@@ -125,6 +125,8 @@ export class Current {
     dossier = {
         get: () => this.publicGet("/api/v1/grant-dossier"),
         application: () => this.publicGet("/api/v1/grant-application"),
+        reviewerBundle: () => this.publicGet("/api/v1/grant-bundle"),
+        reviewerBundleDownloadUrl: () => `${this.baseUrl}/api/v1/grant-bundle/download`,
     };
     proofs = {
         campaigns: () => this.publicGet("/api/v1/campaign-proofs"),

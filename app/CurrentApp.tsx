@@ -624,6 +624,7 @@ type GrantApplicationState = {
   submissionChecklist:{internallyComplete:string[];awaitingApplicant:string[];awaitingExternal:string[]};
   reviewerLinks:Record<string,string>;
 };
+type GrantReviewerBundleState={bundleDigest:string;generatedAt:string;files:Array<{path:string;bytes:number;sha256:string}>;boundary:string};
 
 type PilotRecord = {
   id: string;
@@ -1477,10 +1478,12 @@ function GrantProofHealthView({go}:{go:(v:View)=>void}) {
 
 function GrantApplicationView({go}:{go:(v:View)=>void}) {
   const [packet,setPacket]=useState<GrantApplicationState|null>(null);
+  const [reviewerBundle,setReviewerBundle]=useState<GrantReviewerBundleState|null>(null);
   const [error,setError]=useState<string|null>(null);
   const [copied,setCopied]=useState<string|null>(null);
   const load=useCallback(()=>currentApi.get<GrantApplicationState>("/grant-application").then(value=>{setPacket(value);setError(null)}).catch(reason=>setError(reason instanceof Error?reason.message:"The application packet is temporarily unavailable.")),[]);
   useEffect(()=>{let active=true;currentApi.get<GrantApplicationState>("/grant-application").then(value=>{if(active)setPacket(value)}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:"The application packet is temporarily unavailable.")});return()=>{active=false}},[]);
+  useEffect(()=>{let active=true;currentApi.get<GrantReviewerBundleState>("/grant-bundle").then(value=>{if(active)setReviewerBundle(value)}).catch(()=>undefined);return()=>{active=false}},[]);
   const copyAnswer=async(id:string,value:string)=>{await navigator.clipboard.writeText(value);setCopied(id);window.setTimeout(()=>setCopied(current=>current===id?null:current),1600)};
   const saveJson=()=>{if(!packet)return;const url=URL.createObjectURL(new Blob([JSON.stringify(packet,null,2)],{type:"application/json"}));const anchor=document.createElement("a");anchor.href=url;anchor.download="current-cofi-circle-grant-application.json";anchor.click();URL.revokeObjectURL(url)};
   const compactDigest=(value:string|undefined)=>value?`${value.slice(0,12)}…${value.slice(-10)}`:"Verifying…";
@@ -1501,7 +1504,7 @@ function GrantApplicationView({go}:{go:(v:View)=>void}) {
 
       <section className="grant-application-readiness"><div><Eyebrow light>HONEST COMPLETION LINE</Eyebrow><h2>Everything we can finish,<br/>already packaged.</h2><p>{packet?.boundary??"Public proof and external validation remain deliberately separate."}</p></div><div><article className="complete"><header><CheckCircle2/><span><b>Complete internally</b><small>Ready without outside help</small></span></header>{(packet?.submissionChecklist.internallyComplete??[]).map(item=><p key={item}><Check/>{item}</p>)}</article><article><header><Users/><span><b>Applicant input</b><small>Private founder details</small></span></header>{(packet?.applicantInputs??[]).map(item=><p key={item.id}><Clock3/>{item.label}</p>)}</article><article><header><Handshake/><span><b>External gates</b><small>Cannot be self-attested</small></span></header>{(packet?.submissionChecklist.awaitingExternal??[]).map(item=><p key={item}><ShieldAlert/>{item}</p>)}</article></div></section>
 
-      <section className="grant-application-export"><div><FileCheck2/><span><small>CANONICAL SUBMISSION DRAFT</small><h2>One packet. Every proof route.</h2><p>{packet?.privacy??"Reviewer-safe public evidence only."}</p></span></div><div><a className="cofi-button tone-cyan" href="/api/v1/grant-application/markdown" download>Download Markdown <Download/></a><Button tone="ghost" onClick={saveJson}>Download JSON <Braces/></Button><Button tone="ghost" onClick={()=>go("proof-health")}>Verify live health <Activity/></Button></div><footer><span><small>PACKET DIGEST</small><code>{packet?.digest??"Verifying…"}</code></span><span><small>GENERATED</small><b>{packet?new Date(packet.generatedAt).toLocaleString():"Loading…"}</b></span></footer></section>
+      <section className="grant-application-export"><div><FileCheck2/><span><small>CRYPTOGRAPHIC REVIEW HANDOFF</small><h2>One bundle. Every proof route.</h2><p>{reviewerBundle?.boundary??packet?.privacy??"Reviewer-safe public evidence only."}</p></span></div><div><a className="cofi-button tone-cyan" href="/api/v1/grant-bundle/download" download>Download reviewer ZIP <Download/></a><a className="cofi-button tone-ghost" href="/api/v1/grant-bundle" target="_blank" rel="noreferrer">Verify manifest <Fingerprint/></a><a className="cofi-button tone-ghost" href="/api/v1/grant-application/markdown" download>Application only <FileCheck2/></a><Button tone="ghost" onClick={saveJson}>JSON <Braces/></Button></div><footer><span><small>BUNDLE DIGEST · {reviewerBundle?.files.length??"—"} CHECKSUMMED FILES</small><code>{reviewerBundle?.bundleDigest??"Verifying…"}</code></span><span><small>GENERATED</small><b>{reviewerBundle?new Date(reviewerBundle.generatedAt).toLocaleString():packet?new Date(packet.generatedAt).toLocaleString():"Loading…"}</b></span></footer></section>
     </main>
   </div>;
 }

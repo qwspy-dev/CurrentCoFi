@@ -66,6 +66,12 @@ export function createCurrentMcpServer(input = configFromEnv()) {
         inputSchema: noInput,
         annotations: readOnly,
     }, async () => success(await publicGet("/api/v1/grant-application")));
+    server.registerTool("current_get_reviewer_bundle_manifest", {
+        title: "Verify Current reviewer bundle",
+        description: "Read the latest Circle reviewer bundle manifest, evidence digests, per-file SHA-256 checksums, privacy boundary, and external gaps.",
+        inputSchema: noInput,
+        annotations: readOnly,
+    }, async () => success(await publicGet("/api/v1/grant-bundle")));
     server.registerTool("current_get_integration_manifest", {
         title: "Discover Current integration paths",
         description: "Read the digest-addressed SDK, React, REST, webhook, identity, and agent integration contract.",
@@ -360,6 +366,6 @@ export function createCurrentMcpServer(input = configFromEnv()) {
             return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the activation.");
         }
     });
-    return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 21, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
+    return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 22, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
 }
 //# sourceMappingURL=server.js.map

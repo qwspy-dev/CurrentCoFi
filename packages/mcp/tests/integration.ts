@@ -14,6 +14,7 @@ const fixtures: Record<string, unknown> = {
   "/api/v1/proof-health": { digest: "proof-health-digest", status: "healthy", checks: [{ id: "arc", status: "verified" }] },
   "/api/v1/network-proof": { digest: "network-proof-digest", network: "Arc Testnet", totals: { wallets: 18, claims: 42 } },
   "/api/v1/grant-application": { digest: "grant-digest", status: "application-ready", applicantInputs: ["legal entity"] },
+  "/api/v1/grant-bundle": { bundleDigest: "reviewer-bundle-digest", files: [{ path: "application.md", sha256: "file-digest" }] },
   "/api/v1/integration-manifest": { digest: "integration-digest", paths: [{ id: "mcp", package: "@currentcofi/mcp" }] },
   "/api/v1/developer/analytics": { totals: { campaigns: 3, recipients: 90, claimed: 61, activated: 28 }, retention: { day7: 41 } },
   "/api/v1/developer/checkout": { merchant: { id: "merchant_mcp", displayName: "Current Store", slug: "current-store", settlementAddress: "0x1111111111111111111111111111111111111111", status: "active" }, checkouts: [{ id: "checkout_mcp", title: "Community pass", status: "active", amount: "125", checkoutUrl: "https://current.test/#/checkout/community-pass" }], payments: [], settlementReceipts: [], capabilities: { programmableSettlement: true }, totals: { checkouts: 1, payments: 0, volume: "0", refunds: 0, splitPayments: 0, affiliateVolume: "0", customerRewards: "0" } },
@@ -70,8 +71,8 @@ const client = new Client({ name: "current-mcp-integration-test", version: "0.1.
 try {
   await client.connect(transport);
   const toolList = await client.listTools();
-  assert.equal(toolList.tools.length, 21);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 12);
+  assert.equal(toolList.tools.length, 22);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 13);
   assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 9);
   const rewardSchema = toolList.tools.find((tool) => tool.name === "current_propose_reward_distribution")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
   assert.equal(rewardSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_DISTRIBUTION");
@@ -94,6 +95,8 @@ try {
   assert.equal((proof.structuredContent as { digest: string }).digest, "proof-health-digest");
   const grant = await client.callTool({ name: "current_get_grant_application", arguments: {} });
   assert.equal((grant.structuredContent as { status: string }).status, "application-ready");
+  const reviewerBundle = await client.callTool({ name: "current_get_reviewer_bundle_manifest", arguments: {} });
+  assert.equal((reviewerBundle.structuredContent as { bundleDigest: string }).bundleDigest, "reviewer-bundle-digest");
   const analytics = await client.callTool({ name: "current_get_campaign_analytics", arguments: {} });
   assert.equal((analytics.structuredContent as { totals: { campaigns: number } }).totals.campaigns, 3);
   const commerce = await client.callTool({ name: "current_get_programmable_commerce", arguments: {} });
@@ -164,7 +167,7 @@ try {
   const unapproved = await client.callTool({ name: "current_propose_reward_distribution", arguments: { idempotencyKey: "mcp-reward-0002", name: "No approval", recipients: [{ identityType: "email", identity: "person@example.com", amount: "5" }] } });
   assert.equal(unapproved.isError, true);
   assert.match(JSON.stringify(unapproved.content), /approval/i);
-  console.log("Current MCP integration test passed: 21 tools, policy-bound programmable commerce, encrypted delivery recovery, public proof, authenticated analytics, public mass drops, bounties, treasury, giveaways and launch vesting, signed proposals, signed activations, and explicit approval validation.");
+  console.log("Current MCP integration test passed: 22 tools, cryptographic reviewer bundle verification, policy-bound programmable commerce, encrypted delivery recovery, public proof, authenticated analytics, public mass drops, bounties, treasury, giveaways and launch vesting, signed proposals, signed activations, and explicit approval validation.");
 } finally {
   await client.close().catch(() => undefined);
   httpServer.close();

@@ -253,6 +253,8 @@ export default withApi((request) => ok(request, {
     "/grant-dossier": { get: { summary: "Read the canonical account-free Circle grant reviewer dossier" } },
     "/grant-application": { get: { summary: "Read the digest-verified, submission-ready Circle grant application packet" } },
     "/grant-application/markdown": { get: { summary: "Download the reviewer-ready Circle grant application packet as Markdown" } },
+    "/grant-bundle": { get: { summary: "Verify the latest cryptographically addressed Circle reviewer bundle manifest" } },
+    "/grant-bundle/download": { get: { summary: "Download the complete reviewer-safe evidence bundle with per-file SHA-256 checksums" } },
     "/integration-readiness": { get: { summary: "Read the signed-in workspace integration conformance score" } },
     "/integration-certification": { post: { summary: "Issue a portable signed integration conformance certificate" } },
     "/integration-certification/public": { get: { summary: "Verify a portable integration certificate without an account" } },

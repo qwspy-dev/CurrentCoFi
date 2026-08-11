@@ -117,6 +117,14 @@ export type GrantApplicationPacket = {
   reviewerLinks:Record<string,string>;
 };
 
+export type GrantReviewerBundleManifest = {
+  schemaVersion:string;product:string;environment:string;generatedAt:string;boundary:string;bundleDigest:string;privacy:string;
+  applicationDigest:string;dossierDigest:string;securityDigest:string;auditManifestDigest:string;integrationDigest:string;mcpDigest:string;
+  verification:{algorithm:"SHA-256";instructions:string};
+  files:Array<{path:string;mediaType:string;bytes:number;sha256:string}>;
+  reviewerLinks:Record<string,string>;
+};
+
 export type CreateDistributionInput = {
   name: string;
   tokenAddress?: string;
@@ -946,6 +954,8 @@ export class Current {
   readonly dossier = {
     get: () => this.publicGet<PublicGrantDossier>("/api/v1/grant-dossier"),
     application: () => this.publicGet<GrantApplicationPacket>("/api/v1/grant-application"),
+    reviewerBundle: () => this.publicGet<GrantReviewerBundleManifest>("/api/v1/grant-bundle"),
+    reviewerBundleDownloadUrl: () => `${this.baseUrl}/api/v1/grant-bundle/download`,
   };
 
   readonly proofs = {
