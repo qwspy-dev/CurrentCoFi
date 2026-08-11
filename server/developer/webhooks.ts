@@ -68,6 +68,7 @@ export const webhookEventTypes = [
   "agent.settlement-ready",
   "agent.settlement-approved",
   "agent.settled",
+  "agent.checkout-created",
   "current.locked",
   "current.access-activated",
   "fee.routed",

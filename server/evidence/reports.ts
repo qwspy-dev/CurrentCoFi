@@ -50,7 +50,7 @@ import { ApiError } from "../http.js";
 import { listProjectPilots } from "../pilots/operations.js";
 import { randomSecret, sha256 } from "../security/crypto.js";
 
-export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v23";
+export const EVIDENCE_SCHEMA_VERSION = "current-evidence-v24";
 
 type Criterion = {
   id: string;
@@ -809,6 +809,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
   const completedPilots = pilotRows.filter((pilot) => pilot.status === "complete").length;
   const completedAgentActions = agentActionRows.filter((action) => action.status === "completed").length;
   const reviewedAgentActions = agentActionRows.filter((action) => Boolean(action.reviewedAt)).length;
+  const agentCheckoutActions = agentActionRows.filter((action) => action.kind === "programmable_checkout").length;
+  const completedAgentCheckouts = agentActionRows.filter((action) => action.kind === "programmable_checkout" && action.status === "completed").length;
   const settledAgentActions = agentSettlementRows.filter((settlement) => settlement.status === "settled").length;
   const gatewayMintedRoutes = gatewayFundingRows.filter((route) => Boolean(route.mintTransactionHash)).length;
   const reviewedParticipants = qualityAssessmentRows.filter((row) => row.decision !== "allow").length;
@@ -1053,6 +1055,8 @@ async function buildSnapshot(projectId: string, distributionId?: string) {
       agentActions: agentActionRows.length,
       completedAgentActions,
       reviewedAgentActions,
+      agentCheckoutActions,
+      completedAgentCheckouts,
       settledAgentActions,
       gatewayFundingRoutes: gatewayFundingRows.length,
       gatewayMintedRoutes,

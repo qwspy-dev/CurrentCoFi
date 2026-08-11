@@ -332,10 +332,11 @@ const mockFetch: typeof fetch = async (input, init) => {
   }
   if (String(input).endsWith("/developer/agent-actions") && init?.method === "POST") {
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    const isCheckout = body.kind === "programmable_checkout";
     return Response.json({ ok: true, data: {
-      id: "agent_action_sdk", agentName: "Reward Router", kind: "reward_distribution",
+      id: "agent_action_sdk", agentName: "Reward Router", kind: isCheckout ? "programmable_checkout" : "reward_distribution",
       status: "approval_required", riskLevel: "medium", amountAtomic: "25000000",
-      assetAddress: null, recipientCount: 1, campaignName: body.name,
+      assetAddress: null, recipientCount: 1, campaignName: isCheckout ? body.title : body.name,
       policyDecision: { outcome: "approval_required", reasons: ["Human approval threshold reached."] },
       settlement: null,
       result: {}, failureCode: null, reviewedAt: null, executedAt: null,
@@ -578,6 +579,16 @@ const agentAction = await current.agentActions.proposeDistribution({
 assert.equal(agentAction.status, "approval_required");
 assert.ok(requests.at(-1)?.url.endsWith("/api/v1/developer/agent-actions"));
 assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).idempotencyKey, "reward-sdk-1");
+const agentCheckout = await current.agentActions.proposeCheckout({
+  kind: "programmable_checkout",
+  idempotencyKey: "checkout-sdk-1",
+  title: "SDK community pass",
+  amount: "25",
+  splits: [{ kind: "customer-reward", basisPoints: 200 }],
+});
+assert.equal(agentCheckout.kind, "programmable_checkout");
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).kind, "programmable_checkout");
+assert.equal(JSON.parse(String(requests.at(-1)?.init?.body)).idempotencyKey, "checkout-sdk-1");
 const agentActionList = await current.agentActions.list();
 assert.equal(agentActionList.totals.approvalRequired, 1);
 

@@ -1,4 +1,4 @@
-import { listProjectAgentActions, proposeAgentDistribution } from "../../../server/agents/runtime.js";
+import { listProjectAgentActions, proposeAgentCheckout, proposeAgentDistribution } from "../../../server/agents/runtime.js";
 import {
   authenticateDeveloperKey,
   requireDeveloperPermission,
@@ -19,5 +19,8 @@ export default withApi(async (request) => {
   let body: unknown;
   try { body = JSON.parse(rawBody); } catch { throw new ApiError(400, "INVALID_JSON", "The agent action must be valid JSON."); }
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError(400, "INVALID_BODY", "The agent action must be an object.");
-  return ok(request, await proposeAgentDistribution(key, new URL(request.url).origin, body), 201);
+  const action = (body as Record<string, unknown>).kind === "programmable_checkout"
+    ? await proposeAgentCheckout(key, new URL(request.url).origin, body)
+    : await proposeAgentDistribution(key, new URL(request.url).origin, body);
+  return ok(request, action, 201);
 }, ["GET", "POST"]);

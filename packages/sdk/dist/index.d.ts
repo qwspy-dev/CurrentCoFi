@@ -1791,6 +1791,9 @@ export type AgentAction = {
         status?: string;
         settlementStatus?: string;
         fundingTransactionHash?: string | null;
+        checkoutId?: string;
+        checkoutUrl?: string;
+        settlementPlan?: Record<string, unknown>;
     };
     settlement: {
         id: string;
@@ -1811,6 +1814,10 @@ export type AgentAction = {
     updatedAt: string;
 };
 export type ProposeAgentDistributionInput = CreateDistributionInput & {
+    idempotencyKey: string;
+};
+export type ProposeAgentCheckoutInput = CreateCheckoutInput & {
+    kind: "programmable_checkout";
     idempotencyKey: string;
 };
 export type CrosschainFundingIntent = {
@@ -2335,6 +2342,7 @@ export declare class Current {
             actions: AgentAction[];
         }>;
         proposeDistribution: (input: ProposeAgentDistributionInput) => Promise<AgentAction>;
+        proposeCheckout: (input: ProposeAgentCheckoutInput) => Promise<AgentAction>;
     };
     constructor(options: CurrentOptions);
     private get;

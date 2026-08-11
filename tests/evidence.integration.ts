@@ -37,7 +37,9 @@ assert.deepEqual(readiness, {
 });
 
 const reports = await readFile(new URL("../server/evidence/reports.ts", import.meta.url), "utf8");
-assert.match(reports, /current-evidence-v23/);
+assert.match(reports, /current-evidence-v24/);
+assert.match(reports, /agentCheckoutActions/);
+assert.match(reports, /completedAgentCheckouts/);
 assert.match(reports, /Direct merchant USDC settlement/);
 assert.match(reports, /Subscriber-controlled recurring USDC/);
 assert.match(reports, /checkoutVolume/);

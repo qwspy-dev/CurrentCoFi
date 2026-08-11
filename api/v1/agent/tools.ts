@@ -2,7 +2,7 @@ import { ok, withApi } from "../../../server/http.js";
 
 export default withApi((request) => ok(request, {
   protocol: "current-cofi-agent-tools",
-  version: "1.11.0",
+  version: "1.12.0",
   network: "ARC-TESTNET",
   mcp: {
     package: "@currentcofi/mcp",
@@ -19,6 +19,15 @@ export default withApi((request) => ok(request, {
     signatureHeader: "x-current-signature",
   },
   tools: [
+    {
+      name: "propose_programmable_checkout",
+      description: "Propose a walletless USDC checkout with policy-bounded affiliate payouts and customer rewards. Link creation never moves customer funds.",
+      method: "POST",
+      path: "/api/v1/developer/agent-actions",
+      permission: "agent-actions:write",
+      input: { kind: "programmable_checkout", idempotencyKey: "stable unique action identifier", title: "checkout title", amount: "decimal USDC price", splits: "optional affiliate and customer-reward destinations" },
+      outcomes: { completed: "Policy passed and the hosted checkout link was created; no customer funds moved.", approval_required: "Paused in the human approval queue.", blocked: "Rejected by agent checkout limits." },
+    },
     {
       name: "create_usdc_subscription_plan",
       description: "Publish a walletless recurring USDC plan with explicit subscriber approval for every Arc settlement cycle.",

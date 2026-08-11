@@ -39,6 +39,7 @@
     "workspace:test": "tsx tests/project-collaboration.integration.ts",
     "activity:test": "tsx tests/project-activity-center.integration.ts",
     "programmable-commerce:test": "tsx tests/programmable-commerce.integration.ts",
+    "agent-commerce:test": "tsx tests/agent-commerce.integration.ts",
     "audit:manifest": "node scripts/security/audit-manifest.mjs --write",
     "audit:verify": "node scripts/security/audit-manifest.mjs",
     "db:generate": "drizzle-kit generate",

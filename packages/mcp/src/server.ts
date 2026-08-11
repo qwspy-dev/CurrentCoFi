@@ -107,6 +107,37 @@ export function createCurrentMcpServer(input: CurrentMcpConfig = configFromEnv()
     catch (error) { return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Project analytics are unavailable."); }
   });
 
+  server.registerTool("current_get_programmable_commerce", {
+    title: "Read programmable commerce",
+    description: "Read hosted checkouts, atomic destination receipts, affiliate payouts, customer USDC rewards, and merchant volume.",
+    inputSchema: noInput,
+    annotations: readOnly,
+  }, async () => {
+    try { return success(await requireProject().checkout.list()); }
+    catch (error) { return failure("PROJECT_MODE_REQUIRED", error instanceof Error ? error.message : "Programmable commerce is unavailable."); }
+  });
+
+  server.registerTool("current_propose_programmable_checkout", {
+    title: "Propose a policy-bound checkout",
+    description: "Ask a scoped Current agent to publish a walletless USDC checkout with optional affiliate and customer-reward settlement. Policy may block or require human approval; creating a link never moves customer funds.",
+    inputSchema: {
+      idempotencyKey: z.string().min(8).max(120),
+      title: z.string().min(2).max(100),
+      description: z.string().max(500).optional(),
+      amount: z.string().regex(/^\d+(\.\d{1,6})?$/),
+      expiresAt: z.string().datetime().optional(),
+      successUrl: z.string().url().optional(),
+      splits: z.array(z.object({ kind: z.enum(["affiliate", "customer-reward"]), label: z.string().max(80).optional(), recipientAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(), basisPoints: z.number().int().min(1).max(2_500) })).max(8).optional(),
+      approval: z.literal("I_APPROVE_CURRENT_CHECKOUT"),
+    },
+    annotations: mutation,
+  }, async ({ approval: _approval, ...value }) => {
+    void _approval;
+    const splits = value.splits?.map((split) => ({ ...split, recipientAddress: split.recipientAddress as `0x${string}` | undefined }));
+    try { return success(await requireProject().agentActions.proposeCheckout({ ...value, splits, kind: "programmable_checkout" })); }
+    catch (error) { return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the checkout proposal."); }
+  });
+
   server.registerTool("current_list_campaign_deliveries", {
     title: "Read encrypted campaign delivery center",
     description: "Read authorized masked recipients, recoverable private claim links, handoff channels, and claimed states. Raw identities are never returned.",
@@ -303,5 +334,5 @@ export function createCurrentMcpServer(input: CurrentMcpConfig = configFromEnv()
     catch (error) { return failure("CURRENT_ACTION_REJECTED", error instanceof Error ? error.message : "Current rejected the activation."); }
   });
 
-  return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 13, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
+  return { server, capabilities: { mode, projectEnabled, maxRecipients, tools: 21, writesRequireExplicitApproval: true, custody: "MCP server never receives wallet private keys or seed phrases" } };
 }

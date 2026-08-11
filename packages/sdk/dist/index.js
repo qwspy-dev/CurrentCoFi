@@ -180,6 +180,7 @@ export class Current {
     agentActions = {
         list: () => this.get("/api/v1/developer/agent-actions"),
         proposeDistribution: (input) => this.signedPost("/api/v1/developer/agent-actions", input),
+        proposeCheckout: (input) => this.signedPost("/api/v1/developer/agent-actions", input),
     };
     constructor(options) {
         if (!options.apiKey || !options.signingSecret) {

@@ -232,7 +232,7 @@ export default withApi((request) => ok(request, {
     "/developer/social-payments": { post: { summary: "Create an HMAC-signed USDC or project-token request, tip, or split-bill link" } },
     "/developer/agent-actions": {
       get: { summary: "List auditable policy decisions made for a scoped agent" },
-      post: { summary: "Propose a policy-bound walletless reward distribution" },
+      post: { summary: "Propose a policy-bound walletless reward distribution or programmable merchant checkout" },
     },
     "/agent-actions": {
       get: { summary: "List the workspace agent action and approval ledger" },

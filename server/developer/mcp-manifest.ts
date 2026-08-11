@@ -23,6 +23,8 @@ const body = {
     { name: "current_get_grant_application", access: "public", kind: "read", purpose: "Read the canonical Circle application packet." },
     { name: "current_get_integration_manifest", access: "public", kind: "read", purpose: "Discover builder integration paths." },
     { name: "current_get_campaign_analytics", access: "scoped-project-key", kind: "read", purpose: "Read project activation outcomes." },
+    { name: "current_get_programmable_commerce", access: "scoped-project-key", kind: "read", purpose: "Read checkout links, atomic split receipts, affiliate payouts, and customer USDC rewards." },
+    { name: "current_propose_programmable_checkout", access: "scoped-agent-key", kind: "write", approval: "I_APPROVE_CURRENT_CHECKOUT", purpose: "Propose a policy-bound walletless checkout without granting the agent custody or payment authority." },
     { name: "current_list_campaign_deliveries", access: "scoped-project-key", kind: "read", purpose: "Recover authorized encrypted private claim links and their handoff state." },
     { name: "current_record_campaign_handoff", access: "scoped-project-key", kind: "write", approval: "I_APPROVE_CURRENT_DELIVERY_HANDOFF", purpose: "Record an operator-prepared private claim handoff without asserting third-party delivery." },
     { name: "current_list_community_bounties", access: "scoped-project-key", kind: "read", purpose: "Read prize custody, masked submissions, and bounty awards." },

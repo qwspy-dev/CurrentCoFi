@@ -33,6 +33,11 @@ type KeyPolicy = {
   maxRewardAtomic?: string;
   humanApprovalAtomic?: string;
   allowedIdentityTypes?: string[];
+  maxCheckoutAtomic?: string;
+  humanApprovalCheckoutAtomic?: string;
+  allowProgrammableCheckout?: boolean;
+  maxAffiliateBasisPoints?: number;
+  maxCustomerRewardBasisPoints?: number;
 };
 
 function safePermissions(value: string[]) {
@@ -45,6 +50,11 @@ function safePermissions(value: string[]) {
 }
 
 function safePolicies(value: KeyPolicy = {}) {
+  const boundedInteger = (input: number | undefined, field: string, fallback: number, minimum: number, maximum: number) => {
+    const parsed = Number(input ?? fallback);
+    if (!Number.isFinite(parsed)) throw new ApiError(400, "INVALID_AGENT_POLICY", `${field} must be a finite number.`);
+    return Math.min(Math.max(Math.round(parsed), minimum), maximum);
+  };
   const atomicPolicy = (input: string | undefined, field: string) => {
     if (input === undefined || input === "") return undefined;
     if (!/^\d{1,78}$/.test(input) || BigInt(input) <= BigInt(0)) {
@@ -52,7 +62,7 @@ function safePolicies(value: KeyPolicy = {}) {
     }
     return input;
   };
-  const dailyEventLimit = Math.min(Math.max(Math.round(Number(value.dailyEventLimit ?? 1_000)), 1), 100_000);
+  const dailyEventLimit = boundedInteger(value.dailyEventLimit, "dailyEventLimit", 1_000, 1, 100_000);
   const allowedEventTypes = [...new Set((value.allowedEventTypes ?? []).map((item) => item.trim()).filter(Boolean))]
     .slice(0, 50);
   const allowedIdentityTypes = [...new Set(
@@ -62,11 +72,20 @@ function safePolicies(value: KeyPolicy = {}) {
     dailyEventLimit,
     allowedEventTypes,
     allowedIdentityTypes,
+    allowProgrammableCheckout: value.allowProgrammableCheckout === true,
+    maxAffiliateBasisPoints: boundedInteger(value.maxAffiliateBasisPoints, "maxAffiliateBasisPoints", 0, 0, 2_500),
+    maxCustomerRewardBasisPoints: boundedInteger(value.maxCustomerRewardBasisPoints, "maxCustomerRewardBasisPoints", 0, 0, 2_500),
     ...(atomicPolicy(value.maxRewardAtomic, "maxRewardAtomic")
       ? { maxRewardAtomic: atomicPolicy(value.maxRewardAtomic, "maxRewardAtomic") }
       : {}),
     ...(atomicPolicy(value.humanApprovalAtomic, "humanApprovalAtomic")
       ? { humanApprovalAtomic: atomicPolicy(value.humanApprovalAtomic, "humanApprovalAtomic") }
+      : {}),
+    ...(atomicPolicy(value.maxCheckoutAtomic, "maxCheckoutAtomic")
+      ? { maxCheckoutAtomic: atomicPolicy(value.maxCheckoutAtomic, "maxCheckoutAtomic") }
+      : {}),
+    ...(atomicPolicy(value.humanApprovalCheckoutAtomic, "humanApprovalCheckoutAtomic")
+      ? { humanApprovalCheckoutAtomic: atomicPolicy(value.humanApprovalCheckoutAtomic, "humanApprovalCheckoutAtomic") }
       : {}),
   };
 }

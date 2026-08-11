@@ -675,6 +675,9 @@ export type AgentAction = {
     status?: string;
     settlementStatus?: string;
     fundingTransactionHash?: string | null;
+    checkoutId?: string;
+    checkoutUrl?: string;
+    settlementPlan?: Record<string, unknown>;
   };
   settlement: {
     id: string;
@@ -692,6 +695,11 @@ export type AgentAction = {
 };
 
 export type ProposeAgentDistributionInput = CreateDistributionInput & {
+  idempotencyKey: string;
+};
+
+export type ProposeAgentCheckoutInput = CreateCheckoutInput & {
+  kind: "programmable_checkout";
   idempotencyKey: string;
 };
 
@@ -1072,6 +1080,10 @@ export class Current {
       actions: AgentAction[];
     }>("/api/v1/developer/agent-actions"),
     proposeDistribution: (input: ProposeAgentDistributionInput) => this.signedPost<AgentAction>(
+      "/api/v1/developer/agent-actions",
+      input,
+    ),
+    proposeCheckout: (input: ProposeAgentCheckoutInput) => this.signedPost<AgentAction>(
       "/api/v1/developer/agent-actions",
       input,
     ),

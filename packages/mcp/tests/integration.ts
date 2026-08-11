@@ -16,6 +16,7 @@ const fixtures: Record<string, unknown> = {
   "/api/v1/grant-application": { digest: "grant-digest", status: "application-ready", applicantInputs: ["legal entity"] },
   "/api/v1/integration-manifest": { digest: "integration-digest", paths: [{ id: "mcp", package: "@currentcofi/mcp" }] },
   "/api/v1/developer/analytics": { totals: { campaigns: 3, recipients: 90, claimed: 61, activated: 28 }, retention: { day7: 41 } },
+  "/api/v1/developer/checkout": { merchant: { id: "merchant_mcp", displayName: "Current Store", slug: "current-store", settlementAddress: "0x1111111111111111111111111111111111111111", status: "active" }, checkouts: [{ id: "checkout_mcp", title: "Community pass", status: "active", amount: "125", checkoutUrl: "https://current.test/#/checkout/community-pass" }], payments: [], settlementReceipts: [], capabilities: { programmableSettlement: true }, totals: { checkouts: 1, payments: 0, volume: "0", refunds: 0, splitPayments: 0, affiliateVolume: "0", customerRewards: "0" } },
   "/api/v1/developer/bounties": { bounties: [{ id: "bounty_mcp", title: "Build the launch reel", status: "open", submissionCount: 2 }], totals: { bounties: 1, open: 1, submissions: 2, awarded: 0 }, privacy: "masked" },
   "/api/v1/developer/treasury": { treasury: { id: "treasury_mcp", name: "Community Treasury" }, budgets: [], proposals: [], totals: { proposals: 0, pending: 0, executed: 0, categories: 0 } },
   "/api/v1/developer/giveaways": { giveaways: [{ id: "giveaway_mcp", title: "Launch current", status: "open", entryCount: 24 }], totals: { giveaways: 1, open: 1, entries: 24, referrals: 7, drawn: 0 }, privacy: "masked" },
@@ -69,9 +70,9 @@ const client = new Client({ name: "current-mcp-integration-test", version: "0.1.
 try {
   await client.connect(transport);
   const toolList = await client.listTools();
-  assert.equal(toolList.tools.length, 19);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 11);
-  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 8);
+  assert.equal(toolList.tools.length, 21);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint).length, 12);
+  assert.equal(toolList.tools.filter((tool) => tool.annotations?.readOnlyHint === false).length, 9);
   const rewardSchema = toolList.tools.find((tool) => tool.name === "current_propose_reward_distribution")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
   assert.equal(rewardSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_DISTRIBUTION");
   const bountySchema = toolList.tools.find((tool) => tool.name === "current_create_community_bounty")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
@@ -86,6 +87,8 @@ try {
   assert.equal(deliverySchema?.properties?.approval?.const, "I_APPROVE_CURRENT_DELIVERY_HANDOFF");
   const publicDropSchema = toolList.tools.find((tool) => tool.name === "current_create_public_mass_drop")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
   assert.equal(publicDropSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_PUBLIC_DROP");
+  const checkoutSchema = toolList.tools.find((tool) => tool.name === "current_propose_programmable_checkout")?.inputSchema as { properties?: { approval?: { const?: string } } } | undefined;
+  assert.equal(checkoutSchema?.properties?.approval?.const, "I_APPROVE_CURRENT_CHECKOUT");
 
   const proof = await client.callTool({ name: "current_get_proof_health", arguments: {} });
   assert.equal((proof.structuredContent as { digest: string }).digest, "proof-health-digest");
@@ -93,6 +96,8 @@ try {
   assert.equal((grant.structuredContent as { status: string }).status, "application-ready");
   const analytics = await client.callTool({ name: "current_get_campaign_analytics", arguments: {} });
   assert.equal((analytics.structuredContent as { totals: { campaigns: number } }).totals.campaigns, 3);
+  const commerce = await client.callTool({ name: "current_get_programmable_commerce", arguments: {} });
+  assert.equal((commerce.structuredContent as { totals: { checkouts: number } }).totals.checkouts, 1);
   const bounties = await client.callTool({ name: "current_list_community_bounties", arguments: {} });
   assert.equal((bounties.structuredContent as { totals: { bounties: number } }).totals.bounties, 1);
   const treasury = await client.callTool({ name: "current_get_community_treasury", arguments: {} });
@@ -123,6 +128,22 @@ try {
   );
   assert.equal(JSON.parse(actionRequest.body).approval, undefined);
 
+  const checkout = await client.callTool({
+    name: "current_propose_programmable_checkout",
+    arguments: {
+      idempotencyKey: "mcp-checkout-0001",
+      title: "Community pass",
+      amount: "125",
+      splits: [{ kind: "affiliate", label: "Launch partner", recipientAddress: "0x1111111111111111111111111111111111111111", basisPoints: 500 }],
+      approval: "I_APPROVE_CURRENT_CHECKOUT",
+    },
+  });
+  assert.equal((checkout.structuredContent as { status: string }).status, "approval_required");
+  const checkoutRequest = requests.find((request) => request.url === "/api/v1/developer/agent-actions" && JSON.parse(request.body).kind === "programmable_checkout");
+  assert.ok(checkoutRequest);
+  assert.equal(JSON.parse(checkoutRequest.body).approval, undefined);
+  assert.equal(JSON.parse(checkoutRequest.body).kind, "programmable_checkout");
+
   const activation = await client.callTool({
     name: "current_submit_activation",
     arguments: {
@@ -143,7 +164,7 @@ try {
   const unapproved = await client.callTool({ name: "current_propose_reward_distribution", arguments: { idempotencyKey: "mcp-reward-0002", name: "No approval", recipients: [{ identityType: "email", identity: "person@example.com", amount: "5" }] } });
   assert.equal(unapproved.isError, true);
   assert.match(JSON.stringify(unapproved.content), /approval/i);
-  console.log("Current MCP integration test passed: 19 tools, encrypted delivery recovery, public proof, authenticated analytics, public mass drops, bounties, treasury, giveaways and launch vesting, signed proposals, signed activations, and explicit approval validation.");
+  console.log("Current MCP integration test passed: 21 tools, policy-bound programmable commerce, encrypted delivery recovery, public proof, authenticated analytics, public mass drops, bounties, treasury, giveaways and launch vesting, signed proposals, signed activations, and explicit approval validation.");
 } finally {
   await client.close().catch(() => undefined);
   httpServer.close();
