@@ -38,6 +38,7 @@
     "onboarding:test": "tsx tests/project-launch-workspace.integration.ts",
     "workspace:test": "tsx tests/project-collaboration.integration.ts",
     "activity:test": "tsx tests/project-activity-center.integration.ts",
+    "programmable-commerce:test": "tsx tests/programmable-commerce.integration.ts",
     "audit:manifest": "node scripts/security/audit-manifest.mjs --write",
     "audit:verify": "node scripts/security/audit-manifest.mjs",
     "db:generate": "drizzle-kit generate",

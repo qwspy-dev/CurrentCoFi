@@ -11,6 +11,7 @@ const publicClient = createPublicClient({ transport });
 const owner = createWalletClient({ account: accounts[0].account, transport });
 const customer = createWalletClient({ account: accounts[1].account, transport });
 const merchant = accounts[2].address;
+const affiliate = accounts[3].address;
 const compiled = compileContracts();
 
 async function deployed(hash: `0x${string}`) {
@@ -41,6 +42,18 @@ const [settled] = parseEventLogs({ abi: compiled.currentCheckoutRouter.abi, logs
 assert.ok(settled);
 assert.equal(await publicClient.readContract({ address: usdc, abi: compiled.mockUsdc.abi, functionName: "balanceOf", args: [merchant] }), usdcOut);
 assert.equal(await publicClient.readContract({ address: router, abi: compiled.currentCheckoutRouter.abi, functionName: "totalSettlements" }), BigInt(1));
+
+const splitTotal = parseUnits("10", 6);
+await confirmed(await owner.writeContract({ chain: null, address: usdc, abi: compiled.mockUsdc.abi, functionName: "mint", args: [accounts[1].address, splitTotal] }));
+await confirmed(await customer.writeContract({ chain: null, address: usdc, abi: compiled.mockUsdc.abi, functionName: "approve", args: [router, splitTotal] }));
+const customerBeforeReward = await publicClient.readContract({ address: usdc, abi: compiled.mockUsdc.abi, functionName: "balanceOf", args: [accounts[1].address] }) as bigint;
+const splitReceipt = await confirmed(await customer.writeContract({ chain: null, address: router, abi: compiled.currentCheckoutRouter.abi, functionName: "settleUSDCWithSplits", args: [`0x${"33".repeat(32)}`, splitTotal, [merchant, affiliate, accounts[1].address], [8_000, 1_000, 1_000]] }));
+const splitEvents = parseEventLogs({ abi: compiled.currentCheckoutRouter.abi, logs: splitReceipt.logs, eventName: "CheckoutSplitSettled" });
+assert.equal(splitEvents.length, 3);
+assert.equal(await publicClient.readContract({ address: usdc, abi: compiled.mockUsdc.abi, functionName: "balanceOf", args: [affiliate] }), parseUnits("1", 6));
+assert.equal(await publicClient.readContract({ address: usdc, abi: compiled.mockUsdc.abi, functionName: "balanceOf", args: [accounts[1].address] }), customerBeforeReward - parseUnits("9", 6));
+assert.equal(await publicClient.readContract({ address: router, abi: compiled.currentCheckoutRouter.abi, functionName: "totalSettlements" }), BigInt(2));
+await assert.rejects(() => customer.writeContract({ chain: null, address: router, abi: compiled.currentCheckoutRouter.abi, functionName: "settleUSDCWithSplits", args: [`0x${"44".repeat(32)}`, splitTotal, [merchant, affiliate], [8_000, 1_000]] }));
 
 await confirmed(await owner.writeContract({ chain: null, address: router, abi: compiled.currentCheckoutRouter.abi, functionName: "setRoute", args: [current, adapter, false] }));
 await assert.rejects(() => publicClient.readContract({ address: router, abi: compiled.currentCheckoutRouter.abi, functionName: "quote", args: [current, usdcOut, adapter] }));

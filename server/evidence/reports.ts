@@ -17,6 +17,7 @@ import {
   campaignDestinationClicks,
   checkoutLinks,
   checkoutPayments,
+  checkoutSettlementReceipts,
   crosschainFundingIntents,
   distributions,
   evidenceReports,
@@ -142,7 +143,7 @@ async function projectCommerceEvidence(projectId: string) {
   if (!merchant) {
     return {
       merchant: null,
-      checkout: { links: 0, confirmedPayments: 0, refunds: 0, volume: "0", settlements: [] as Array<Record<string, unknown>> },
+      checkout: { links: 0, confirmedPayments: 0, refunds: 0, volume: "0", splitPayments: 0, affiliateVolume: "0", customerRewards: "0", settlements: [] as Array<Record<string, unknown>>, destinationReceipts: [] as Array<Record<string, unknown>> },
       subscriptions: { plans: 0, active: 0, cancelled: 0, confirmedCycles: 0, volume: "0", renewalDue: 0, pastDue: 0, settlements: [] as Array<Record<string, unknown>> },
     };
   }
@@ -165,8 +166,14 @@ async function projectCommerceEvidence(projectId: string) {
       .where(eq(subscriptionPlans.merchantId, merchant.id)).orderBy(desc(subscriptionNotices.createdAt)).limit(500),
   ]);
   const confirmedCheckouts = checkoutRows.filter((row) => row.payment.status === "confirmed" || row.payment.status === "refunded");
+  const checkoutPaymentIds = confirmedCheckouts.map((row) => row.payment.id);
+  const destinationRows = checkoutPaymentIds.length
+    ? await db.select().from(checkoutSettlementReceipts).where(inArray(checkoutSettlementReceipts.paymentId, checkoutPaymentIds)).orderBy(desc(checkoutSettlementReceipts.settledAt)).limit(500)
+    : [];
   const confirmedCycles = cycleRows.filter((row) => row.payment.status === "confirmed");
   const checkoutVolume = confirmedCheckouts.reduce((total, row) => total + BigInt(row.payment.amountAtomic), BigInt(0));
+  const affiliateVolume = destinationRows.filter((row) => row.kind === "affiliate").reduce((total, row) => total + BigInt(row.amountAtomic), BigInt(0));
+  const customerRewards = destinationRows.filter((row) => row.kind === "customer-reward").reduce((total, row) => total + BigInt(row.amountAtomic), BigInt(0));
   const subscriptionVolume = confirmedCycles.reduce((total, row) => total + BigInt(row.payment.amountAtomic), BigInt(0));
   return {
     merchant: { name: merchant.displayName, status: merchant.status, settlementAddress: merchant.settlementAddress },
@@ -175,6 +182,9 @@ async function projectCommerceEvidence(projectId: string) {
       confirmedPayments: confirmedCheckouts.length,
       refunds: checkoutRows.filter((row) => row.payment.status === "refunded").length,
       volume: formatAtomic(checkoutVolume.toString(), 6),
+      splitPayments: new Set(destinationRows.map((row) => row.paymentId)).size,
+      affiliateVolume: formatAtomic(affiliateVolume.toString(), 6),
+      customerRewards: formatAtomic(customerRewards.toString(), 6),
       settlements: confirmedCheckouts.map((row) => ({
         checkoutId: row.checkout.id,
         title: row.checkout.title,
@@ -184,6 +194,16 @@ async function projectCommerceEvidence(projectId: string) {
         transactionHash: row.payment.paymentTransactionHash,
         refundTransactionHash: row.payment.refundTransactionHash,
         paidAt: row.payment.paidAt?.toISOString() ?? null,
+      })),
+      destinationReceipts: destinationRows.map((row) => ({
+        paymentId: row.paymentId,
+        kind: row.kind,
+        label: row.label,
+        recipient: `${row.recipientAddress.slice(0, 8)}…${row.recipientAddress.slice(-5)}`,
+        basisPoints: row.basisPoints,
+        amount: formatAtomic(row.amountAtomic, 6),
+        transactionHash: row.transactionHash,
+        settledAt: row.settledAt.toISOString(),
       })),
     },
     subscriptions: {

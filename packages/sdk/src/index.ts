@@ -226,6 +226,12 @@ export type CreateCheckoutInput = {
   successUrl?: string;
   settlementAddress?: `0x${string}`;
   merchantName?: string;
+  splits?: Array<{
+    kind: "affiliate" | "customer-reward";
+    label?: string;
+    recipientAddress?: `0x${string}`;
+    basisPoints: number;
+  }>;
 };
 
 export type MerchantCommerce = {
@@ -234,16 +240,19 @@ export type MerchantCommerce = {
     id: string; slug: string; title: string; description: string | null; status: string;
     amount: string; amountAtomic: string; currency: string; checkoutUrl: string;
     paymentAssets: Array<{ address: string; symbol: string; decimals: number; settlement: "direct" | "routed-to-usdc"; available: boolean }>;
+    settlementPlan: { programmable: boolean; merchantBasisPoints: number; totalPercentage: number; destinations: Array<{ kind: "affiliate" | "customer-reward"; label: string; recipientAddress: string | null; basisPoints: number; percentage: number }> };
     settlementBoundary: string;
     expiresAt: string | null; successUrl: string | null; createdAt: string;
   }>;
   payments: Array<{
     id: string; receiptNumber: string; status: string; amount: string; currency: string;
-    paymentAsset: { address: string; symbol: string; amount: string; amountAtomic: string; settlementMode: "direct-usdc" | "routed-token" };
+    paymentAsset: { address: string; symbol: string; amount: string; amountAtomic: string; settlementMode: "direct-usdc" | "routed-token" | "split-usdc" };
     customerAddress: string; merchantAddress: string; paymentTransactionHash: string | null;
     refundTransactionHash: string | null; paidAt: string | null; refundedAt: string | null;
   }>;
-  totals: { checkouts: number; payments: number; volume: string; refunds: number };
+  settlementReceipts: Array<{ id: string; paymentId: string; kind: string; label: string; recipientAddress: string; basisPoints: number; amount: string; transactionHash: string; settledAt: string }>;
+  capabilities: { programmableSettlement: boolean };
+  totals: { checkouts: number; payments: number; volume: string; refunds: number; splitPayments: number; affiliateVolume: string; customerRewards: string };
 };
 
 export type CreateSocialPaymentInput = {

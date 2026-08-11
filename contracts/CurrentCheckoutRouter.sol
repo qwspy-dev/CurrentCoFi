@@ -36,6 +36,7 @@ contract CurrentCheckoutRouter is Ownable {
     error QuoteExceeded();
     error SettlementExpired();
     error MerchantUnderpaid();
+    error InvalidSplitPlan();
 
     event AdapterUpdated(address indexed adapter, bool approved);
     event RouteUpdated(address indexed token, address indexed adapter, bool approved);
@@ -48,6 +49,7 @@ contract CurrentCheckoutRouter is Ownable {
         uint256 usdcOut,
         address adapter
     );
+    event CheckoutSplitSettled(bytes32 indexed paymentId, address indexed recipient, uint256 amount, uint16 basisPoints, uint256 position);
 
     constructor(address initialOwner, address usdcToken) Ownable(initialOwner) {
         if (usdcToken == address(0)) revert InvalidAddress();
@@ -104,5 +106,36 @@ contract CurrentCheckoutRouter is Ownable {
         totalSettlements++;
         totalUSDCSettled += usdcOut;
         emit CheckoutSettled(paymentId, msg.sender, merchant, tokenIn, amountIn, usdcOut, adapter);
+    }
+
+    function settleUSDCWithSplits(bytes32 paymentId, uint256 usdcAmount, address[] calldata recipients, uint16[] calldata basisPoints) external {
+        if (paymentId == bytes32(0)) revert InvalidAddress();
+        if (usdcAmount == 0) revert InvalidAmount();
+        _validateSplits(recipients, basisPoints);
+        IERC20(usdc).safeTransferFrom(msg.sender, address(this), usdcAmount);
+        _distribute(paymentId, usdcAmount, recipients, basisPoints);
+        totalSettlements++;
+        totalUSDCSettled += usdcAmount;
+        emit CheckoutSettled(paymentId, msg.sender, recipients[0], usdc, usdcAmount, usdcAmount, address(0));
+    }
+
+    function _validateSplits(address[] calldata recipients, uint16[] calldata basisPoints) internal pure {
+        if (recipients.length == 0 || recipients.length > 10 || recipients.length != basisPoints.length) revert InvalidSplitPlan();
+        uint256 total;
+        for (uint256 i; i < recipients.length; i++) {
+            if (recipients[i] == address(0) || basisPoints[i] == 0) revert InvalidSplitPlan();
+            total += basisPoints[i];
+        }
+        if (total != 10_000) revert InvalidSplitPlan();
+    }
+
+    function _distribute(bytes32 paymentId, uint256 total, address[] calldata recipients, uint16[] calldata basisPoints) internal {
+        uint256 nonMerchant;
+        for (uint256 i = 1; i < recipients.length; i++) nonMerchant += total * basisPoints[i] / 10_000;
+        for (uint256 i; i < recipients.length; i++) {
+            uint256 amount = i == 0 ? total - nonMerchant : total * basisPoints[i] / 10_000;
+            IERC20(usdc).safeTransfer(recipients[i], amount);
+            emit CheckoutSplitSettled(paymentId, recipients[i], amount, basisPoints[i], i);
+        }
     }
 }

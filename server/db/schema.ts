@@ -590,6 +590,41 @@ export const checkoutPayments = pgTable("checkout_payments", {
   index("checkout_payments_customer_idx").on(table.customerUserId, table.createdAt),
 ]);
 
+export const checkoutSplits = pgTable("checkout_splits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  checkoutId: uuid("checkout_id").references(() => checkoutLinks.id, { onDelete: "cascade" }).notNull(),
+  position: integer("position").notNull(),
+  kind: text("kind").notNull(),
+  label: text("label").notNull(),
+  recipientAddress: text("recipient_address"),
+  basisPoints: integer("basis_points").notNull(),
+  status: text("status").default("active").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("checkout_splits_checkout_position_unique").on(table.checkoutId, table.position),
+  index("checkout_splits_checkout_status_idx").on(table.checkoutId, table.status),
+]);
+
+export const checkoutSettlementReceipts = pgTable("checkout_settlement_receipts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  paymentId: uuid("payment_id").references(() => checkoutPayments.id, { onDelete: "cascade" }).notNull(),
+  splitId: uuid("split_id").references(() => checkoutSplits.id, { onDelete: "set null" }),
+  position: integer("position").notNull(),
+  kind: text("kind").notNull(),
+  label: text("label").notNull(),
+  recipientAddress: text("recipient_address").notNull(),
+  basisPoints: integer("basis_points").notNull(),
+  amountAtomic: numeric("amount_atomic", { precision: 78, scale: 0 }).notNull(),
+  transactionHash: text("transaction_hash").notNull(),
+  settledAt: timestamp("settled_at", { withTimezone: true }).notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("checkout_settlement_receipts_payment_position_unique").on(table.paymentId, table.position),
+  index("checkout_settlement_receipts_recipient_idx").on(table.recipientAddress, table.settledAt),
+]);
+
 export const socialPaymentRequests = pgTable("social_payment_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
   creatorUserId: uuid("creator_user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),

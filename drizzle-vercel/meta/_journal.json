@@ -232,6 +232,13 @@
       "when": 1786403108941,
       "tag": "0032_worthless_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1786416588036,
+      "tag": "0033_harsh_psynapse",
+      "breakpoints": true
     }
   ]
 }

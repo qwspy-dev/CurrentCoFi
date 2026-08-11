@@ -84,6 +84,7 @@ const suites = [
   ["Project launch workspace", "onboarding:test"],
   ["Project collaboration", "workspace:test"],
   ["Project activity center", "activity:test"],
+  ["Programmable merchant settlement", "programmable-commerce:test"],
   ["Smart-contract behavior", "contracts:test"],
   ["Adversarial security and audit scope", "security:test"],
   ["Developer, grant, agent, and evidence platform", "developer:test"],

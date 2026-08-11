@@ -1,10 +1,10 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { createPublicClient, getAddress, http, isAddress, keccak256, parseAbi, stringToHex, type Address } from "viem";
 import type { CurrentSession } from "../auth/session.js";
 import { createUserContractExecutionChallenge } from "../circle/client.js";
 import { ARC_TESTNET, getServerConfig } from "../config.js";
 import { getDb } from "../db/client.js";
-import { auditEvents, checkoutLinks, checkoutPayments, merchantAccounts } from "../db/schema.js";
+import { auditEvents, checkoutLinks, checkoutPayments, checkoutSettlementReceipts, checkoutSplits, merchantAccounts } from "../db/schema.js";
 import { deliverQueuedWebhooks, queueWebhookEvent } from "../developer/webhooks.js";
 import { ApiError } from "../http.js";
 import { formatAtomic, projectAccess, resolveToken, toAtomic } from "../campaigns/repository.js";
@@ -28,18 +28,44 @@ function tokenCheckoutConfig() {
   };
 }
 
+function checkoutRouterAddress() {
+  const address = getServerConfig().CURRENT_CHECKOUT_ROUTER_ADDRESS;
+  return address && isAddress(address) ? getAddress(address) as Address : null;
+}
+
 type CheckoutPaymentMetadata = {
   paymentAssetAddress?: string;
   paymentAssetSymbol?: string;
   paymentAssetDecimals?: number;
   paymentAmountAtomic?: string;
   paymentAmount?: string;
-  settlementMode?: "direct-usdc" | "routed-token";
+  settlementMode?: "direct-usdc" | "routed-token" | "split-usdc";
   settlementStage?: "approval" | "settlement" | "confirmed";
   settlementDeadline?: number;
   settlementAdapter?: string;
   approvalTransactionHash?: string | null;
+  settlementPlan?: Array<{ splitId: string | null; kind: "merchant" | "affiliate" | "customer-reward"; label: string; recipientAddress: string; basisPoints: number; amountAtomic: string }>;
 };
+
+export type CheckoutSplitInput = { kind: "affiliate" | "customer-reward"; label: string; recipientAddress?: string; basisPoints: number };
+
+function normalizeSettlementPlan(value?: CheckoutSplitInput[]) {
+  if (!value?.length) return [];
+  if (value.length > 8) throw new ApiError(400, "TOO_MANY_CHECKOUT_SPLITS", "A checkout supports at most eight affiliate and reward destinations.");
+  let allocated = 0;
+  const plan = value.map((item, index) => {
+    const kind = item.kind;
+    if (!(["affiliate", "customer-reward"] as const).includes(kind)) throw new ApiError(400, "INVALID_CHECKOUT_SPLIT", `Settlement destination ${index + 1} has an invalid type.`);
+    const basisPoints = Number(item.basisPoints);
+    if (!Number.isInteger(basisPoints) || basisPoints < 1 || basisPoints > 2_500) throw new ApiError(400, "INVALID_CHECKOUT_SPLIT", `Settlement destination ${index + 1} must use 1–2,500 basis points.`);
+    const recipientAddress = kind === "affiliate" ? item.recipientAddress?.trim() : undefined;
+    if (kind === "affiliate" && (!recipientAddress || !isAddress(recipientAddress))) throw new ApiError(400, "INVALID_CHECKOUT_SPLIT", `Affiliate destination ${index + 1} needs a valid Arc address.`);
+    allocated += basisPoints;
+    return { kind, label: item.label.trim().slice(0, 80) || (kind === "affiliate" ? "Affiliate" : "Customer reward"), recipientAddress: recipientAddress ? getAddress(recipientAddress).toLowerCase() : null, basisPoints };
+  });
+  if (allocated > 4_000) throw new ApiError(400, "CHECKOUT_SPLIT_LIMIT", "Affiliate and customer rewards cannot exceed 40% of checkout settlement.");
+  return plan;
+}
 
 async function routedQuote(usdcOut: string, requestedToken?: string) {
   const route = tokenCheckoutConfig();
@@ -81,7 +107,7 @@ export async function upsertMerchant(input: { projectId: string; userId?: string
   return created;
 }
 
-export async function createCheckoutLink(input: { projectId: string; userId?: string; actorKeyId?: string; title: string; description?: string; amount: string; expiresAt?: string; successUrl?: string; origin: string; settlementAddress?: string; merchantName?: string }) {
+export async function createCheckoutLink(input: { projectId: string; userId?: string; actorKeyId?: string; title: string; description?: string; amount: string; expiresAt?: string; successUrl?: string; origin: string; settlementAddress?: string; merchantName?: string; splits?: CheckoutSplitInput[] }) {
   if (input.userId) await projectAccess(input.userId, input.projectId);
   let merchant = await merchantForProject(input.projectId);
   if (!merchant) {
@@ -96,10 +122,13 @@ export async function createCheckoutLink(input: { projectId: string; userId?: st
   const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
   if (expiresAt && (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now())) throw new ApiError(400, "INVALID_EXPIRATION", "Checkout expiration must be in the future.");
   const slug = `${safeSlug(title)}-${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`;
+  const settlementPlan = normalizeSettlementPlan(input.splits);
+  if (settlementPlan.length && !getServerConfig().CURRENT_CHECKOUT_ROUTER_ADDRESS) throw new ApiError(503, "PROGRAMMABLE_SETTLEMENT_NOT_CONFIGURED", "Programmable checkout settlement is ready but its Arc router is not deployed.");
   const [created] = await getDb().insert(checkoutLinks).values({
     merchantId: merchant.id, title, description: input.description?.trim().slice(0, 500) || null,
-    slug, amountAtomic, expiresAt, successUrl: validUrl(input.successUrl),
+    slug, amountAtomic, expiresAt, successUrl: validUrl(input.successUrl), metadata: { settlementPlan: settlementPlan.map((item) => ({ kind: item.kind, label: item.label, recipientAddress: item.recipientAddress, basisPoints: item.basisPoints })) },
   }).returning();
+  if (settlementPlan.length) await getDb().insert(checkoutSplits).values(settlementPlan.map((item, position) => ({ checkoutId: created.id, position: position + 1, kind: item.kind, label: item.label, recipientAddress: item.recipientAddress, basisPoints: item.basisPoints })));
   await getDb().insert(auditEvents).values({ actorType: input.actorKeyId ? "api-key" : "user", actorId: input.actorKeyId ?? input.userId, projectId: input.projectId, action: "checkout.created", resourceType: "checkout", resourceId: created.id, metadata: { amountAtomic, currency: "USDC" } });
   await queueWebhookEvent(input.projectId, "checkout.created", { checkoutId: created.id, slug, amountAtomic, currency: "USDC" });
   await deliverQueuedWebhooks(10);
@@ -108,14 +137,17 @@ export async function createCheckoutLink(input: { projectId: string; userId?: st
 
 function formatCheckout(link: typeof checkoutLinks.$inferSelect, merchant: typeof merchantAccounts.$inferSelect) {
   const route = tokenCheckoutConfig();
+  const settlementPlan = (((link.metadata as Record<string, unknown>).settlementPlan ?? []) as Array<{kind:string;label:string;recipientAddress:string|null;basisPoints:number}>);
+  const allocatedBasisPoints = settlementPlan.reduce((sum, item) => sum + item.basisPoints, 0);
   return {
     id: link.id, slug: link.slug, title: link.title, description: link.description, status: link.status,
     amount: formatAtomic(link.amountAtomic, 6), amountAtomic: link.amountAtomic, currency: link.currency,
     expiresAt: link.expiresAt?.toISOString() ?? null, successUrl: link.successUrl,
     merchant: { id: merchant.id, name: merchant.displayName, slug: merchant.slug, description: merchant.description, logoUrl: merchant.logoUrl, settlementAddress: merchant.settlementAddress },
+    settlementPlan: { programmable: settlementPlan.length > 0, merchantBasisPoints: 10_000 - allocatedBasisPoints, destinations: settlementPlan.map((item) => ({ ...item, percentage: item.basisPoints / 100 })), totalPercentage: allocatedBasisPoints / 100 },
     paymentAssets: [
       { address: ARC_TESTNET.usdcAddress, symbol: "USDC", decimals: 6, settlement: "direct", available: true },
-      ...(route ? [{ address: route.token.toLowerCase(), symbol: "$CURRENT", decimals: 18, settlement: "routed-to-usdc", available: true }] : []),
+      ...(route && !settlementPlan.length ? [{ address: route.token.toLowerCase(), symbol: "$CURRENT", decimals: 18, settlement: "routed-to-usdc", available: true }] : []),
     ],
     settlementBoundary: route
       ? "Project-token payments use Current's isolated fixed-rate Arc testnet adapter. It proves exact USDC merchant settlement and is not a production market price or liquidity claim."
@@ -127,17 +159,32 @@ function formatCheckout(link: typeof checkoutLinks.$inferSelect, merchant: typeo
 export async function listMerchantCommerce(input: { userId?: string; projectId: string; origin: string }) {
   if (input.userId) await projectAccess(input.userId, input.projectId);
   const merchant = await merchantForProject(input.projectId);
-  if (!merchant) return { merchant: null, checkouts: [], payments: [], totals: { checkouts: 0, payments: 0, volume: "0", refunds: 0 } };
+  if (!merchant) return { merchant: null, checkouts: [], payments: [], settlementReceipts: [], capabilities: { programmableSettlement: Boolean(checkoutRouterAddress()) }, totals: { checkouts: 0, payments: 0, volume: "0", refunds: 0, splitPayments: 0, affiliateVolume: "0", customerRewards: "0" } };
   const links = await getDb().select().from(checkoutLinks).where(eq(checkoutLinks.merchantId, merchant.id)).orderBy(desc(checkoutLinks.createdAt));
   const payments = await getDb().select({ payment: checkoutPayments, checkout: checkoutLinks }).from(checkoutPayments).innerJoin(checkoutLinks, eq(checkoutLinks.id, checkoutPayments.checkoutId)).where(eq(checkoutLinks.merchantId, merchant.id)).orderBy(desc(checkoutPayments.createdAt)).limit(100);
   const confirmed = payments.filter((row) => row.payment.status === "confirmed" || row.payment.status === "refunded");
+  const paymentIds = confirmed.map((row) => row.payment.id);
+  const receipts = paymentIds.length ? await getDb().select().from(checkoutSettlementReceipts).where(inArray(checkoutSettlementReceipts.paymentId, paymentIds)).orderBy(desc(checkoutSettlementReceipts.settledAt)).limit(500) : [];
   const volumeAtomic = confirmed.reduce((total, row) => total + BigInt(row.payment.amountAtomic), BigInt(0));
   return {
-    merchant,
+    merchant, capabilities: { programmableSettlement: Boolean(checkoutRouterAddress()) },
     checkouts: links.map((link) => ({ ...formatCheckout(link, merchant), checkoutUrl: `${input.origin}/#/checkout/${link.slug}` })),
-    payments: payments.map(({ payment, checkout }) => formatPayment(payment, checkout, merchant)),
-    totals: { checkouts: links.length, payments: confirmed.length, volume: formatAtomic(volumeAtomic.toString(), 6), refunds: payments.filter((row) => row.payment.status === "refunded").length },
+    payments: payments.map(({ payment, checkout }) => formatPayment(payment, checkout, merchant)), settlementReceipts: receipts.map((receipt) => ({ ...receipt, amount: formatAtomic(receipt.amountAtomic, 6), settledAt: receipt.settledAt.toISOString() })),
+    totals: { checkouts: links.length, payments: confirmed.length, volume: formatAtomic(volumeAtomic.toString(), 6), refunds: payments.filter((row) => row.payment.status === "refunded").length, splitPayments: new Set(receipts.map((item) => item.paymentId)).size, affiliateVolume: formatAtomic(receipts.filter((item) => item.kind === "affiliate").reduce((sum, item) => sum + BigInt(item.amountAtomic), BigInt(0)).toString(), 6), customerRewards: formatAtomic(receipts.filter((item) => item.kind === "customer-reward").reduce((sum, item) => sum + BigInt(item.amountAtomic), BigInt(0)).toString(), 6) },
   };
+}
+
+async function settlementPlanForPayment(checkoutId: string, merchantAddress: string, customerAddress: string, totalAtomic: string) {
+  const configured = await getDb().select().from(checkoutSplits).where(and(eq(checkoutSplits.checkoutId, checkoutId), eq(checkoutSplits.status, "active"))).orderBy(asc(checkoutSplits.position));
+  if (!configured.length) return [];
+  const allocated = configured.reduce((sum, item) => sum + item.basisPoints, 0);
+  const rows = [{ splitId: null, kind: "merchant" as const, label: "Merchant settlement", recipientAddress: merchantAddress, basisPoints: 10_000 - allocated }, ...configured.map((item) => ({ splitId: item.id, kind: item.kind as "affiliate" | "customer-reward", label: item.label, recipientAddress: item.kind === "customer-reward" ? customerAddress : item.recipientAddress!, basisPoints: item.basisPoints }))];
+  return rows.map((item, index) => ({ ...item, amountAtomic: index === 0 ? (BigInt(totalAtomic) - rows.slice(1).reduce((sum, row) => sum + BigInt(totalAtomic) * BigInt(row.basisPoints) / BigInt(10_000), BigInt(0))).toString() : (BigInt(totalAtomic) * BigInt(item.basisPoints) / BigInt(10_000)).toString() }));
+}
+
+async function persistSettlementReceipts(payment: typeof checkoutPayments.$inferSelect, transactionHash: string, plan: NonNullable<CheckoutPaymentMetadata["settlementPlan"]>) {
+  if (!plan.length) return;
+  await getDb().insert(checkoutSettlementReceipts).values(plan.map((item, position) => ({ paymentId: payment.id, splitId: item.splitId, position, kind: item.kind, label: item.label, recipientAddress: item.recipientAddress, basisPoints: item.basisPoints, amountAtomic: item.amountAtomic, transactionHash, settledAt: new Date(), metadata: { atomicDistribution: true } }))).onConflictDoNothing();
 }
 
 async function checkoutRow(slug: string, allowExpired = false) {
@@ -155,6 +202,8 @@ export async function publicCheckoutQuote(slug: string, tokenAddress: string) {
     tokenAddress: ARC_TESTNET.usdcAddress, symbol: "USDC", amount: formatAtomic(row.checkout.amountAtomic, 6), amountAtomic: row.checkout.amountAtomic,
     merchantReceives: formatAtomic(row.checkout.amountAtomic, 6), merchantCurrency: "USDC", route: "direct", expiresAt: null,
   };
+  const settlementPlan = (((row.checkout.metadata as Record<string, unknown>).settlementPlan ?? []) as unknown[]);
+  if (settlementPlan.length) throw new ApiError(409, "PROGRAMMABLE_CHECKOUT_USDC_ONLY", "Programmable affiliate and reward settlement accepts exact USDC only.");
   const quote = await routedQuote(row.checkout.amountAtomic, tokenAddress);
   return {
     tokenAddress: quote.token.toLowerCase(), symbol: quote.symbol, amount: quote.amount, amountAtomic: quote.amountIn,
@@ -178,15 +227,18 @@ export async function checkoutPaymentChallenge(request: Request, session: Curren
     const result = await circleChallengeResult(request, session, input.challengeId);
     if (result.pending) return { ...result, paymentId: payment.id };
     const metadata = payment.metadata as CheckoutPaymentMetadata;
-    if (metadata.settlementMode === "routed-token" && metadata.settlementStage === "approval") {
-      const route = tokenCheckoutConfig();
-      if (!route || metadata.settlementAdapter?.toLowerCase() !== route.adapter.toLowerCase() || metadata.paymentAssetAddress?.toLowerCase() !== route.token.toLowerCase()) throw new ApiError(409, "CHECKOUT_ROUTE_CHANGED", "The approved checkout route changed before settlement. Start the payment again.");
+    if (metadata.settlementStage === "approval") {
+      const route = tokenCheckoutConfig(); const router = checkoutRouterAddress(); const plan = metadata.settlementPlan ?? [];
+      if (!router || (metadata.settlementMode === "routed-token" && (!route || metadata.settlementAdapter?.toLowerCase() !== route.adapter.toLowerCase() || metadata.paymentAssetAddress?.toLowerCase() !== route.token.toLowerCase()))) throw new ApiError(409, "CHECKOUT_ROUTE_CHANGED", "The approved checkout route changed before settlement. Start the payment again.");
       const deadline = Math.floor(Date.now() / 1_000) + 10 * 60;
-      const next = await createUserContractExecutionChallenge(request, session.userToken, { walletId: wallet.id, contractAddress: route.router, abiFunctionSignature: "settleExactUSDC(bytes32,address,uint256,uint256,address,uint64,address,bytes)", abiParameters: [keccak256(stringToHex(payment.id)), route.token, metadata.paymentAmountAtomic!, payment.amountAtomic, payment.merchantAddress, String(deadline), route.adapter, "0x"], refId: `checkout-settle-${payment.id}`.slice(0, 100) });
+      const recipients = plan.map((item) => item.recipientAddress); const basisPoints = plan.map((item) => String(item.basisPoints));
+      const routed = metadata.settlementMode === "routed-token";
+      const next = await createUserContractExecutionChallenge(request, session.userToken, { walletId: wallet.id, contractAddress: router, abiFunctionSignature: routed ? "settleExactUSDC(bytes32,address,uint256,uint256,address,uint64,address,bytes)" : "settleUSDCWithSplits(bytes32,uint256,address[],uint16[])", abiParameters: routed ? [keccak256(stringToHex(payment.id)), route!.token, metadata.paymentAmountAtomic!, payment.amountAtomic, payment.merchantAddress, String(deadline), route!.adapter, "0x"] : [keccak256(stringToHex(payment.id)), payment.amountAtomic, recipients, basisPoints], refId: `checkout-settle-${payment.id}`.slice(0, 100) });
       await db.update(checkoutPayments).set({ status: "settling", paymentChallengeId: next.challengeId, metadata: { ...metadata, settlementStage: "settlement", settlementDeadline: deadline, approvalTransactionHash: result.transactionHash }, updatedAt: new Date() }).where(eq(checkoutPayments.id, payment.id));
       return { complete: false, phase: "settlement", paymentId: payment.id, challengeId: next.challengeId };
     }
     const [confirmed] = await db.update(checkoutPayments).set({ status: "confirmed", paymentTransactionHash: result.transactionHash, paidAt: new Date(), metadata: { ...metadata, settlementStage: "confirmed" }, updatedAt: new Date() }).where(eq(checkoutPayments.id, payment.id)).returning();
+    await persistSettlementReceipts(confirmed, result.transactionHash!, metadata.settlementPlan ?? []);
     await queueWebhookEvent(row.merchant.projectId, "checkout.paid", { checkoutId: row.checkout.id, paymentId: payment.id, receiptNumber: payment.receiptNumber, amountAtomic: payment.amountAtomic, paymentAssetAddress: metadata.paymentAssetAddress ?? ARC_TESTNET.usdcAddress, paymentAmountAtomic: metadata.paymentAmountAtomic ?? payment.amountAtomic, settlementMode: metadata.settlementMode ?? "direct-usdc", transactionHash: result.transactionHash });
     await deliverQueuedWebhooks(10);
     return { ...result, complete: true, payment: formatPayment(confirmed, row.checkout, row.merchant) };
@@ -195,17 +247,19 @@ export async function checkoutPaymentChallenge(request: Request, session: Curren
   if (!payment) {
     const useDirectUSDC = !input.tokenAddress || input.tokenAddress.toLowerCase() === ARC_TESTNET.usdcAddress.toLowerCase();
     const quote = useDirectUSDC ? null : await routedQuote(row.checkout.amountAtomic, input.tokenAddress);
-    const metadata: CheckoutPaymentMetadata = quote ? { paymentAssetAddress: quote.token.toLowerCase(), paymentAssetSymbol: quote.symbol, paymentAssetDecimals: quote.decimals, paymentAmountAtomic: quote.amountIn, paymentAmount: quote.amount, settlementMode: "routed-token", settlementStage: "approval", settlementAdapter: quote.adapter.toLowerCase() } : { paymentAssetAddress: ARC_TESTNET.usdcAddress, paymentAssetSymbol: "USDC", paymentAssetDecimals: 6, paymentAmountAtomic: row.checkout.amountAtomic, paymentAmount: formatAtomic(row.checkout.amountAtomic, 6), settlementMode: "direct-usdc" };
+    const splitPlan = await settlementPlanForPayment(row.checkout.id, row.merchant.settlementAddress, wallet.address.toLowerCase(), row.checkout.amountAtomic);
+    if (quote && splitPlan.length) throw new ApiError(409, "PROGRAMMABLE_CHECKOUT_USDC_ONLY", "Programmable affiliate and reward settlement accepts exact USDC only.");
+    const metadata: CheckoutPaymentMetadata = quote ? { paymentAssetAddress: quote.token.toLowerCase(), paymentAssetSymbol: quote.symbol, paymentAssetDecimals: quote.decimals, paymentAmountAtomic: quote.amountIn, paymentAmount: quote.amount, settlementMode: "routed-token", settlementStage: "approval", settlementAdapter: quote.adapter.toLowerCase(), settlementPlan: splitPlan } : { paymentAssetAddress: ARC_TESTNET.usdcAddress, paymentAssetSymbol: "USDC", paymentAssetDecimals: 6, paymentAmountAtomic: row.checkout.amountAtomic, paymentAmount: formatAtomic(row.checkout.amountAtomic, 6), settlementMode: splitPlan.length ? "split-usdc" : "direct-usdc", settlementStage: splitPlan.length ? "approval" : undefined, settlementPlan: splitPlan };
     [payment] = await db.insert(checkoutPayments).values({ checkoutId: row.checkout.id, customerUserId: input.userId, customerWalletId: wallet.id, customerAddress: wallet.address.toLowerCase(), merchantAddress: row.merchant.settlementAddress, amountAtomic: row.checkout.amountAtomic, receiptNumber: `CUR-${crypto.randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`, metadata }).returning();
   }
   const metadata = payment.metadata as CheckoutPaymentMetadata;
   const route = tokenCheckoutConfig();
-  const routed = metadata.settlementMode === "routed-token";
+  const routed = metadata.settlementMode === "routed-token"; const splitDirect = metadata.settlementMode === "split-usdc"; const router = checkoutRouterAddress();
   if (routed && (!route || metadata.paymentAssetAddress?.toLowerCase() !== route.token.toLowerCase())) throw new ApiError(409, "CHECKOUT_ROUTE_CHANGED", "The checkout route is no longer available.");
-  const usdc = routed ? null : await resolveToken(row.merchant.projectId);
-  const { challengeId } = await createUserContractExecutionChallenge(request, session.userToken, { walletId: wallet.id, contractAddress: routed ? route!.token : usdc!.contractAddress, abiFunctionSignature: routed ? "approve(address,uint256)" : "transfer(address,uint256)", abiParameters: routed ? [route!.router, metadata.paymentAmountAtomic!] : [row.merchant.settlementAddress, row.checkout.amountAtomic], refId: `checkout-${routed ? "approve" : "pay"}-${payment.id}`.slice(0, 100) });
+  if (splitDirect && !router) throw new ApiError(409, "CHECKOUT_ROUTE_CHANGED", "Programmable checkout settlement is no longer available.");
+  const { challengeId } = await createUserContractExecutionChallenge(request, session.userToken, { walletId: wallet.id, contractAddress: routed ? route!.token : ARC_TESTNET.usdcAddress, abiFunctionSignature: routed || splitDirect ? "approve(address,uint256)" : "transfer(address,uint256)", abiParameters: routed ? [route!.router, metadata.paymentAmountAtomic!] : splitDirect ? [router!, row.checkout.amountAtomic] : [row.merchant.settlementAddress, row.checkout.amountAtomic], refId: `checkout-${routed || splitDirect ? "approve" : "pay"}-${payment.id}`.slice(0, 100) });
   await db.update(checkoutPayments).set({ status: "authorizing", paymentChallengeId: challengeId, updatedAt: new Date() }).where(eq(checkoutPayments.id, payment.id));
-  return { complete: false, phase: routed ? "approval" : "settlement", paymentId: payment.id, challengeId };
+  return { complete: false, phase: routed || splitDirect ? "approval" : "settlement", paymentId: payment.id, challengeId };
 }
 
 export async function refundPaymentChallenge(request: Request, session: CurrentSession, input: { userId: string; paymentId: string; challengeId?: string }) {
@@ -216,6 +270,7 @@ export async function refundPaymentChallenge(request: Request, session: CurrentS
   if (wallet.address.toLowerCase() !== row.merchant.settlementAddress) throw new ApiError(403, "MERCHANT_WALLET_REQUIRED", "Refunds must be signed by the merchant settlement wallet.");
   if (row.payment.status === "refunded") return { complete: true, payment: formatPayment(row.payment, row.checkout, row.merchant) };
   if (row.payment.status !== "confirmed") throw new ApiError(409, "PAYMENT_NOT_REFUNDABLE", "Only confirmed payments can be refunded.");
+  if ((row.payment.metadata as CheckoutPaymentMetadata).settlementMode === "split-usdc") throw new ApiError(409, "PROGRAMMABLE_REFUND_UNAVAILABLE", "Atomic split payments require destination-aware refund consent and cannot be refunded by the merchant alone.");
   if (input.challengeId) {
     if (row.payment.refundChallengeId !== input.challengeId) throw new ApiError(403, "CHALLENGE_MISMATCH", "This refund does not belong to the payment.");
     const result = await circleChallengeResult(request, session, input.challengeId); if (result.pending) return result;
@@ -223,7 +278,7 @@ export async function refundPaymentChallenge(request: Request, session: CurrentS
     await queueWebhookEvent(row.merchant.projectId, "checkout.refunded", { checkoutId: row.checkout.id, paymentId: row.payment.id, receiptNumber: row.payment.receiptNumber, amountAtomic: row.payment.amountAtomic, transactionHash: result.transactionHash }); await deliverQueuedWebhooks(10);
     return { ...result, complete: true, payment: formatPayment(refunded, row.checkout, row.merchant) };
   }
-  const usdc = await resolveToken(row.merchant.projectId); const { challengeId } = await createUserContractExecutionChallenge(request, session.userToken, { walletId: wallet.id, contractAddress: usdc.contractAddress, abiFunctionSignature: "transfer(address,uint256)", abiParameters: [row.payment.customerAddress, row.payment.amountAtomic], refId: `refund-${row.payment.id}`.slice(0, 100) });
+  const { challengeId } = await createUserContractExecutionChallenge(request, session.userToken, { walletId: wallet.id, contractAddress: ARC_TESTNET.usdcAddress, abiFunctionSignature: "transfer(address,uint256)", abiParameters: [row.payment.customerAddress, row.payment.amountAtomic], refId: `refund-${row.payment.id}`.slice(0, 100) });
   await db.update(checkoutPayments).set({ status: "refunding", refundChallengeId: challengeId, updatedAt: new Date() }).where(eq(checkoutPayments.id, row.payment.id));
   return { complete: false, challengeId };
 }

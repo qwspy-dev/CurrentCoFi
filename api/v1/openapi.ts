@@ -134,11 +134,11 @@ export default withApi((request) => ok(request, {
     "/escrow/actions": { post: { summary: "Approve, fund, submit, release, dispute, resolve, cancel, or recover a milestone agreement" } },
     "/merchant": {
       get: { summary: "Read the signed-in project's merchant profile, checkout links, settlements, refunds, and volume" },
-      post: { summary: "Create a merchant settlement profile or publish a fixed-price USDC checkout" },
+      post: { summary: "Create a merchant profile or publish a USDC checkout with atomic affiliate payouts, customer rewards, and destination receipts" },
     },
     "/checkout/public": { get: { summary: "Resolve a public hosted checkout without exposing private merchant data" } },
     "/checkout/quote": { get: { summary: "Quote a fail-closed project-token route into exact merchant USDC settlement" } },
-    "/checkout/pay": { post: { summary: "Prepare or confirm direct USDC or exact-input project-token settlement from a user-controlled Current wallet" } },
+    "/checkout/pay": { post: { summary: "Prepare or confirm direct, routed, or programmable split settlement from a user-controlled Current wallet" } },
     "/checkout/refund": { post: { summary: "Prepare or confirm a refund from the merchant settlement wallet" } },
     "/checkout/receipt": { get: { summary: "Verify a confirmed or refunded Arc checkout receipt" } },
     "/subscriptions": {
@@ -223,7 +223,7 @@ export default withApi((request) => ok(request, {
     },
     "/developer/checkout": {
       get: { summary: "Read merchant checkout analytics with a scoped API key" },
-      post: { summary: "Create a merchant profile or hosted checkout with an HMAC-signed request" },
+      post: { summary: "Create a merchant profile or hosted checkout with affiliate payouts, customer rewards, and an HMAC-signed request" },
     },
     "/developer/subscriptions": {
       get: { summary: "Read subscription plans, subscribers, cycles, and recurring volume with a scoped API key" },

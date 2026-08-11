@@ -653,6 +653,12 @@ export type CreateCheckoutInput = {
     successUrl?: string;
     settlementAddress?: `0x${string}`;
     merchantName?: string;
+    splits?: Array<{
+        kind: "affiliate" | "customer-reward";
+        label?: string;
+        recipientAddress?: `0x${string}`;
+        basisPoints: number;
+    }>;
 };
 export type MerchantCommerce = {
     merchant: null | {
@@ -679,6 +685,18 @@ export type MerchantCommerce = {
             settlement: "direct" | "routed-to-usdc";
             available: boolean;
         }>;
+        settlementPlan: {
+            programmable: boolean;
+            merchantBasisPoints: number;
+            totalPercentage: number;
+            destinations: Array<{
+                kind: "affiliate" | "customer-reward";
+                label: string;
+                recipientAddress: string | null;
+                basisPoints: number;
+                percentage: number;
+            }>;
+        };
         settlementBoundary: string;
         expiresAt: string | null;
         successUrl: string | null;
@@ -695,7 +713,7 @@ export type MerchantCommerce = {
             symbol: string;
             amount: string;
             amountAtomic: string;
-            settlementMode: "direct-usdc" | "routed-token";
+            settlementMode: "direct-usdc" | "routed-token" | "split-usdc";
         };
         customerAddress: string;
         merchantAddress: string;
@@ -704,11 +722,28 @@ export type MerchantCommerce = {
         paidAt: string | null;
         refundedAt: string | null;
     }>;
+    settlementReceipts: Array<{
+        id: string;
+        paymentId: string;
+        kind: string;
+        label: string;
+        recipientAddress: string;
+        basisPoints: number;
+        amount: string;
+        transactionHash: string;
+        settledAt: string;
+    }>;
+    capabilities: {
+        programmableSettlement: boolean;
+    };
     totals: {
         checkouts: number;
         payments: number;
         volume: string;
         refunds: number;
+        splitPayments: number;
+        affiliateVolume: string;
+        customerRewards: string;
     };
 };
 export type CreateSocialPaymentInput = {
@@ -1898,6 +1933,18 @@ export declare class Current {
                 settlement: "direct" | "routed-to-usdc";
                 available: boolean;
             }>;
+            settlementPlan: {
+                programmable: boolean;
+                merchantBasisPoints: number;
+                totalPercentage: number;
+                destinations: Array<{
+                    kind: "affiliate" | "customer-reward";
+                    label: string;
+                    recipientAddress: string | null;
+                    basisPoints: number;
+                    percentage: number;
+                }>;
+            };
             settlementBoundary: string;
             expiresAt: string | null;
             successUrl: string | null;

@@ -198,13 +198,13 @@ const auditManifest = {
     },
     {
       "path": "contracts/CurrentCheckoutRouter.sol",
-      "bytes": 4504,
-      "sha256": "b96369c05b85effc291e51c400f0a7b198fbcdaada1a416b2cdaddeb25a72cb0",
+      "bytes": 6421,
+      "sha256": "4e119aa65d997451f816e76432143f2b0ff2745414a12d131d405aeb09840e2d",
       "artifact": {
         "path": "contracts/artifacts/CurrentCheckoutRouter.json",
-        "sha256": "906b7a45b74f661bdffefa5b9590f83b84d0d00c27af66fafa37029df752198a",
-        "creationBytecodeSha256": "c5e04c9856a2dc5fe0e0b07a6f1054f82e14af5dcc329f7bbc53b06466feabc0",
-        "abiEntries": 26
+        "sha256": "366ffae4d84e6d59a7589d1ab6e250aaf2a61f96a6fc5776ac90c08e0aad96ab",
+        "creationBytecodeSha256": "c1d19b0290ec2c82041e34d41bc868791a928d0eae9e3f74129fb9f7dab73123",
+        "abiEntries": 29
       }
     },
     {
